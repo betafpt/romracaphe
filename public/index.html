@@ -15,6 +15,7 @@
         rel="stylesheet" />
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="/js/firebase-config.js"></script>
     <style>
         @keyframes slideUp {
             from {
@@ -571,7 +572,7 @@
                         </div>
                         <input type="file" id="upload-recipe-image" accept="image/*" class="hidden" onchange="window.handleImageUpload(event)">
                         <div class="flex gap-2 w-full mt-2">
-                            <button class="flex-1 bg-slate-700 hover:bg-slate-600 transition-colors py-2 text-white font-bold text-xs" onclick="document.getElementById('upload-recipe-image').click()">TẢI ẢNH MỚI</button>
+                            <button id="btn-trigger-upload" class="flex-1 bg-slate-700 hover:bg-slate-600 transition-colors py-2 text-white font-bold text-xs" onclick="document.getElementById('upload-recipe-image').click()">TẢI ẢNH MỚI</button>
                             <button title="Xóa Ảnh" class="w-10 bg-[#eb5757] hover:bg-red-600 transition-colors py-2 flex items-center justify-center text-white" onclick="window.removeRecipeImage()"><span class="material-symbols-outlined text-sm font-bold">delete</span></button>
                         </div>
                         <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase">(Kéo ảnh Lên/Xuống để canh giữa)</span>
@@ -932,26 +933,60 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Compress as JPEG
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
-                    // Check size after compression
-                    const sizeInBytes = Math.round((dataUrl.length * 3) / 4);
-                    if (sizeInBytes > 1024 * 1024) {
-                        showToast('Ảnh sau khi nén vẫn lớn hơn 1MB! Vui lòng chọn ảnh nhỏ hơn.', 'error');
-                        event.target.value = '';
-                        return;
+                    // Hiệu ứng Loading
+                    const uploadBtn = document.getElementById('btn-trigger-upload');
+                    const ogText = uploadBtn ? uploadBtn.innerText : 'TẢI ẢNH MỚI';
+                    if (uploadBtn) {
+                        uploadBtn.innerText = 'ĐANG TẢI LÊN (0%)...';
+                        uploadBtn.disabled = true;
                     }
 
-                    window.currentRecipeImageBase64 = dataUrl;
-                    window.currentRecipeImageOffsetY = 50;
+                    // Convert Canvas to Blob
+                    canvas.toBlob((blob) => {
+                        const sizeInBytes = blob.size;
+                        if (sizeInBytes > 1024 * 1024) {
+                            showToast('Ảnh quá lớn! Tối đa 1MB.', 'error');
+                            event.target.value = '';
+                            uploadBtn.innerText = ogText;
+                            uploadBtn.disabled = false;
+                            return;
+                        }
 
-                    if (previewImg) {
-                        previewImg.src = dataUrl;
-                        previewImg.style.objectPosition = `center 50%`;
-                        previewImg.classList.remove('hidden');
-                        if (previewIcon) previewIcon.classList.add('hidden');
-                    }
+                        // Upload lên Firebase Storage
+                        const fileName = `recipes/recipe_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
+                        const storageRef = window.FirebaseRef(window.FirebaseStorage, fileName);
+                        const uploadTask = window.FirebaseUpload(storageRef, blob, { contentType: 'image/jpeg' });
+
+                        uploadTask.on('state_changed',
+                            (snapshot) => {
+                                const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                                uploadBtn.innerText = `ĐANG TẢI LÊN (${progress}%)...`;
+                            },
+                            (error) => {
+                                showToast('Lỗi tải ảnh lên Cloud!', 'error');
+                                console.error(error);
+                                uploadBtn.innerText = ogText;
+                                uploadBtn.disabled = false;
+                            },
+                            () => {
+                                window.FirebaseGetDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                                    window.currentRecipeImageBase64 = downloadURL;
+                                    window.currentRecipeImageOffsetY = 50;
+
+                                    if (previewImg) {
+                                        previewImg.src = downloadURL;
+                                        previewImg.style.objectPosition = `center 50%`;
+                                        previewImg.classList.remove('hidden');
+                                        if (previewIcon) previewIcon.classList.add('hidden');
+                                    }
+
+                                    uploadBtn.innerText = ogText;
+                                    uploadBtn.disabled = false;
+                                    showToast('Tải ảnh thành công!');
+                                });
+                            }
+                        );
+                    }, 'image/jpeg', 0.8);
                 };
                 img.src = e.target.result;
             };
