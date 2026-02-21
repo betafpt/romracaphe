@@ -678,9 +678,16 @@
         <div id="modal-recipe-detail" class="fixed inset-0 items-center text-left justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
             <div class="border-4 border-black shadow-[8px_8px_0_0_#000] w-full max-w-md flex flex-col bg-[#0B132B] max-h-[90vh] overflow-hidden">
                 <!-- Header -->
-                <div class="bg-primary flex justify-between items-center p-4 border-b-4 border-black shrink-0">
-                    <h3 id="detail-name" class="text-xl font-heading uppercase font-black text-black tracking-tight">CHI TIẾT: BẠC XỈU</h3>
-                    <button class="bg-white border-2 border-black w-8 h-8 flex items-center justify-center active:scale-95 transition-transform" onclick="document.getElementById('modal-recipe-detail').style.display='none'">
+                <div class="bg-primary flex justify-between items-start p-4 border-b-4 border-black shrink-0 gap-2 flex-wrap">
+                    <div class="flex flex-col flex-1 min-w-[200px]">
+                        <label class="text-[10px] font-bold text-black opacity-60 uppercase font-heading">TÊN CÔNG THỨC</label>
+                        <input type="text" id="detail-name-input" class="bg-transparent text-xl md:text-2xl font-heading uppercase font-black text-black tracking-tight focus:outline-none border-b-2 border-dashed border-black w-full" placeholder="BẠC XỈU">
+                    </div>
+                    <div class="flex flex-col w-24">
+                        <label class="text-[10px] font-bold text-black opacity-60 uppercase font-heading">SIZE</label>
+                        <input type="text" id="detail-size-input" class="bg-transparent text-xl md:text-2xl font-heading uppercase font-black text-black tracking-tight focus:outline-none border-b-2 border-dashed border-black w-full text-center" placeholder="M">
+                    </div>
+                    <button class="bg-white border-2 border-black w-8 h-8 flex items-center justify-center active:scale-95 transition-transform shrink-0" onclick="document.getElementById('modal-recipe-detail').style.display='none'">
                         <span class="material-symbols-outlined text-black text-sm font-black">close</span>
                     </button>
                 </div>
@@ -722,7 +729,7 @@
                         <div class="flex justify-between items-center text-sm font-bold text-white uppercase pb-1">
                             <span>Giá Bán Thiết Lập:</span>
                             <div class="flex items-center gap-2">
-                                <input type="number" id="detail-price-input" oninput="window.recalculateCost()" class="w-24 bg-transparent border-b-2 border-dashed border-white text-right text-lg font-black text-green-400 focus:outline-none p-0"> đ
+                                <input type="text" id="detail-price-input" oninput="window.recalculateCost(); formatCurrencyInput(this)" class="w-32 bg-transparent border-b-2 border-dashed border-white text-right text-lg font-black text-green-400 focus:outline-none p-0"> đ
                             </div>
                         </div>
                         <div class="flex justify-between items-center text-sm font-bold text-white uppercase pt-1">
@@ -856,8 +863,9 @@
             if (!recipe) return;
             currentRecipeId = id;
 
-            document.getElementById('detail-name').innerText = 'CHI TIẾT: ' + recipe.name;
-            document.getElementById('detail-price-input').value = recipe.price || 0;
+            document.getElementById('detail-name-input').value = recipe.name || '';
+            document.getElementById('detail-size-input').value = recipe.size || '';
+            document.getElementById('detail-price-input').value = recipe.price ? recipe.price.toLocaleString('vi-VN') : '0';
 
             window.currentRecipeImageBase64 = recipe.image || null;
             window.currentRecipeImageOffsetY = 50;
@@ -929,7 +937,9 @@
             }).filter(i => i.name.trim() !== '' && i.name !== 'Chọn nguyên liệu...');
 
             const sellingPriceInput = document.getElementById('detail-price-input');
-            recipe.price = Number(sellingPriceInput.value) || 0;
+            recipe.price = Number(sellingPriceInput.value.replace(/\D/g, '')) || 0;
+            recipe.name = document.getElementById('detail-name-input').value.trim();
+            recipe.size = document.getElementById('detail-size-input').value.trim();
 
             const stepRows = document.querySelectorAll('#steps-container > div');
             const steps = Array.from(stepRows).map(row => {
