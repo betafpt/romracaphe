@@ -10,6 +10,15 @@
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@500;700;900&display=swap"
         rel="stylesheet">
+
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0821D2">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Hệ thống Quản lý và Công thức chuyên nghiệp của Rôm Rả Cà Phê">
+
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
         rel="stylesheet" />
@@ -1654,6 +1663,16 @@
                 overlay.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
             }
+        }
+    </script>
+    <script>
+        // Đăng kí Bộ Não PWA (Service Worker) để Chạy Mượt Mà Mọi Lúc 
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(r => console.log('ServiceWorker Đã Hoạt Động (PWA): ', r.scope))
+                    .catch(e => console.log('Lỗi cài đặt Không Thành Công ServiceWorker: ', e));
+            });
         }
     </script>
 </body>

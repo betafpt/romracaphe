@@ -1,0 +1,22 @@
+{
+    "name": "Rôm Rả Cà Phê Dashboard",
+    "short_name": "Rôm Rả",
+    "description": "Hệ thống Quản lý và Công thức chuyên nghiệp của Rôm Rả Cà Phê",
+    "start_url": "/?source=pwa",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0821D2",
+    "icons": [
+        {
+            "src": "/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
