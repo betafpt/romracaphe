@@ -1,5 +1,5 @@
 // Global State
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api';
 const appContent = document.getElementById('app-content');
 const pageTitle = document.getElementById('page-title');
 
