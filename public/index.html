@@ -24,7 +24,8 @@
         rel="stylesheet" />
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="module" src="/js/firebase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/js/supabase-config.js"></script>
     <style>
         @keyframes slideUp {
             from {
@@ -1098,47 +1099,55 @@
                             uploadBtn.innerText = 'ĐANG KẾT NỐI (0%)...';
                         }
 
-                        // Upload lên Firebase Storage
-                        const fileName = `recipes/recipe_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
-                        const storageRef = window.FirebaseRef(window.FirebaseStorage, fileName);
-                        const uploadTask = window.FirebaseUpload(storageRef, blob, { contentType: 'image/jpeg' });
+                        // Upload lên Supabase Storage
+                        const fileName = `recipe_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
 
-                        uploadTask.on('state_changed',
-                            (snapshot) => {
-                                const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                                const btnRef = document.getElementById('btn-trigger-upload');
-                                if (btnRef) btnRef.innerText = `ĐANG TẢI LÊN (${progress}%)...`;
-                            },
-                            (error) => {
-                                showToast('Lỗi tải ảnh lên Cloud!', 'error');
+                        if (uploadBtn) uploadBtn.innerText = 'ĐANG TẢI LÊN...';
+
+                        window.SupabaseStorage.from('recipes').upload(fileName, blob, {
+                            cacheControl: '3600',
+                            upsert: false,
+                            contentType: 'image/jpeg'
+                        }).then(({ data, error }) => {
+                            if (error) {
+                                showToast('Lỗi tải ảnh: ' + error.message, 'error');
                                 console.error(error);
                                 const btnRef = document.getElementById('btn-trigger-upload');
                                 if (btnRef) {
                                     btnRef.innerText = ogText;
                                     btnRef.disabled = false;
                                 }
-                            },
-                            () => {
-                                window.FirebaseGetDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                                    window.currentRecipeImageBase64 = downloadURL;
-                                    window.currentRecipeImageOffsetY = 50;
+                            } else {
+                                // Lấy Public URL
+                                const { data: publicUrlData } = window.SupabaseStorage.from('recipes').getPublicUrl(fileName);
+                                const downloadURL = publicUrlData.publicUrl;
 
-                                    if (previewImg) {
-                                        previewImg.src = downloadURL;
-                                        previewImg.style.objectPosition = `center 50%`;
-                                        previewImg.classList.remove('hidden');
-                                        if (previewIcon) previewIcon.classList.add('hidden');
-                                    }
+                                window.currentRecipeImageBase64 = downloadURL;
+                                window.currentRecipeImageOffsetY = 50;
 
-                                    const btnRef = document.getElementById('btn-trigger-upload');
-                                    if (btnRef) {
-                                        btnRef.innerText = ogText;
-                                        btnRef.disabled = false;
-                                    }
-                                    showToast('Tải ảnh thành công!');
-                                });
+                                if (previewImg) {
+                                    previewImg.src = downloadURL;
+                                    previewImg.style.objectPosition = `center 50%`;
+                                    previewImg.classList.remove('hidden');
+                                    if (previewIcon) previewIcon.classList.add('hidden');
+                                }
+
+                                const btnRef = document.getElementById('btn-trigger-upload');
+                                if (btnRef) {
+                                    btnRef.innerText = ogText;
+                                    btnRef.disabled = false;
+                                }
+                                showToast('Tải ảnh thành công!');
                             }
-                        );
+                        }).catch(err => {
+                            showToast('Lỗi mạng nội bộ, không thể kết nối Storage!', 'error');
+                            console.error(err);
+                            const btnRef = document.getElementById('btn-trigger-upload');
+                            if (btnRef) {
+                                btnRef.innerText = ogText;
+                                btnRef.disabled = false;
+                            }
+                        });
                     }, 'image/jpeg', 0.8);
                 };
                 img.src = e.target.result;
