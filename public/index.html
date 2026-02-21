@@ -1035,13 +1035,6 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // KIỂM TRA DUNG LƯỢNG NGAY TỪ ĐẦU (Max 1MB)
-            if (file.size > 1024 * 1024) {
-                showToast('Ảnh quá lớn! Tối đa 1MB.', 'error');
-                event.target.value = '';
-                return;
-            }
-
             const previewImg = document.getElementById('recipe-preview-img');
             const previewIcon = document.getElementById('recipe-preview-icon');
 
@@ -1080,55 +1073,70 @@
                         uploadBtn.disabled = true;
                     }
 
-                    // Convert Canvas to Blob và Bắt đầu Tải lên Cloud
-                    canvas.toBlob((blob) => {
-                        // Sửa thành 'ĐANG CHUẨN BỊ TẢI LÊN'
-                        if (uploadBtn) {
-                            uploadBtn.innerText = 'ĐANG KẾT NỐI (0%)...';
-                        }
+                    // Thuật toán Nén Tự Động (Auto-Compress)
+                    let quality = 0.9;
+                    const MAX_SIZE = 1024 * 1024; // 1MB
 
-                        // Upload lên Firebase Storage
-                        const fileName = `recipes/recipe_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
-                        const storageRef = window.FirebaseRef(window.FirebaseStorage, fileName);
-                        const uploadTask = window.FirebaseUpload(storageRef, blob, { contentType: 'image/jpeg' });
+                    const compressAndUpload = () => {
+                        canvas.toBlob((blob) => {
+                            // Nếu vẫn > 1MB và chưa nén hết lốc (xuống 0.1) thì giảm chất lượng và Đệ quy lại
+                            if (blob.size > MAX_SIZE && quality > 0.1) {
+                                quality -= 0.1;
+                                compressAndUpload();
+                                return;
+                            }
 
-                        uploadTask.on('state_changed',
-                            (snapshot) => {
-                                const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                                const btnRef = document.getElementById('btn-trigger-upload');
-                                if (btnRef) btnRef.innerText = `ĐANG TẢI LÊN (${progress}%)...`;
-                            },
-                            (error) => {
-                                showToast('Lỗi tải ảnh lên Cloud!', 'error');
-                                console.error(error);
-                                const btnRef = document.getElementById('btn-trigger-upload');
-                                if (btnRef) {
-                                    btnRef.innerText = ogText;
-                                    btnRef.disabled = false;
-                                }
-                            },
-                            () => {
-                                window.FirebaseGetDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                                    window.currentRecipeImageBase64 = downloadURL;
-                                    window.currentRecipeImageOffsetY = 50;
+                            // Đã đạt chuẩn (Hoặc đã nén tới giới hạn 0.1), Tiến hành Upload
+                            if (uploadBtn) {
+                                uploadBtn.innerText = 'ĐANG KẾT NỐI (0%)...';
+                            }
 
-                                    if (previewImg) {
-                                        previewImg.src = downloadURL;
-                                        previewImg.style.objectPosition = `center 50%`;
-                                        previewImg.classList.remove('hidden');
-                                        if (previewIcon) previewIcon.classList.add('hidden');
-                                    }
+                            // Upload lên Firebase Storage
+                            const fileName = `recipes/recipe_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
+                            const storageRef = window.FirebaseRef(window.FirebaseStorage, fileName);
+                            const uploadTask = window.FirebaseUpload(storageRef, blob, { contentType: 'image/jpeg' });
 
+                            uploadTask.on('state_changed',
+                                (snapshot) => {
+                                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                                    const btnRef = document.getElementById('btn-trigger-upload');
+                                    if (btnRef) btnRef.innerText = `ĐANG TẢI LÊN (${progress}%)...`;
+                                },
+                                (error) => {
+                                    showToast('Lỗi tải ảnh lên Cloud!', 'error');
+                                    console.error(error);
                                     const btnRef = document.getElementById('btn-trigger-upload');
                                     if (btnRef) {
                                         btnRef.innerText = ogText;
                                         btnRef.disabled = false;
                                     }
-                                    showToast('Tải ảnh thành công!');
-                                });
-                            }
-                        );
-                    }, 'image/jpeg', 0.8);
+                                },
+                                () => {
+                                    window.FirebaseGetDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                                        window.currentRecipeImageBase64 = downloadURL;
+                                        window.currentRecipeImageOffsetY = 50;
+
+                                        if (previewImg) {
+                                            previewImg.src = downloadURL;
+                                            previewImg.style.objectPosition = `center 50%`;
+                                            previewImg.classList.remove('hidden');
+                                            if (previewIcon) previewIcon.classList.add('hidden');
+                                        }
+
+                                        const btnRef = document.getElementById('btn-trigger-upload');
+                                        if (btnRef) {
+                                            btnRef.innerText = ogText;
+                                            btnRef.disabled = false;
+                                        }
+                                        showToast('Tải ảnh thành công!');
+                                    });
+                                }
+                            );
+                        }, 'image/jpeg', quality);
+                    };
+
+                    // Kích hoạt Vòng Lặp Nén File Thông Minh
+                    compressAndUpload();
                 };
                 img.src = e.target.result;
             };
