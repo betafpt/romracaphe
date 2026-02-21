@@ -128,11 +128,21 @@
 
                 <!-- Right: Search & Actions -->
                 <div class="flex flex-1 max-w-xl justify-end gap-2 sm:gap-4 items-center">
-                    <div class="relative hidden lg:block w-full">
-                        <input type="text" placeholder="Tìm kiếm nhanh..."
-                            class="w-full h-12 pl-12 pr-4 bg-white border-4 border-black brutal-shadow-sm focus:outline-none focus:ring-0 font-bold">
-                        <span
-                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 font-bold">search</span>
+                    <div class="relative hidden lg:flex w-full gap-2">
+                        <select id="size-filter" onchange="filterRecipes()"
+                            class="h-12 px-4 bg-white border-4 border-black brutal-shadow-sm focus:outline-none focus:ring-0 font-bold uppercase cursor-pointer hover:bg-slate-100 transition-colors">
+                            <option value="">Tất cả</option>
+                            <option value="S">Size S</option>
+                            <option value="M">Size M</option>
+                            <option value="L">Size L</option>
+                        </select>
+                        <div class="relative w-full">
+                            <input type="text" id="search-input" placeholder="Tìm kiếm nhanh..."
+                                oninput="filterRecipes()"
+                                class="w-full h-12 pl-12 pr-4 bg-white border-4 border-black brutal-shadow-sm focus:outline-none focus:ring-0 font-bold">
+                            <span
+                                class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 font-bold">search</span>
+                        </div>
                     </div>
 
                     <button
