@@ -1,11 +1,11 @@
 // public/js/supabase-config.js
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const SUPABASE_URL = 'https://mjyldmkdcoiyrolggpje.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_B8Y5rZc4yiHAtmjCXC9C5A_Qt5rZqsM';
 
-// Khởi tạo Supabase Client thông qua thư viện CDN (đã được nhúng trong index.html)
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+// Khởi tạo Supabase Client thông qua thư viện CDN Import Module
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Export đối tượng để dùng toàn cục Web App
 window.SupabaseStorage = supabase.storage;
 window.SupabaseApp = supabase;
