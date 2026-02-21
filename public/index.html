@@ -1035,8 +1035,23 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            // KIỂM TRA DUNG LƯỢNG NGAY TỪ ĐẦU (Max 1MB)
+            if (file.size > 1024 * 1024) {
+                showToast('Ảnh quá lớn! Tối đa 1MB.', 'error');
+                event.target.value = '';
+                return;
+            }
+
             const previewImg = document.getElementById('recipe-preview-img');
             const previewIcon = document.getElementById('recipe-preview-icon');
+
+            // Bắt đầu Hiệu ứng Loading
+            const uploadBtn = document.getElementById('btn-trigger-upload');
+            const ogText = uploadBtn ? uploadBtn.innerText : 'TẢI ẢNH MỚI';
+            if (uploadBtn) {
+                uploadBtn.innerText = 'ĐANG XỬ LÝ ẢNH...';
+                uploadBtn.disabled = true;
+            }
 
             const reader = new FileReader();
             reader.onload = function (e) {
@@ -1065,18 +1080,11 @@
                         uploadBtn.disabled = true;
                     }
 
-                    // Convert Canvas to Blob
+                    // Convert Canvas to Blob và Bắt đầu Tải lên Cloud
                     canvas.toBlob((blob) => {
-                        const sizeInBytes = blob.size;
-                        if (sizeInBytes > 1024 * 1024) {
-                            showToast('Ảnh quá lớn! Tối đa 1MB.', 'error');
-                            event.target.value = '';
-                            const btn = document.getElementById('btn-trigger-upload');
-                            if (btn) {
-                                btn.innerText = ogText;
-                                btn.disabled = false;
-                            }
-                            return;
+                        // Sửa thành 'ĐANG CHUẨN BỊ TẢI LÊN'
+                        if (uploadBtn) {
+                            uploadBtn.innerText = 'ĐANG KẾT NỐI (0%)...';
                         }
 
                         // Upload lên Firebase Storage
