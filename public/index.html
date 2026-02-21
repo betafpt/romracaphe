@@ -219,7 +219,7 @@
 
             // Close mobile drawer if open
             const sidebar = document.getElementById('sidebar');
-            if (!sidebar.classList.contains('-translate-x-full') && dowidth < 768) {
+            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
                 toggleDrawer();
             }
 
