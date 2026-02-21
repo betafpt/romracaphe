@@ -68,9 +68,13 @@ function initSchemas() {
 function seedData() {
     console.log('Seeding dữ liệu ban đầu...');
     // Seed Users
-    db.run(`INSERT INTO users (username, password, role, permissions) VALUES 
-        ('Admin', 'admin123', 'admin', 'FULL'),
-        ('Nhân viên A', '123456', 'staff', 'READ_ONLY')`);
+    db.get("SELECT count(*) as count FROM users", (err, row) => {
+        if (row && row.count === 0) {
+            db.run(`INSERT INTO users (username, password, role, permissions) VALUES 
+                ('Admin', 'admin123', 'admin', 'FULL'),
+                ('Nhân viên A', '123456', 'staff', 'READ_ONLY')`);
+        }
+    });
 
     // Seed Inventory
     db.get("SELECT count(*) as count FROM inventory", (err, row) => {
@@ -248,6 +252,15 @@ app.get('/api/reports/dashboard', (req, res) => {
 });
 
 // --- Users ---
+app.post('/api/users/login', (req, res) => {
+    const { username, password } = req.body;
+    db.get(`SELECT * FROM users WHERE username = ? AND password = ?`, [username, password], (err, row) => {
+        if (err) return res.status(500).json({ success: false, error: err.message });
+        if (!row) return res.status(401).json({ success: false, error: 'Sai tên đăng nhập hoặc mật khẩu' });
+        res.json({ success: true, data: { id: row.id, username: row.username, role: row.role } });
+    });
+});
+
 app.get('/api/users', (req, res) => {
     db.all(`SELECT * FROM users ORDER BY role ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ success: false, error: err.message });
