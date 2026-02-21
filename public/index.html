@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rôm Rả Cà Phê Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@500;700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@500;700;900&display=swap"
+        rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide-up {
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .delay-100 {
+            animation-delay: 100ms;
+            opacity: 0;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+            opacity: 0;
+        }
+
+        .delay-300 {
+            animation-delay: 300ms;
+            opacity: 0;
+        }
+
+        body.role-staff .admin-only {
+            display: none !important;
+        }
+
+        body.role-staff .admin-disable {
+            pointer-events: none !important;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+
+<body class="bg-[#fdfdfb] text-black">
+
+    <!-- Mobile Drawer Overlay -->
+    <div id="drawer-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden" onclick="toggleDrawer()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+        class="fixed top-0 left-0 h-full w-[240px] bg-secondary border-r-4 border-black z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="p-6 border-b-4 border-black flex justify-between items-center">
+            <img src="/img/logo.png" alt="Rôm Rả Cà Phê Logo" class="h-10 w-auto object-contain">
+            <button class="md:hidden text-white active:scale-90" onclick="toggleDrawer()">
+                <span class="material-symbols-outlined text-3xl">close</span>
+            </button>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="main-nav">
+            <a href="#" data-route="dashboard"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">dashboard</span> Tổng quan
+            </a>
+            <a href="#" data-route="recipes"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">coffee</span> Công thức
+            </a>
+            <a href="#" data-route="inventory"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">inventory_2</span> Kho nguyên liệu
+            </a>
+            <a href="#" data-route="reports"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">bar_chart</span> Báo cáo
+            </a>
+            <a href="#" data-route="roles"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">admin_panel_settings</span> Phân quyền
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="md:ml-[240px] flex flex-col min-h-screen transition-all duration-300">
+
+        <!-- Topbar -->
+        <header
+            class="sticky top-0 bg-white border-b-4 border-black px-4 lg:px-6 py-3 shrink-0 z-30 shadow-[0_4px_0_0_#000]">
+            <div class="flex items-center justify-between gap-4">
+
+                <!-- Left: Burger & Title -->
+                <div class="flex items-center gap-3">
+                    <button
+                        class="md:hidden flex items-center justify-center p-2 border-2 border-black bg-white brutal-shadow-sm active:translate-y-1 active:translate-x-1 active:shadow-none"
+                        onclick="toggleDrawer()">
+                        <span class="material-symbols-outlined font-bold">menu</span>
+                    </button>
+                    <h2 id="page-title"
+                        class="text-xl lg:text-2xl uppercase font-heading tracking-tight hidden sm:block">Dashboard</h2>
+                </div>
+
+                <!-- Right: Search & Actions -->
+                <div class="flex flex-1 max-w-xl justify-end gap-2 sm:gap-4 items-center">
+                    <div class="relative hidden lg:block w-full">
+                        <input type="text" placeholder="Tìm kiếm nhanh..."
+                            class="w-full h-12 pl-12 pr-4 bg-white border-4 border-black brutal-shadow-sm focus:outline-none focus:ring-0 font-bold">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 font-bold">search</span>
+                    </div>
+
+                    <button
+                        class="hidden sm:flex h-12 px-4 bg-white border-4 border-black brutal-shadow-sm items-center gap-2 font-bold uppercase whitespace-nowrap active:translate-y-1 active:translate-x-1 active:shadow-none transition-all hover:bg-slate-100">
+                        <span class="material-symbols-outlined">file_download</span> <span
+                            class="hidden xl:inline">Export</span>
+                    </button>
+
+                    <select id="role-switcher" onchange="switchRole(this.value)"
+                        class="h-12 border-4 border-black px-2 bg-white font-bold cursor-pointer brutal-shadow-sm focus:outline-none">
+                        <option value="admin">Quản trị viên (Admin)</option>
+                        <option value="staff">Nhân viên (Staff)</option>
+                    </select>
+
+                    <div
+                        class="size-12 border-4 border-black brutal-shadow-sm bg-primary flex items-center justify-center shrink-0 cursor-pointer overflow-hidden rounded-full">
+                        <img id="avatar-img"
+                            src="https://api.dicebear.com/7.x/notionists/svg?seed=Admin&backgroundColor=ffd400"
+                            alt="Admin" class="w-full h-full object-cover">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Page Content -->
+        <main id="app-content" class="flex-1 p-4 lg:p-6 w-full max-w-[1400px] mx-auto">
+            <!-- Content inject via JS -->
+        </main>
+
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2"></div>
+
+    <script>
+        // Global State
+        const API_URL = 'http://localhost:3000/api';
+        const appContent = document.getElementById('app-content');
+        const pageTitle = document.getElementById('page-title');
+        window.currentUserRole = 'admin'; // 'admin' or 'staff'
+
+        window.switchRole = function (role) {
+            window.currentUserRole = role;
+            if (role === 'staff') {
+                document.body.classList.add('role-staff');
+            } else {
+                document.body.classList.remove('role-staff');
+            }
+            document.getElementById('avatar-img').src = role === 'admin'
+                ? 'https://api.dicebear.com/7.x/notionists/svg?seed=Admin&backgroundColor=ffd400'
+                : 'https://api.dicebear.com/7.x/notionists/svg?seed=Staff&backgroundColor=e2e8f0';
+
+            // Re-render current page
+            const currentRoute = document.querySelector('.nav-item.active')?.dataset.route || 'dashboard';
+            navigate(currentRoute);
+            showToast("Đã đổi quyền thành: " + (role === 'admin' ? "Quản trị viên" : "Nhân viên"), "success");
+        };
+
+        // Route definitions (Views)
+        const routes = {
+            dashboard: {
+                title: 'Tổng quan',
+                render: renderDashboard
+            },
+            inventory: {
+                title: 'Kho nguyên liệu',
+                render: renderInventory
+            },
+            roles: {
+                title: 'Phân quyền',
+                render: renderRoles
+            },
+            recipes: {
+                title: 'Công thức pha chế',
+                render: renderRecipes
+            },
+            reports: {
+                title: 'Báo cáo',
+                render: renderReports
+            }
+        };
+
+        // ================= ROUTING LOGIC =================
+
+        function navigate(route) {
+            if (!routes[route]) route = 'dashboard';
+
+            // Update active nav
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active');
+                if (el.dataset.route === route) el.classList.add('active');
+            });
+
+            // Close mobile drawer if open
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar.classList.contains('-translate-x-full') && dowidth < 768) {
+                toggleDrawer();
+            }
+
+            // Update Title & Content
+            pageTitle.innerText = routes[route].title;
+            appContent.innerHTML = `<div class="flex items-center gap-2"><span class="material-symbols-outlined animate-spin">refresh</span> Đang tải dữ liệu...</div>`;
+
+            // Call render function
+            routes[route].render();
+        }
+
+        // Setup Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.nav-item').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const route = e.currentTarget.dataset.route;
+                    navigate(route);
+                });
+            });
+
+            // Default route
+            navigate('dashboard');
+        });
+
+        // ================= VIEWS RENDERERS =================
+
+        // --- 1. DASHBOARD ---
+        async function renderDashboard() {
+            try {
+                const [invRes, recipesRes, usersRes] = await Promise.all([
+                    fetch(`${API_URL}/inventory`),
+                    fetch(`${API_URL}/recipes`),
+                    fetch(`${API_URL}/users`)
+                ]);
+
+                const invData = await invRes.json();
+                const recipesData = await recipesRes.json();
+                const usersData = await usersRes.json();
+
+                const stockItems = invData.data || [];
+                const lowStock = stockItems.filter(i => i.stock < 10).length;
+                const totalCapital = stockItems.reduce((sum, i) => sum + (i.price * i.stock), 0);
+
+                appContent.innerHTML = `
+            <div class="mb-8">
+                <h1 class="text-3xl md:text-5xl font-heading mb-2 leading-tight uppercase font-black tracking-tighter">KIỂM SOÁT PHA CHẾ &<br>CHI PHÍ KHÔNG SAI SÓT.</h1>
+                <p class="text-slate-600 font-bold border-l-4 border-secondary pl-4 text-lg">Dashboard tổng hợp dữ liệu thời gian thực</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="brutal-card p-6 flex flex-col gap-2">
+                    <span class="material-symbols-outlined text-4xl text-secondary">payments</span>
+                    <span class="text-sm font-bold text-slate-500 uppercase">Tồn kho trị giá</span>
+                    <span class="text-3xl font-heading truncate block w-full" title="${totalCapital.toLocaleString('vi-VN')}đ">${totalCapital.toLocaleString('vi-VN')}đ</span>
+                </div>
+                <div class="brutal-card p-6 flex flex-col gap-2">
+                    <span class="material-symbols-outlined text-4xl text-primary">local_cafe</span>
+                    <span class="text-sm font-bold text-slate-500 uppercase">Tổng Công thức</span>
+                    <span class="text-3xl font-heading">${recipesData.data ? recipesData.data.length : 0}</span>
+                </div>
+                <div class="brutal-card p-6 flex flex-col gap-2 ${lowStock > 0 ? 'bg-red-50' : ''}">
+                    <span class="material-symbols-outlined text-4xl ${lowStock > 0 ? 'text-red-600' : 'text-green-600'}">warning</span>
+                    <span class="text-sm font-bold text-slate-500 uppercase">Nguyên liệu sắp hết</span>
+                    <span class="text-3xl font-heading ${lowStock > 0 ? 'text-red-600' : ''}">${lowStock}</span>
+                </div>
+                <div class="brutal-card p-6 flex flex-col gap-2">
+                    <span class="material-symbols-outlined text-4xl text-blue-500">group</span>
+                    <span class="text-sm font-bold text-slate-500 uppercase">Tài khoản</span>
+                    <span class="text-3xl font-heading">${usersData.data ? usersData.data.length : 0}</span>
+                </div>
+            </div>
+            
+            <div class="mt-8 flex gap-4">
+                <button class="brutal-btn brutal-btn-primary px-8 py-4 text-lg flex items-center gap-2" onclick="navigate('recipes')">
+                    <span class="material-symbols-outlined">add</span> TẠO CÔNG THỨC
+                </button>
+                <button class="brutal-btn brutal-btn-secondary px-8 py-4 text-lg flex items-center gap-2" onclick="navigate('inventory')">
+                    <span class="material-symbols-outlined">inventory</span> NHẬP KHO
+                </button>
+            </div>
+        `;
+            } catch (e) {
+                appContent.innerHTML = `<div class="p-6 bg-red-100 brutal-border text-red-900 font-bold">Lỗi tải Dashboard: ${e.message}</div>`;
+            }
+        }
+
+        // --- 2. INVENTORY ---
+        async function renderInventory() {
+            appContent.innerHTML = `
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 class="text-3xl font-heading uppercase">Kho Nguyên Liệu</h2>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <button class="brutal-btn brutal-btn-secondary px-4 py-3 flex-1 sm:flex-none flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined">upload_file</span> IMPORT
+                </button>
+                <button class="brutal-btn brutal-btn-primary px-4 py-3 flex-1 sm:flex-none flex items-center justify-center gap-2 admin-only" id="btn-add-inv">
+                    <span class="material-symbols-outlined">add</span> THÊM MỚI
+                </button>
+            </div>
+        </div>
+        
+        <div class="brutal-table-container">
+            <table class="brutal-table">
+                <thead>
+                    <tr>
+                        <th class="w-12 text-center">ID</th>
+                        <th>Tên Nguyên Liệu</th>
+                        <th class="text-center">Số lượng</th>
+                        <th class="text-center">Đơn Vị Mua</th>
+                        <th class="text-center">Qui Đổi Pha Chế</th>
+                        <th class="text-right">Giá vốn</th>
+                        <th class="text-right">Tổng Mức Nhập</th>
+                        <th class="w-16 text-center"></th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-list">
+                    <tr><td colspan="6" class="text-center italic">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Add Inv Form Modal (Hidden by default) -->
+        <div id="modal-inv" class="fixed inset-0 items-center justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+            <div class="brutal-card w-full max-w-md p-6 flex flex-col gap-4">
+                <h3 class="text-2xl font-heading uppercase border-b-4 border-black pb-2" id="modal-inv-title">Nhập kho mới</h3>
+                <input type="hidden" id="inv-id">
+                <input type="text" id="inv-name" placeholder="Tên nguyên liệu" class="brutal-input">
+                <input type="text" id="inv-price" placeholder="Giá nhập (Tổng bill cho lô hàng này)" class="brutal-input font-bold text-lg text-secondary" oninput="formatCurrencyInput(this)">
+                
+                <div class="border-[3px] border-black p-3 bg-gray-50 flex flex-col gap-3 relative mt-2">
+                    <span class="absolute -top-3 left-2 bg-secondary text-white px-2 text-xs font-bold border-2 border-black">CẤU TRÚC ĐỊNH LƯỢNG KHO</span>
+                    
+                    <div class="flex gap-2 items-center">
+                        <span class="text-xs font-bold whitespace-nowrap w-24">1. Nhập về:</span>
+                        <input type="number" id="inv-stock" placeholder="SL" class="brutal-input flex-1 px-2 py-1 text-sm">
+                        <input type="text" id="inv-unit" placeholder="Đơn vị (Thùng/Bao)" class="brutal-input flex-1 px-2 py-1 text-sm bg-yellow-100">
+                    </div>
+                    
+                    <div class="flex gap-2 items-center">
+                        <span class="text-xs font-bold whitespace-nowrap w-24">2. Bên trong có:</span>
+                        <input type="number" id="inv-pack-size" placeholder="SL" class="brutal-input flex-1 px-2 py-1 text-sm">
+                        <input type="text" id="inv-pack-unit" placeholder="Đơn vị (Lon/Hộp)" class="brutal-input flex-1 px-2 py-1 text-sm">
+                    </div>
+
+                    <div class="flex gap-2 items-center">
+                        <span class="text-xs font-bold whitespace-nowrap w-24">3. Mỗi Hộp chứa:</span>
+                        <input type="number" id="inv-recipe-unit-ratio" placeholder="Dung tích/TL" class="brutal-input flex-1 px-2 py-1 text-sm">
+                        <input type="text" id="inv-recipe-unit" placeholder="Đơn vị cuối (ml/g)" class="brutal-input flex-1 px-2 py-1 text-sm bg-green-100">
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button class="brutal-btn brutal-btn-secondary py-3 flex-1" onclick="document.getElementById('modal-inv').style.display='none'">HỦY</button>
+                    <button class="brutal-btn brutal-btn-primary py-3 flex-1" id="btn-save-inv">XÁC NHẬN</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+            const loadData = async () => {
+                try {
+                    const res = await fetch(`${API_URL}/inventory`);
+                    const json = await res.json();
+                    const tbody = document.getElementById('inventory-list');
+                    if (!json.success || json.data.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center">Chưa có dữ liệu</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = json.data.map(item => {
+                        const isLow = item.stock < 10;
+                        return `
+                <tr class="${isLow ? 'bg-red-100 text-red-900 border-b-4 border-black' : ''}">
+                    <td class="text-center">#${item.id}</td>
+                    <td>
+                        <div class="flex items-center gap-2">
+                            ${isLow ? '<span class="material-symbols-outlined text-red-600">warning</span>' : ''}
+                            ${item.name}
+                        </div>
+                    </td>
+                    <td class="text-center font-black ${isLow ? 'text-xl' : ''}">${item.stock}</td>
+                    <td class="text-center">${item.unit}</td>
+                    <td class="text-center text-[11px] font-bold text-gray-800 bg-yellow-100 py-1">
+                        1 ${item.unit} = ${item.pack_size} ${item.pack_unit}<br>
+                        1 ${item.pack_unit} = ${item.recipe_unit_ratio} ${item.recipe_unit}
+                    </td>
+                    <td class="text-right">${item.price.toLocaleString('vi-VN')} đ</td>
+                    <td class="text-right font-black text-secondary">${(item.price * item.stock).toLocaleString('vi-VN')} đ</td>
+                    <td class="text-center admin-only">
+                        <div class="flex gap-1 justify-center">
+                            <button class="text-blue-500 hover:text-blue-700 active:scale-90 transition-transform p-1 bg-white border-2 border-black flex items-center shadow-[2px_2px_0_0_#000]" onclick='window.editInventory(${JSON.stringify(item)})' title="Sửa">
+                                <span class="material-symbols-outlined font-bold text-sm">edit</span>
+                            </button>
+                            <button class="text-red-500 hover:text-red-700 active:scale-90 transition-transform p-1 bg-white border-2 border-black flex items-center shadow-[2px_2px_0_0_#000]" onclick="window.deleteInventory(${item.id})" title="Xoá">
+                                <span class="material-symbols-outlined font-bold text-sm">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
+                } catch (e) {
+                    showToast("Lỗi tải kho: " + e.message, "error");
+                }
+            };
+
+            await loadData();
+
+            // Event hooks
+            document.getElementById('btn-add-inv').onclick = () => {
+                document.getElementById('modal-inv-title').innerText = 'Nhập kho mới';
+                document.getElementById('inv-id').value = '';
+                document.getElementById('inv-name').value = '';
+                document.getElementById('inv-stock').value = '';
+                document.getElementById('inv-unit').value = '';
+                document.getElementById('inv-pack-size').value = '';
+                document.getElementById('inv-pack-unit').value = '';
+                document.getElementById('inv-recipe-unit').value = '';
+                document.getElementById('inv-recipe-unit-ratio').value = '';
+                document.getElementById('inv-price').value = '';
+                document.getElementById('modal-inv').style.display = 'flex';
+            };
+
+            window.editInventory = function (item) {
+                document.getElementById('modal-inv-title').innerText = 'Chỉnh sửa Nguyên Liệu';
+                document.getElementById('inv-id').value = item.id;
+                document.getElementById('inv-name').value = item.name;
+                document.getElementById('inv-stock').value = item.stock;
+                document.getElementById('inv-unit').value = item.unit;
+                document.getElementById('inv-pack-size').value = item.pack_size || 1;
+                document.getElementById('inv-pack-unit').value = item.pack_unit || item.unit;
+                document.getElementById('inv-recipe-unit').value = item.recipe_unit || item.unit;
+                document.getElementById('inv-recipe-unit-ratio').value = item.recipe_unit_ratio || 1;
+                document.getElementById('inv-price').value = item.price ? Number(item.price).toLocaleString('vi-VN') : '';
+                document.getElementById('modal-inv').style.display = 'flex';
+            };
+
+            document.getElementById('btn-save-inv').onclick = async () => {
+                const id = document.getElementById('inv-id').value;
+                const pack_size = Number(document.getElementById('inv-pack-size').value) || 1;
+                const recipe_unit_ratio = Number(document.getElementById('inv-recipe-unit-ratio').value) || 1;
+                const total_ratio = pack_size * recipe_unit_ratio; // Tính ngầm Tỉ lệ cuối cùng gửi cho backend để làm Recipe Cost calculation
+
+                const payload = {
+                    name: document.getElementById('inv-name').value,
+                    stock: document.getElementById('inv-stock').value,
+                    unit: document.getElementById('inv-unit').value,
+                    pack_size: document.getElementById('inv-pack-size').value,
+                    pack_unit: document.getElementById('inv-pack-unit').value,
+                    recipe_unit: document.getElementById('inv-recipe-unit').value,
+                    recipe_unit_ratio: total_ratio,
+                    price: Number(document.getElementById('inv-price').value.replace(/\D/g, '')) || 0
+                };
+
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `${API_URL}/inventory/${id}` : `${API_URL}/inventory`;
+
+                try {
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const j = await res.json();
+                    if (j.success) {
+                        document.getElementById('modal-inv').style.display = 'none';
+                        showToast("Nhập kho thành công!");
+                        loadData();
+                    } else {
+                        showToast(j.error, "error");
+                    }
+                } catch (e) {
+                    showToast("Lỗi lưu DB", "error");
+                }
+            };
+
+            window.deleteInventory = async function (id) {
+                if (!confirm('Bạn có chắc chắn muốn xóa nguyên liệu này? Quá trình tính Cogs cho các công thức cũ có thể bị mất mát.')) return;
+
+                try {
+                    const res = await fetch(`${API_URL}/inventory/${id}`, { method: 'DELETE' });
+                    const j = await res.json();
+                    if (j.success) {
+                        showToast("Đã xóa nguyên liệu kho!");
+                        loadData();
+                    } else {
+                        showToast(j.error, "error");
+                    }
+                } catch (e) {
+                    showToast("Lỗi xóa db", "error");
+                }
+            };
+        }
+
+        // --- 3. RECIPES ---
+        async function renderRecipes() {
+            appContent.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <h2 class="text-3xl font-heading uppercase">Công thức pha chế</h2>
+            <button class="brutal-btn brutal-btn-primary px-4 py-3 flex items-center justify-center gap-2 w-full md:w-auto admin-only" id="btn-add-recipe">
+                <span class="material-symbols-outlined">add</span> TẠO MỚI
+            </button>
+        </div>
+        <div id="recipe-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div class="p-6 italic">Đang tải...</div>
+        </div>
+
+        <!-- Add Recipe Form Modal -->
+        <div id="modal-recipe" class="fixed inset-0 items-center justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+            <div class="brutal-card w-full max-w-md p-6 flex flex-col gap-4">
+                <h3 class="text-2xl font-heading uppercase border-b-4 border-black pb-2">Tạo Công Thức Mới</h3>
+                <input type="text" id="recipe-name" placeholder="Tên công thức" class="brutal-input">
+                <div class="flex gap-4">
+                    <select id="recipe-size" class="brutal-input flex-1 bg-white">
+                        <option value="S">Size S</option>
+                        <option value="M" selected>Size M</option>
+                        <option value="L">Size L</option>
+                    </select>
+                    <input type="number" id="recipe-steps" placeholder="Số bước" class="brutal-input w-24">
+                </div>
+                <div class="flex gap-4">
+                    <input type="number" id="recipe-cogs" placeholder="Giá vốn" class="brutal-input flex-1">
+                    <input type="number" id="recipe-price" placeholder="Giá bán" class="brutal-input flex-1">
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button class="brutal-btn brutal-btn-secondary py-3 flex-1" onclick="document.getElementById('modal-recipe').style.display='none'">HỦY</button>
+                    <button class="brutal-btn brutal-btn-primary py-3 flex-1" id="btn-save-recipe">XÁC NHẬN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recipe Detail Modal -->
+        <div id="modal-recipe-detail" class="fixed inset-0 items-center text-left justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+            <div class="border-4 border-black shadow-[8px_8px_0_0_#000] w-full max-w-md flex flex-col bg-[#0B132B] max-h-[90vh] overflow-hidden">
+                <!-- Header -->
+                <div class="bg-primary flex justify-between items-center p-4 border-b-4 border-black shrink-0">
+                    <h3 id="detail-name" class="text-xl font-heading uppercase font-black text-black tracking-tight">CHI TIẾT: BẠC XỈU</h3>
+                    <button class="bg-white border-2 border-black w-8 h-8 flex items-center justify-center active:scale-95 transition-transform" onclick="document.getElementById('modal-recipe-detail').style.display='none'">
+                        <span class="material-symbols-outlined text-black text-sm font-black">close</span>
+                    </button>
+                </div>
+                
+                <!-- Body (Scrollable) -->
+                <div class="p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+                    
+                    <!-- Section: Hình ảnh đại diện -->
+                    <div class="flex flex-col items-center justify-center border-b-2 border-slate-700/50 pb-4 relative group admin-only">
+                        <div class="w-full h-32 bg-black/20 border-4 border-dashed border-white flex items-center justify-center relative overflow-hidden cursor-move hover:border-primary transition-colors" id="recipe-preview-container" onmousedown="startDragImage(event)" ontouchstart="startDragImage(event)">
+                            <img id="recipe-preview-img" src="" class="absolute inset-0 w-full h-full object-cover hidden z-10 pointer-events-none">
+                            <span class="material-symbols-outlined text-white/50 text-4xl group-hover:scale-110 transition-transform pointer-events-none" id="recipe-preview-icon">add_a_photo</span>
+                        </div>
+                        <input type="file" id="upload-recipe-image" accept="image/*" class="hidden" onchange="window.handleImageUpload(event)">
+                        <div class="flex gap-2 w-full mt-2">
+                            <button class="flex-1 bg-slate-700 hover:bg-slate-600 transition-colors py-2 text-white font-bold text-xs" onclick="document.getElementById('upload-recipe-image').click()">TẢI ẢNH MỚI</button>
+                            <button title="Xóa Ảnh" class="w-10 bg-[#eb5757] hover:bg-red-600 transition-colors py-2 flex items-center justify-center text-white" onclick="window.removeRecipeImage()"><span class="material-symbols-outlined text-sm font-bold">delete</span></button>
+                        </div>
+                        <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase">(Kéo ảnh Lên/Xuống để canh giữa)</span>
+                    </div>
+
+                    <!-- Section: Thành phần -->
+                    <div class="flex flex-col gap-3">
+                        <div class="flex justify-between items-end pb-1 border-b-2 border-slate-700/50">
+                            <h4 class="text-white font-heading uppercase tracking-wider text-sm">Thành phần & Định lượng</h4>
+                            <button type="button" onclick="addIngredientRow()" class="text-primary text-xs font-bold font-heading flex items-center gap-1 hover:underline active:scale-95 transition-transform admin-only"><span class="material-symbols-outlined text-sm font-bold">add</span> THÊM</button>
+                        </div>
+                        <div id="ingredients-container" class="flex flex-col gap-3">
+                            <!-- Items inserted by JS -->
+                        </div>
+                    </div>
+
+                    <div class="bg-[#1C2541] border-[3px] border-black p-4 mt-2 flex flex-col gap-2 relative shadow-[4px_4px_0_0_#000] admin-only">
+                        <div class="absolute -top-3 left-4 bg-primary text-black font-black uppercase text-xs px-2 border-2 border-black">Cost Analysis</div>
+                        <div class="flex justify-between items-center text-sm font-bold text-white uppercase border-b-2 border-slate-700/50 pb-2">
+                            <span>Tổng Cost nguyên liệu:</span>
+                            <span id="calc-total-cost" class="text-yellow-400 font-black text-lg">0 đ</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm font-bold text-white uppercase pb-1">
+                            <span>Giá Bán Thiết Lập:</span>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="detail-price-input" oninput="window.recalculateCost()" class="w-24 bg-transparent border-b-2 border-dashed border-white text-right text-lg font-black text-green-400 focus:outline-none p-0"> đ
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center text-sm font-bold text-white uppercase pt-1">
+                            <span>Lợi nhuận (Profit):</span>
+                            <div class="text-right">
+                                <span id="calc-profit" class="text-white font-black text-lg block">0 đ</span>
+                                <span id="calc-margin" class="text-xs font-black bg-white px-1 text-black">Margin: 0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section: Quy trình -->
+                    <div class="flex flex-col gap-3 mt-2">
+                        <h4 class="text-white font-heading uppercase tracking-wider text-sm mb-1 pb-1 border-b-2 border-slate-700/50">Quy trình pha chế</h4>
+                        
+                        <div id="steps-container" class="flex flex-col gap-3 relative">
+                            <!-- Line connecting steps -->
+                            <div class="absolute left-4 top-4 bottom-8 w-[3px] bg-black z-0"></div>
+                            <!-- Items inserted by JS -->
+                        </div>
+
+                        <!-- Add step btn -->
+                        <button type="button" onclick="addStepRow()" class="bg-[#3A4A6B] border-[3px] border-black shadow-[2px_2px_0_0_#000] flex items-center justify-center gap-2 py-3 text-white font-heading font-bold text-xs uppercase mt-2 active:translate-y-0.5 transition-transform hover:bg-opacity-80 relative z-10 admin-only">
+                            <span class="material-symbols-outlined text-sm font-black bg-white text-black rounded-full w-4 h-4 flex items-center justify-center">add</span> THÊM BƯỚC THỰC HIỆN
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="p-5 bg-[#0a1128] border-t-4 border-black flex gap-3 mt-auto shrink-0 admin-only">
+                    <button class="bg-secondary border-[3px] border-black flex-1 py-3 text-white font-bold font-heading uppercase text-sm active:translate-y-1 transition-transform hover:bg-opacity-90" onclick="window.saveRecipeDetail()">
+                        LƯU THAY ĐỔI
+                    </button>
+                    <button class="bg-[#eb5757] border-[3px] border-black w-14 flex items-center justify-center text-white active:translate-y-1 transition-transform hover:bg-opacity-90" onclick="window.deleteRecipe()">
+                        <span class="material-symbols-outlined font-bold text-lg">delete</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+            window.allRecipes = [];
+            window.allInventory = [];
+
+            window.loadRecipes = async () => {
+                try {
+                    const invRes = await fetch(`${API_URL}/inventory`);
+                    const invJson = await invRes.json();
+                    if (invJson.success) window.allInventory = invJson.data;
+                } catch (e) { }
+
+                try {
+                    const res = await fetch(`${API_URL}/recipes`);
+                    const json = await res.json();
+                    const grid = document.getElementById('recipe-list');
+
+                    if (json.data && json.data.length > 0) {
+                        window.allRecipes = json.data;
+                        grid.innerHTML = json.data.map(item => `
+                    <div class="brutal-card p-0 flex flex-col hover:cursor-pointer group">
+                        <div class="h-48 bg-secondary border-b-4 border-black relative overflow-hidden flex items-center justify-center">
+                            ${(() => {
+                                let imgUrl = item.image;
+                                let offsetY = 50;
+                                if (imgUrl && imgUrl.includes('|')) {
+                                    const parts = imgUrl.split('|');
+                                    imgUrl = parts[0];
+                                    offsetY = parts[1];
+                                }
+                                return imgUrl ? `<img src="${imgUrl}" style="object-position: center ${offsetY}%" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : `<span class="material-symbols-outlined text-white text-[80px] opacity-20 group-hover:scale-110 transition-transform">local_cafe</span>`;
+                            })()}
+                            <div class="absolute top-2 right-2 bg-primary brutal-border p-1 px-2 font-bold text-xs uppercase shadow-[2px_2px_0_0_#000]">Size ${item.size}</div>
+                        </div>
+                        <div class="p-5 flex flex-col gap-3">
+                            <div class="flex justify-between items-start">
+                                <h3 class="text-xl font-heading uppercase">${item.name}</h3>
+                                <span class="text-lg font-black text-secondary">${item.price.toLocaleString('vi-VN')} đ</span>
+                            </div>
+                            <div class="flex gap-2 text-xs font-bold">
+                                <span class="bg-gray-100 px-2 py-1 brutal-border shadow-[2px_2px_0_0_#000]">${item.steps} Bước</span>
+                                <span class="bg-yellow-100 px-2 py-1 brutal-border shadow-[2px_2px_0_0_#000]">Cost: ${item.cogs.toLocaleString()}đ</span>
+                            </div>
+                            <button class="brutal-btn brutal-btn-secondary w-full py-3 mt-2" onclick="showRecipeDetail(${item.id})">CHI TIẾT</button>
+                        </div>
+                    </div>
+                `).join('');
+                    } else {
+                        grid.innerHTML = "Chưa có món nào.";
+                    }
+                } catch (e) { }
+            };
+
+            await window.loadRecipes();
+
+            // Event hooks
+            document.getElementById('btn-add-recipe').onclick = () => document.getElementById('modal-recipe').style.display = 'flex';
+
+            document.getElementById('btn-save-recipe').onclick = async () => {
+                const payload = {
+                    name: document.getElementById('recipe-name').value,
+                    size: document.getElementById('recipe-size').value,
+                    steps: document.getElementById('recipe-steps').value,
+                    cogs: document.getElementById('recipe-cogs').value,
+                    price: document.getElementById('recipe-price').value
+                };
+                try {
+                    const res = await fetch(`${API_URL}/recipes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const j = await res.json();
+                    if (j.success) {
+                        document.getElementById('modal-recipe').style.display = 'none';
+                        showToast("Tạo công thức thành công!");
+                        window.loadRecipes();
+                    } else {
+                        showToast(j.error, "error");
+                    }
+                } catch (e) {
+                    showToast("Lỗi rạo Recipe", "error");
+                }
+            };
+        }
+
+        let currentRecipeId = null;
+
+        window.showRecipeDetail = function (id) {
+            const recipe = window.allRecipes.find(r => r.id === id);
+            if (!recipe) return;
+            currentRecipeId = id;
+
+            document.getElementById('detail-name').innerText = 'CHI TIẾT: ' + recipe.name;
+            document.getElementById('detail-price-input').value = recipe.price || 0;
+
+            window.currentRecipeImageBase64 = recipe.image || null;
+            window.currentRecipeImageOffsetY = 50;
+            const previewImg = document.getElementById('recipe-preview-img');
+            const previewIcon = document.getElementById('recipe-preview-icon');
+            if (previewImg) {
+                if (recipe.image) {
+                    let imgUrl = recipe.image;
+                    if (imgUrl.includes('|')) {
+                        const parts = imgUrl.split('|');
+                        imgUrl = parts[0];
+                        window.currentRecipeImageOffsetY = parseFloat(parts[1]) || 50;
+                    }
+                    previewImg.src = imgUrl;
+                    previewImg.style.objectPosition = `center ${window.currentRecipeImageOffsetY}%`;
+                    previewImg.classList.remove('hidden');
+                    if (previewIcon) previewIcon.classList.add('hidden');
+                } else {
+                    previewImg.src = '';
+                    previewImg.classList.add('hidden');
+                    if (previewIcon) previewIcon.classList.remove('hidden');
+                }
+            }
+
+
+            // Reset Data using default placeholders for testing
+            document.getElementById('ingredients-container').innerHTML = '';
+            document.getElementById('steps-container').innerHTML = '';
+
+            let ingredients = [];
+            try { if (recipe.ingredients) ingredients = JSON.parse(recipe.ingredients); } catch (e) { }
+            if (ingredients.length === 0) {
+                ingredients = [
+                    { name: 'Cốt cà phê phin', amount: 30, unit: 'ml' },
+                    { name: 'Sữa đặc', amount: 25, unit: 'ml' }
+                ];
+            }
+            ingredients.forEach(i => window.addIngredientRow(i.name, i.amount, i.unit, i.invId));
+
+            let steps = [];
+            try { if (recipe.steps_detail) steps = JSON.parse(recipe.steps_detail); } catch (e) { }
+            if (steps.length === 0) {
+                steps = [{ title: 'CHUẨN BỊ', desc: 'Sẵn sàng nguyên liệu' }];
+                if (recipe.steps > 1) steps.push({ title: 'HOÀN THÀNH', desc: 'Phục vụ khách' });
+            }
+            steps.forEach(s => window.addStepRow(s.title, s.desc));
+
+            document.getElementById('modal-recipe-detail').style.display = 'flex';
+            window.recalculateCost();
+        };
+
+        window.saveRecipeDetail = async function () {
+            if (!currentRecipeId) return;
+            const recipe = window.allRecipes.find(r => r.id === currentRecipeId);
+            if (!recipe) return;
+
+            const ingRows = document.querySelectorAll('#ingredients-container > div');
+            const ingredients = Array.from(ingRows).map(row => {
+                const select = row.querySelector('select');
+                const inputs = row.querySelectorAll('input');
+                const span = row.querySelector('span');
+                const option = select.options[select.selectedIndex];
+                return {
+                    invId: select.value ? parseInt(select.value) : null,
+                    name: option ? option.text : '',
+                    amount: Number(inputs[0].value) || 0,
+                    unit: span ? span.innerText : 'ml'
+                };
+            }).filter(i => i.name.trim() !== '' && i.name !== 'Chọn nguyên liệu...');
+
+            const sellingPriceInput = document.getElementById('detail-price-input');
+            recipe.price = Number(sellingPriceInput.value) || 0;
+
+            const stepRows = document.querySelectorAll('#steps-container > div');
+            const steps = Array.from(stepRows).map(row => {
+                const input = row.querySelector('input');
+                const textarea = row.querySelector('textarea');
+                return {
+                    title: input.value,
+                    desc: textarea.value
+                };
+            });
+
+            recipe.ingredients = JSON.stringify(ingredients);
+            recipe.steps_detail = JSON.stringify(steps);
+            recipe.steps = steps.length; // Update step count
+            let finalImgString = window.currentRecipeImageBase64;
+            if (finalImgString) {
+                if (finalImgString.includes('|')) {
+                    finalImgString = finalImgString.split('|')[0] + '|' + (window.currentRecipeImageOffsetY || 50);
+                } else {
+                    finalImgString = finalImgString + '|' + (window.currentRecipeImageOffsetY || 50);
+                }
+            }
+            recipe.image = finalImgString;
+
+            try {
+                const res = await fetch(`${API_URL}/recipes/${currentRecipeId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recipe)
+                });
+                const j = await res.json();
+                if (j.success) {
+                    showToast("Cập nhật thành công!");
+                    document.getElementById('modal-recipe-detail').style.display = 'none';
+                    // Trigger a reload of recipes from backend
+                    window.loadRecipes();
+                } else {
+                    showToast(j.error, "error");
+                }
+            } catch (e) {
+                showToast("Lỗi cập nhật", "error");
+            }
+        };
+
+        window.deleteRecipe = async function () {
+            if (!currentRecipeId) return;
+            if (!confirm('Bạn có chắc chắn muốn xóa công thức này?')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/recipes/${currentRecipeId}`, { method: 'DELETE' });
+                const j = await res.json();
+                if (j.success) {
+                    showToast("Đã xóa công thức!");
+                    document.getElementById('modal-recipe-detail').style.display = 'none';
+                    loadRecipes();
+                } else {
+                    showToast(j.error, "error");
+                }
+            } catch (e) {
+                showToast("Lỗi xóa db", "error");
+            }
+        };
+
+        window.addIngredientRow = function (name = '', amount = '', unit = 'ml', invId = '') {
+            const container = document.getElementById('ingredients-container');
+            const rowId = 'ing-' + Date.now() + Math.random().toString(36).substring(7);
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2 group';
+            div.id = rowId;
+
+            let optionsHTML = '<option value="" disabled selected>Chọn nguyên liệu...</option>';
+            if (window.allInventory) {
+                window.allInventory.forEach(inv => {
+                    const isSelected = (invId && inv.id == invId) || (name && inv.name === name);
+                    if (isSelected) {
+                        unit = inv.recipe_unit || inv.unit;
+                    }
+                    const ratio = inv.recipe_unit_ratio && inv.recipe_unit_ratio > 0 ? inv.recipe_unit_ratio : 1;
+                    const trueUnitCost = inv.price / ratio;
+                    optionsHTML += `<option value="${inv.id}" data-unit="${inv.recipe_unit || inv.unit}" data-price="${trueUnitCost}" ${isSelected ? 'selected' : ''}>${inv.name}</option>`;
+                });
+            }
+
+            div.innerHTML = `
+                <div class="flex-1 flex gap-2 w-full truncate">
+                    <select onchange="window.handleIngredientChange('${rowId}')" class="bg-[#1C2541] border-[3px] border-black text-white px-3 py-2 flex-1 font-bold text-[13px] focus:outline-none placeholder-gray-500 w-1/2 overflow-hidden truncate">
+                        ${optionsHTML}
+                    </select>
+                    <div class="flex bg-[#1C2541] border-[3px] border-black text-white px-3 py-2 w-24 items-center gap-1 justify-between shrink-0">
+                        <input type="number" value="${amount}" oninput="window.recalculateCost()" placeholder="0" class="bg-transparent border-none text-white font-black text-center w-full focus:outline-none p-0">
+                        <span class="text-[10px] text-gray-300 font-bold">${unit}</span>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('${rowId}').remove(); window.recalculateCost();" class="w-10 h-10 border-[3px] border-black bg-slate-800 text-red-500 flex items-center justify-center shrink-0 active:translate-y-0.5 transition-transform hover:bg-slate-700 admin-only">
+                    <span class="material-symbols-outlined font-bold text-sm">delete</span>
+                </button>
+            `;
+            container.appendChild(div);
+            window.recalculateCost();
+        }
+
+        window.handleImageUpload = function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const previewImg = document.getElementById('recipe-preview-img');
+            const previewIcon = document.getElementById('recipe-preview-icon');
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800; // Optimal for web
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Compress as JPEG
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                    // Check size after compression
+                    const sizeInBytes = Math.round((dataUrl.length * 3) / 4);
+                    if (sizeInBytes > 1024 * 1024) {
+                        showToast('Ảnh sau khi nén vẫn lớn hơn 1MB! Vui lòng chọn ảnh nhỏ hơn.', 'error');
+                        event.target.value = '';
+                        return;
+                    }
+
+                    window.currentRecipeImageBase64 = dataUrl;
+                    window.currentRecipeImageOffsetY = 50;
+
+                    if (previewImg) {
+                        previewImg.src = dataUrl;
+                        previewImg.style.objectPosition = `center 50%`;
+                        previewImg.classList.remove('hidden');
+                        if (previewIcon) previewIcon.classList.add('hidden');
+                    }
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        // DRAG TO POSITION IMAGE LOGIC & DELETE
+        window.currentRecipeImageOffsetY = 50;
+        let isDraggingImg = false;
+        let startYDrag = 0;
+        let initialOffsetY = 50;
+
+        window.removeRecipeImage = function () {
+            window.currentRecipeImageBase64 = null;
+            window.currentRecipeImageOffsetY = 50;
+            const previewImg = document.getElementById('recipe-preview-img');
+            const previewIcon = document.getElementById('recipe-preview-icon');
+            if (previewImg) {
+                previewImg.src = '';
+                previewImg.classList.add('hidden');
+            }
+            if (previewIcon) previewIcon.classList.remove('hidden');
+        };
+
+        window.startDragImage = function (e) {
+            if (!window.currentRecipeImageBase64) {
+                document.getElementById('upload-recipe-image').click();
+                return;
+            }
+            isDraggingImg = true;
+            startYDrag = e.touches ? e.touches[0].clientY : e.clientY;
+            initialOffsetY = window.currentRecipeImageOffsetY || 50;
+            // e.preventDefault();
+        };
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDraggingImg) return;
+            const clientY = e.clientY;
+            const delta = clientY - startYDrag;
+            let newOffsetY = initialOffsetY - (delta * 0.5);
+            newOffsetY = Math.max(0, Math.min(100, newOffsetY));
+            window.currentRecipeImageOffsetY = newOffsetY;
+            const img = document.getElementById('recipe-preview-img');
+            if (img) img.style.objectPosition = `center ${newOffsetY}%`;
+        });
+
+        window.addEventListener('mouseup', () => { isDraggingImg = false; });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDraggingImg) return;
+            const clientY = e.touches[0].clientY;
+            const delta = clientY - startYDrag;
+            let newOffsetY = initialOffsetY - (delta * 0.5);
+            newOffsetY = Math.max(0, Math.min(100, newOffsetY));
+            window.currentRecipeImageOffsetY = newOffsetY;
+            const img = document.getElementById('recipe-preview-img');
+            if (img) img.style.objectPosition = `center ${newOffsetY}%`;
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => { isDraggingImg = false; });
+
+        window.handleIngredientChange = function (rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            const select = row.querySelector('select');
+            const option = select.options[select.selectedIndex];
+            const unitObj = row.querySelector('span');
+            if (option && unitObj) {
+                unitObj.innerText = option.getAttribute('data-unit') || 'ml';
+            }
+            window.recalculateCost();
+        };
+
+        window.recalculateCost = function () {
+            let totalCost = 0;
+            const ingRows = document.querySelectorAll('#ingredients-container > div');
+            ingRows.forEach(row => {
+                const select = row.querySelector('select');
+                const inputs = row.querySelectorAll('input');
+                const option = select.options[select.selectedIndex];
+                if (option && option.value) {
+                    const price = Number(option.getAttribute('data-price')) || 0;
+                    const amount = Number(inputs[0].value) || 0;
+                    totalCost += price * amount;
+                }
+            });
+
+            const sellingPriceInput = document.getElementById('detail-price-input');
+            if (!sellingPriceInput) return;
+            const sellingPrice = Number(sellingPriceInput.value) || 0;
+
+            const profit = sellingPrice - totalCost;
+            let margin = 0;
+            if (sellingPrice > 0) margin = (profit / sellingPrice) * 100;
+
+            const tcEl = document.getElementById('calc-total-cost');
+            const pfEl = document.getElementById('calc-profit');
+            const marginEl = document.getElementById('calc-margin');
+            if (!tcEl || !pfEl || !marginEl) return;
+
+            tcEl.innerText = totalCost.toLocaleString('vi-VN') + ' đ';
+            pfEl.innerText = profit.toLocaleString('vi-VN') + ' đ';
+            marginEl.innerText = 'Margin: ' + margin.toFixed(1) + '%';
+
+            if (margin <= 0) {
+                marginEl.className = 'text-xs font-black bg-red-600 text-white px-1';
+            } else if (margin < 40) {
+                marginEl.className = 'text-xs font-black bg-orange-500 text-white px-1';
+            } else {
+                marginEl.className = 'text-xs font-black bg-green-500 text-white px-1';
+            }
+        };
+
+        window.addStepRow = function (title = '', desc = '') {
+            const container = document.getElementById('steps-container');
+            const rowId = 'step-' + Date.now() + Math.random().toString(36).substring(7);
+            const div = document.createElement('div');
+            div.className = 'step-row flex gap-4 relative group z-10';
+            div.id = rowId;
+
+            div.innerHTML = `
+                <div class="w-8 h-8 bg-secondary border-[3px] border-black shrink-0 flex items-center justify-center font-black text-white text-sm step-number"></div>
+                <div class="bg-[#1C2541] border-[3px] border-black text-white p-3 flex-1 flex flex-col gap-1 shadow-[2px_2px_0_0_#000] relative">
+                    <div class="flex gap-2 justify-between items-start">
+                        <input type="text" value="${title}" placeholder="Nhập tiêu đề bước..." class="bg-transparent border-none text-white font-bold text-[10px] uppercase tracking-wider focus:outline-none p-0 flex-1">
+                        <button type="button" onclick="removeStepRow('${rowId}')" class="text-red-500 flex items-center justify-center active:scale-90 transition-transform -mt-1 -mr-1 admin-only">
+                            <span class="material-symbols-outlined font-black text-sm">close</span>
+                        </button>
+                    </div>
+                    <textarea placeholder="Mô tả công việc thực hiện..." class="bg-transparent border-none text-gray-300 text-[11px] leading-relaxed resize-none focus:outline-none min-h-[40px] w-full p-0 overflow-visible">${desc}</textarea>
+                </div>
+            `;
+            container.appendChild(div);
+            reindexSteps();
+        }
+
+        window.removeStepRow = function (rowId) {
+            document.getElementById(rowId).remove();
+            reindexSteps();
+        }
+
+        function reindexSteps() {
+            const steps = document.querySelectorAll('.step-row');
+            steps.forEach((step, index) => {
+                const numCircle = step.querySelector('.step-number');
+                if (numCircle) numCircle.innerText = index + 1;
+            });
+        }
+
+
+        // --- 4. ROLES / USERS ---
+        async function renderRoles() {
+            appContent.innerHTML = `
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 class="text-3xl font-heading uppercase">Phân quyền tài khoản</h2>
+            <button class="brutal-btn brutal-btn-primary px-4 py-3 flex items-center gap-2 admin-only" onclick="document.getElementById('modal-user').style.display='flex'">
+                <span class="material-symbols-outlined">add</span> THÊM TÀI KHOẢN
+            </button>
+        </div>
+        <div id="users-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+
+        <!-- Add User Modal -->
+        <div id="modal-user" class="fixed inset-0 items-center justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+            <div class="brutal-card w-full max-w-sm p-6 flex flex-col gap-4">
+                <h3 class="text-2xl font-heading uppercase border-b-4 border-black pb-2">Thêm Tài Khoản</h3>
+                
+                <input type="text" id="new-user-name" placeholder="Tên hiển thị..." class="brutal-input">
+                <input type="password" id="new-user-password" placeholder="Mật khẩu..." class="brutal-input">
+                
+                <select id="new-user-role" class="brutal-input bg-white font-bold cursor-pointer">
+                    <option value="staff">Nhân viên (Chỉ xem)</option>
+                    <option value="admin">Quản trị viên (Toàn quyền)</option>
+                </select>
+
+                <div class="flex gap-2 mt-4">
+                    <button class="brutal-btn brutal-btn-secondary py-3 flex-1" onclick="document.getElementById('modal-user').style.display='none'">HỦY</button>
+                    <button class="brutal-btn brutal-btn-primary py-3 flex-1" onclick="window.saveUser()">XÁC NHẬN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password Modal -->
+        <div id="modal-password" class="fixed inset-0 items-center justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+            <div class="brutal-card w-full max-w-sm p-6 flex flex-col gap-4">
+                <h3 class="text-2xl font-heading uppercase border-b-4 border-black pb-2">Đổi Mật Khẩu</h3>
+                <input type="password" id="change-user-password" placeholder="Mật khẩu mới..." class="brutal-input">
+                <div class="flex gap-2 mt-4">
+                    <button class="brutal-btn brutal-btn-secondary py-3 flex-1" onclick="document.getElementById('modal-password').style.display='none'">HỦY</button>
+                    <button class="brutal-btn brutal-btn-primary py-3 flex-1" onclick="window.submitChangePassword()">CẬP NHẬT</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+            try {
+                const res = await fetch(`${API_URL}/users`);
+                const json = await res.json();
+                const grid = document.getElementById('users-list');
+
+                if (json.data && json.data.length > 0) {
+                    grid.innerHTML = json.data.map(user => {
+                        const bgClr = user.role === 'admin' ? '#FFD600' : '#e2e8f0';
+                        return `
+                <div class="brutal-card p-6 flex flex-col gap-4">
+                    <div class="flex gap-4 items-center">
+                        <div class="size-16 rounded-full border-4 border-black bg-[${bgClr}] flex items-center justify-center font-heading text-2xl uppercase shadow-[2px_2px_0_0_#000]">
+                            ${user.username.charAt(0)}
+                        </div>
+                        <div>
+                            <h4 class="text-xl font-black">${user.username}</h4>
+                            <span class="inline-block border-2 border-black px-2 py-0.5 mt-1 text-xs font-bold bg-${user.role === 'admin' ? 'secondary' : 'white'} text-${user.role === 'admin' ? 'white' : 'black'}">
+                                ${user.role.toUpperCase()}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-2 space-y-2 border-t-4 border-black pt-4">
+                        <div class="flex items-center gap-2 font-bold">
+                            <span class="material-symbols-outlined ${user.role === 'admin' ? 'text-green-600' : 'text-red-500'}">
+                                ${user.role === 'admin' ? 'check_box' : 'disabled_by_default'}
+                            </span>
+                            Toàn quyền hệ thống
+                        </div>
+                        <div class="flex items-center gap-2 font-bold">
+                            <span class="material-symbols-outlined text-green-600">check_box</span>
+                            Thao tác cơ bản
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-2 admin-only">
+                        <button class="brutal-btn brutal-btn-secondary flex-1 py-2 text-sm" onclick="window.showChangePasswordModal(${user.id})">ĐỔI MẬT KHẨU</button>
+                        ${user.id !== 1 ? `<button class="brutal-btn bg-red-500 text-white w-12 py-2 hover:bg-red-600 flex items-center justify-center text-sm" onclick="window.deleteUser(${user.id})" title="Xóa tài khoản"><span class="material-symbols-outlined font-bold">delete</span></button>` : ''}
+                    </div>
+                </div>
+            `}).join('');
+                }
+            } catch (e) { }
+        }
+
+        window.saveUser = async function () {
+            const username = document.getElementById('new-user-name').value.trim();
+            const password = document.getElementById('new-user-password').value.trim();
+            const role = document.getElementById('new-user-role').value;
+
+            if (!username || !password) {
+                showToast("Vui lòng nhập tên tài khoản và mật khẩu", "error");
+                return;
+            }
+
+            const usernameRegex = /^[a-zA-Z0-9]+$/;
+            if (!usernameRegex.test(username)) {
+                showToast("Tên đăng nhập viết liền, không dấu, không ký tự đặc biệt", "error");
+                return;
+            }
+
+            if (password.length < 8) {
+                showToast("Mật khẩu phải từ 8 ký tự trở lên", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, role })
+                });
+                const j = await res.json();
+                if (j.success) {
+                    showToast("Thêm tài khoản thành công!");
+                    document.getElementById('modal-user').style.display = 'none';
+                    renderRoles();
+                } else {
+                    showToast(j.error || "Lỗi khi thêm", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối", "error");
+            }
+        };
+
+        let currentChangePwdUserId = null;
+        window.showChangePasswordModal = function (id) {
+            currentChangePwdUserId = id;
+            document.getElementById('change-user-password').value = '';
+            document.getElementById('modal-password').style.display = 'flex';
+        };
+
+        window.submitChangePassword = async function () {
+            if (!currentChangePwdUserId) return;
+            const newPassword = document.getElementById('change-user-password').value.trim();
+            if (!newPassword || newPassword.length < 8) {
+                showToast("Mật khẩu mới phải từ 8 ký tự trở lên", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/users/${currentChangePwdUserId}/password`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: newPassword })
+                });
+                const j = await res.json();
+                if (j.success) {
+                    showToast("Đổi mật khẩu thành công!");
+                    document.getElementById('modal-password').style.display = 'none';
+                } else {
+                    showToast(j.error || "Lỗi đổi mật khẩu", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối", "error");
+            }
+        };
+
+        window.deleteUser = async function (id) {
+            if (!confirm('Bạn có chắc chắn muốn xóa tài khoản này? Hành động này không thể hoàn tác.')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/users/${id}`, { method: 'DELETE' });
+                const j = await res.json();
+                if (j.success) {
+                    showToast("Đã xóa tài khoản!");
+                    renderRoles();
+                } else {
+                    showToast(j.error || "Lỗi xóa tài khoản", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối Db", "error");
+            }
+        };
+
+        // --- 5. REPORTS ---
+        async function renderReports() {
+            appContent.innerHTML = `
+                <div class="flex justify-between items-center mb-6 animate-slide-up">
+                    <h2 class="text-3xl font-heading uppercase">Báo cáo Tổng Quan</h2>
+                    <button class="brutal-btn brutal-btn-secondary px-4 py-3 flex items-center gap-2" onclick="renderReports()">
+                        <span class="material-symbols-outlined">refresh</span> LÀM MỚI
+                    </button>
+                </div>
+                
+                <div id="report-wrapper" class="hidden">
+                    <!-- 3 STAT CARDS -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="brutal-card bg-green-400 p-6 flex flex-col gap-2 animate-slide-up delay-100 relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                            <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Doanh thu 7 ngày</span>
+                            <h3 class="text-3xl xl:text-4xl font-black mt-2 tracking-tighter" id="rep-revenue">0đ</h3>
+                            <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px] group-hover:scale-110 transition-transform">payments</span>
+                        </div>
+                        <div class="brutal-card bg-red-400 p-6 flex flex-col gap-2 animate-slide-up delay-200 relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                            <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Chi phí 7 ngày</span>
+                            <h3 class="text-3xl xl:text-4xl font-black mt-2 tracking-tighter" id="rep-cost">0đ</h3>
+                            <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px] group-hover:scale-110 transition-transform">shopping_cart</span>
+                        </div>
+                        <div class="brutal-card bg-yellow-400 p-6 flex flex-col gap-2 animate-slide-up delay-300 relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                            <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Tổng Đơn Giao Dịch</span>
+                            <h3 class="text-3xl xl:text-4xl font-black mt-2 tracking-tighter" id="rep-orders">0</h3>
+                            <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px] group-hover:scale-110 transition-transform">receipt_long</span>
+                        </div>
+                    </div>
+
+                    <!-- CHARTS -->
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-slide-up delay-300 relative z-0">
+                        <div class="xl:col-span-2 brutal-card p-6 bg-white min-h-[400px]">
+                            <h4 class="font-heading text-xl uppercase border-b-4 border-black pb-2 mb-6">Biểu đồ Doanh Thu & Chi Phí (7 Ngày)</h4>
+                            <div class="h-[320px] w-full"><canvas id="chart-revenue"></canvas></div>
+                        </div>
+                        <div class="brutal-card p-6 bg-gray-100 flex flex-col">
+                            <h4 class="font-heading text-xl uppercase border-b-4 border-black pb-2 mb-6">Top SP (Doanh Thu)</h4>
+                            <div id="rep-top-products" class="flex flex-col gap-4 flex-1"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="report-loading" class="text-center font-bold text-xl py-20 flex flex-col items-center gap-4 animate-pulse">
+                    <span class="material-symbols-outlined text-5xl animate-spin">data_usage</span>
+                    <span>Đang tải số liệu báo cáo...</span>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API_URL}/reports/dashboard`);
+                const json = await res.json();
+
+                document.getElementById('report-loading').classList.add('hidden');
+                document.getElementById('report-wrapper').classList.remove('hidden');
+
+                if (json.success) {
+                    const sum = json.data.summary;
+                    document.getElementById('rep-revenue').innerText = sum.totalRevenue.toLocaleString('vi-VN') + 'đ';
+                    document.getElementById('rep-cost').innerText = sum.totalCost.toLocaleString('vi-VN') + 'đ';
+                    document.getElementById('rep-orders').innerText = sum.totalOrders.toLocaleString('vi-VN');
+
+                    // Render top products
+                    const topProductsHtml = json.data.topProducts.map((p, i) => `
+                        <div class="flex flex-col border-[3px] border-black bg-white p-3 pr-4 relative hover:bg-yellow-50 transition-colors">
+                            <span class="absolute -top-3 -left-3 w-8 h-8 bg-secondary text-white font-black flex items-center justify-center border-[3px] border-black text-lg">${i + 1}</span>
+                            <span class="font-bold ml-4 relative z-10 text-lg uppercase truncate">${p.name}</span>
+                            <div class="flex justify-between items-center mt-2 ml-4 text-sm font-bold text-gray-700">
+                                <span>SL: <span class="text-black font-black">${p.qty}</span></span>
+                                <span class="font-black text-green-600 text-base border-b-2 border-black">${p.revenue.toLocaleString('vi-VN')}đ</span>
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('rep-top-products').innerHTML = topProductsHtml;
+
+                    // Render Chart
+                    const ctx = document.getElementById('chart-revenue').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: json.data.revenueData.labels,
+                            datasets: [
+                                {
+                                    label: 'DOANH THU',
+                                    data: json.data.revenueData.revenues,
+                                    borderColor: '#021fba',
+                                    backgroundColor: 'rgba(2, 31, 186, 0.1)',
+                                    borderWidth: 4,
+                                    tension: 0.4,
+                                    fill: true,
+                                    pointBackgroundColor: '#FFD600',
+                                    pointBorderColor: '#000',
+                                    pointBorderWidth: 3,
+                                    pointRadius: 6,
+                                    pointHoverRadius: 8
+                                },
+                                {
+                                    label: 'CHI PHÍ MUA HÀNG',
+                                    data: json.data.revenueData.costs,
+                                    borderColor: '#f87171',
+                                    backgroundColor: 'transparent',
+                                    borderWidth: 4,
+                                    borderDash: [5, 5],
+                                    tension: 0.4,
+                                    pointBackgroundColor: '#fff',
+                                    pointBorderColor: '#000',
+                                    pointBorderWidth: 3,
+                                    pointRadius: 5
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'bottom', labels: { font: { family: 'Inter', weight: 'bold', size: 13 }, color: '#000' } },
+                                tooltip: {
+                                    backgroundColor: '#000',
+                                    titleFont: { family: 'Inter', size: 14, weight: 'bold' },
+                                    bodyFont: { family: 'Inter', size: 13, weight: 'bold' },
+                                    padding: 12,
+                                    cornerRadius: 0,
+                                    callbacks: {
+                                        label: function (context) {
+                                            return context.dataset.label + ': ' + context.raw.toLocaleString('vi-VN') + 'đ';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: '#000', lineWidth: 2, drawBorder: true },
+                                    ticks: { font: { family: 'Inter', weight: 'bold' }, color: '#000', callback: function (v) { return v / 1000000 + 'M'; } }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { font: { family: 'Inter', weight: 'bold' }, color: '#000' }
+                                }
+                            },
+                            animation: { duration: 1500, easing: 'easeOutQuart' }
+                        }
+                    });
+                }
+            } catch (e) {
+                document.getElementById('report-loading').innerHTML = '<span class="text-red-600">Lỗi tải dữ liệu báo cáo!</span>';
+            }
+        }
+
+
+
+        // ================= UTILITIES =================
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            const isError = type === "error";
+            toast.className = `p-4 px-6 border-[3px] border-black shadow-[4px_4px_0_0_#000] flex items-center gap-3 transition-all transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] text-white'}`;
+            toast.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center border-2 border-black shrink-0">
+                    <span class="material-symbols-outlined ${isError ? 'text-red-500' : 'text-[#52c48e]'} font-black text-xl">${isError ? 'close' : 'check'}</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-heading font-black uppercase text-sm tracking-wide text-white" style="-webkit-text-stroke: 0.5px black;">${isError ? 'THẤT BẠI!' : 'THÀNH CÔNG!'}</span>
+                    <span class="text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">${message}</span>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            // Slide in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full');
+            }, 50);
+
+            // Remove
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function formatCurrencyInput(input) {
+            let val = input.value.replace(/\D/g, "");
+            if (val !== "") {
+                input.value = parseInt(val, 10).toLocaleString('vi-VN');
+            } else {
+                input.value = "";
+            }
+        }
+
+    </script>
+    <script>
+        // Custom Tailwind config inside script to avoid external file request latency on dev
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FFD600',
+                        secondary: '#021fba'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        heading: ['Bungee', 'cursive']
+                    }
+                }
+            }
+        }
+
+        // Simple Mobile Drawer Logic
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('drawer-overlay');
+        function toggleDrawer() {
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+            if (isOpen) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+                document.body.style.overflow = '';
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+    </script>
+</body>
+
+</html>
