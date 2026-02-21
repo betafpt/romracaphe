@@ -266,52 +266,6 @@ async function renderInventory() {
     };
 }
 
-// --- 3. RECIPES ---
-async function renderRecipes() {
-    appContent.innerHTML = `
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-3xl font-heading uppercase">Công thức pha chế</h2>
-            <button class="brutal-btn brutal-btn-primary px-4 py-3 flex items-center gap-2">
-                <span class="material-symbols-outlined">add</span> TẠO MỚI
-            </button>
-        </div>
-        <div id="recipe-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <div class="p-6 italic">Đang tải...</div>
-        </div>
-    `;
-
-    try {
-        const res = await fetch(`${API_URL}/recipes`);
-        const json = await res.json();
-        const grid = document.getElementById('recipe-list');
-
-        if (json.data && json.data.length > 0) {
-            grid.innerHTML = json.data.map(item => `
-                <div class="brutal-card p-0 flex flex-col hover:cursor-pointer group">
-                    <div class="h-48 bg-secondary border-b-4 border-black relative overflow-hidden flex items-center justify-center">
-                        <span class="material-symbols-outlined text-white text-[80px] opacity-20 group-hover:scale-110 transition-transform">local_cafe</span>
-                        <div class="absolute top-2 right-2 bg-primary brutal-border p-1 px-2 font-bold text-xs uppercase shadow-[2px_2px_0_0_#000]">Size ${item.size}</div>
-                    </div>
-                    <div class="p-5 flex flex-col gap-3">
-                        <div class="flex justify-between items-start">
-                            <h3 class="text-xl font-heading uppercase">${item.name}</h3>
-                            <span class="text-lg font-black text-secondary">${item.price.toLocaleString('vi-VN')} đ</span>
-                        </div>
-                        <div class="flex gap-2 text-xs font-bold">
-                            <span class="bg-gray-100 px-2 py-1 brutal-border shadow-[2px_2px_0_0_#000]">${item.steps} Bước</span>
-                            <span class="bg-yellow-100 px-2 py-1 brutal-border shadow-[2px_2px_0_0_#000]">Cost: ${item.cogs.toLocaleString()}đ</span>
-                        </div>
-                        <button class="brutal-btn brutal-btn-secondary w-full py-3 mt-2">CHI TIẾT</button>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            grid.innerHTML = "Chưa có món nào.";
-        }
-    } catch (e) { }
-}
-
-
 // --- 4. ROLES / USERS ---
 async function renderRoles() {
     appContent.innerHTML = `
