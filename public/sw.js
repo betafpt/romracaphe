@@ -4,7 +4,7 @@ const ASSETS = [
     '/index.html',
     '/css/style.css',
     '/js/app.js',
-    '/js/firebase-config.js',
+    '/js/supabase-config.js',
     '/icons/icon-192x192.png',
     '/icons/icon-512x512.png',
     '/manifest.json'
@@ -19,8 +19,8 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Chỉ Cache các dữ liệu Tĩnh (GET Request, không Cache API Call hay Firebase upload)
-    if (event.request.method !== 'GET' || event.request.url.includes('/api/') || event.request.url.includes('firebasestorage')) {
+    // Chỉ Cache các dữ liệu Tĩnh (GET Request, không Cache API Call hay Supabase upload)
+    if (event.request.method !== 'GET' || event.request.url.includes('/api/') || event.request.url.includes('supabase.co')) {
         return;
     }
 
