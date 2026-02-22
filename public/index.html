@@ -160,8 +160,9 @@
                     <!-- Custom PWA Install Button -->
                     <button id="btn-install-pwa"
                         class="hidden h-12 px-4 bg-primary border-4 border-black brutal-shadow-sm items-center gap-2 font-bold uppercase whitespace-nowrap active:translate-y-1 active:translate-x-1 active:shadow-none transition-all hover:bg-yellow-300 mr-2 md:mr-0">
-                        <span class="material-symbols-outlined font-black">download_for_offline</span> <span
-                            class="hidden sm:inline">TẢI APP</span>
+                        <span
+                            class="material-symbols-outlined font-black animate-bounce text-xl">download_for_offline</span>
+                        <span class="hidden sm:inline">TẢI APP</span>
                     </button>
 
                     <div class="relative group">
@@ -210,6 +211,28 @@
                     onclick="document.getElementById('modal-login').style.display='none'">HỦY BỎ</button>
                 <button class="brutal-btn brutal-btn-primary py-3 flex-1" onclick="window.submitLogin()">ĐĂNG
                     NHẬP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Install Modal -->
+    <div id="modal-pwa-install" class="fixed inset-0 items-center justify-center p-4 content-center"
+        style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+        <div class="brutal-card w-full max-w-sm p-6 flex flex-col gap-4 relative animate-slide-up">
+            <div
+                class="absolute -top-6 left-1/2 -translate-x-1/2 bg-white rounded-full p-2 border-4 border-black shadow-[4px_4px_0_0_#000]">
+                <img src="/icons/icon-192x192.png" alt="App Icon" class="w-16 h-16 rounded-full">
+            </div>
+            <h3 class="text-2xl font-heading uppercase text-center mt-6">CÀI ĐẶT ỨNG DỤNG</h3>
+            <div id="pwa-install-body" class="text-sm font-bold text-gray-700 text-center flex flex-col gap-2 mb-2">
+                <p>Cài đặt ứng dụng Rôm Rả Cà Phê vào máy để trải nghiệm nhanh hơn và nhận thông báo.</p>
+            </div>
+            <div class="flex gap-2 mt-2">
+                <button
+                    class="brutal-btn py-3 flex-1 bg-gray-200 border-[3px] border-black font-bold uppercase transition-transform active:translate-y-1 hover:bg-gray-300"
+                    onclick="document.getElementById('modal-pwa-install').style.display='none'">ĐỂ SAU</button>
+                <button id="btn-pwa-confirm" class="brutal-btn brutal-btn-primary py-3 flex-1 h-full hidden">CÀI APP
+                    NGAY</button>
             </div>
         </div>
     </div>
@@ -316,23 +339,22 @@
             }
         };
 
-        // Route definitions (Views)
         const routes = {
             dashboard: {
                 title: 'Tổng quan',
-                render: renderDashboard
+                render: () => renderDashboard()
             },
             inventory: {
                 title: 'Kho nguyên liệu',
-                render: renderInventory
+                render: () => renderInventory()
             },
             roles: {
                 title: 'Phân quyền',
-                render: renderRoles
+                render: () => window.renderRoles ? window.renderRoles() : (typeof renderRoles === 'function' ? renderRoles() : null)
             },
             recipes: {
                 title: 'Công thức pha chế',
-                render: renderRecipes
+                render: () => window.renderRecipes ? window.renderRecipes() : (typeof renderRecipes === 'function' ? renderRecipes() : null)
             },
             reports: {
                 title: 'Báo cáo',
@@ -649,7 +671,7 @@
         }
 
         // --- 3. RECIPES ---
-        window.renderRecipes = async function() {
+        window.renderRecipes = async function () {
             appContent.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <h2 class="text-3xl font-heading uppercase">Công thức pha chế</h2>
@@ -831,6 +853,52 @@
                         grid.innerHTML = "Chưa có món nào.";
                     }
                 } catch (e) { }
+            };
+
+            window.filterRecipes = function () {
+                const query = document.getElementById('search-input')?.value.toLowerCase() || '';
+                const size = document.getElementById('size-filter')?.value || '';
+                const grid = document.getElementById('recipe-list');
+                if (!grid || !window.allRecipes) return;
+
+                const filtered = window.allRecipes.filter(item => {
+                    const matchName = item.name.toLowerCase().includes(query);
+                    const matchSize = size === '' || item.size === size;
+                    return matchName && matchSize;
+                });
+
+                if (filtered.length > 0) {
+                    grid.innerHTML = filtered.map(item => `
+                    <div class="brutal-card p-0 flex flex-col hover:cursor-pointer group">
+                        <div class="h-48 bg-secondary border-b-4 border-black relative overflow-hidden flex items-center justify-center">
+                            ${(() => {
+                            let imgUrl = item.image;
+                            let offsetY = 50;
+                            if (imgUrl && imgUrl.includes('|')) {
+                                const parts = imgUrl.split('|');
+                                imgUrl = parts[0];
+                                offsetY = parts[1];
+                            }
+                            return imgUrl ? '<img src="' + imgUrl + '" style="object-position: center ' + offsetY + '%" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">' : '<span class="material-symbols-outlined text-white text-[80px] opacity-20 group-hover:scale-110 transition-transform">local_cafe</span>';
+                        })()}
+                            <div class="absolute top-2 right-2 bg-primary brutal-border p-1 px-2 font-bold text-xs uppercase shadow-[2px_2px_0_0_#000]">Size ${item.size}</div>
+                        </div>
+                        <div class="p-5 flex flex-col gap-3">
+                            <div class="flex justify-between items-start">
+                                <h3 class="text-xl font-heading uppercase">${item.name}</h3>
+                                <span class="text-lg font-black text-secondary">${item.price.toLocaleString('vi-VN')} đ</span>
+                            </div>
+                            <div class="flex gap-2 text-xs font-bold">
+                                <span class="bg-gray-100 px-3 py-1.5 border-4 border-black font-black text-sm uppercase shadow-[4px_4px_0_0_#000] z-10 hover:-translate-y-1 transition-transform relative group-hover:bg-primary">${(() => { try { return JSON.parse(item.steps_detail || '[]').length; } catch (e) { return 0; } })()} Bước</span>
+                                <span class="bg-yellow-100 px-3 py-1.5 border-4 border-black font-black text-sm uppercase shadow-[4px_4px_0_0_#000] z-10 hover:-translate-y-1 transition-transform relative mt-1 group-hover:bg-[#f87171] group-hover:text-white group-hover:border-black">Cost: ${item.cogs.toLocaleString()}đ</span>
+                            </div>
+                            <button class="brutal-btn brutal-btn-secondary w-full py-3 mt-2" onclick="showRecipeDetail(${item.id})">CHI TIẾT</button>
+                        </div>
+                    </div>
+                `).join('');
+                } else {
+                    grid.innerHTML = "<div class='col-span-full p-6 italic font-bold text-gray-500 text-center'>Không tìm thấy công thức nào phù hợp.</div>";
+                }
             };
 
             await window.loadRecipes();
@@ -1729,21 +1797,70 @@
         // Bắt trọn khoảnh khắc Trình duyệt cho phép Cài App (PWA)
         let deferredPrompt;
         const btnInstallPwa = document.getElementById('btn-install-pwa');
+        const modalPwa = document.getElementById('modal-pwa-install');
+        const btnPwaConfirm = document.getElementById('btn-pwa-confirm');
+        const pwaBody = document.getElementById('pwa-install-body');
+
+        // Check if iOS
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent);
+        };
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        // Nút topbar
+        btnInstallPwa.addEventListener('click', () => {
+            showInstallModal();
+        });
+
+        function showInstallModal() {
+            modalPwa.style.display = 'flex';
+            if (isIos() && !isInStandaloneMode()) {
+                pwaBody.innerHTML = `
+                    <p>Cài đặt ứng dụng Rôm Rả Cà Phê vào thiết bị iOS của bạn:</p>
+                    <ol class="text-left mt-2 flex flex-col gap-2 border-2 border-black p-3 bg-gray-50 text-xs">
+                        <li>1. Nhấn nút <b>Chia sẻ</b> (<span class="material-symbols-outlined text-sm align-middle">ios_share</span>) ở thanh công cụ trình duyệt.</li>
+                        <li>2. Kéo xuống và chọn <b>"Thêm vào MH chính"</b> (Add to Home Screen).</li>
+                        <li>3. Nhấn <b>"Thêm"</b> (Add) ở góc trên bên phải.</li>
+                    </ol>
+                `;
+                btnPwaConfirm.classList.add('hidden');
+                btnPwaConfirm.classList.remove('flex');
+            } else if (deferredPrompt) {
+                pwaBody.innerHTML = `<p>Cài đặt ứng dụng Rôm Rả Cà Phê vào máy để trải nghiệm nhanh hơn và nhận thông báo.</p>`;
+                btnPwaConfirm.classList.remove('hidden');
+                btnPwaConfirm.classList.add('flex', 'items-center', 'justify-center');
+            } else {
+                pwaBody.innerHTML = `<p>Ứng dụng đã được cài đặt hoặc trình duyệt của bạn không hỗ trợ cài đặt tự động.</p>`;
+                btnPwaConfirm.classList.add('hidden');
+                btnPwaConfirm.classList.remove('flex');
+            }
+        }
 
         window.addEventListener('beforeinstallprompt', (e) => {
             // Ngăn chặn Chrome tự phọt cái bảng rườm rà dưới đáy màn hình
             e.preventDefault();
             // Lưu lại Mồi Lửa để Cúng sau
             deferredPrompt = e;
-            // Hiển thị nút TẢI APP nổi bần bật màu Vàng lên cho Khách tự bấm
+
+            // Hiển thị nút TẢI APP trên topbar
             btnInstallPwa.classList.remove('hidden');
             btnInstallPwa.classList.add('flex');
+
+            // Optionally auto-show the modal if the user hasn't seen it recently
+            if (!localStorage.getItem('pwa_prompt_shown')) {
+                setTimeout(() => {
+                    showInstallModal();
+                    localStorage.setItem('pwa_prompt_shown', 'true');
+                }, 2000); // show after 2 seconds on first load
+            }
         });
 
-        // Hứng lấy sự kiện Cick của nút TẢI APP
-        btnInstallPwa.addEventListener('click', async () => {
+        // Hứng lấy sự kiện Cick của nút MÀU VÀNG to trong modal
+        btnPwaConfirm.addEventListener('click', async () => {
             if (deferredPrompt !== null) {
-                // Phóng cái Popup của Chrome lên giữa mặt Khách
+                // Phóng cái Popup của Chrome lên
+                modalPwa.style.display = 'none';
                 deferredPrompt.prompt();
                 // Khách chọn Xong thì Dẹp Dọn
                 const { outcome } = await deferredPrompt.userChoice;
@@ -1762,8 +1879,21 @@
             console.log('a2hs installed');
             btnInstallPwa.classList.add('hidden');
             btnInstallPwa.classList.remove('flex');
+            modalPwa.style.display = 'none';
             showToast("Tuyệt vời! App Rôm Rả đã được cài đặt.", "success");
         });
+
+        // Auto show instruction button for iOS users if not in standalone mode
+        if (isIos() && !isInStandaloneMode()) {
+            btnInstallPwa.classList.remove('hidden');
+            btnInstallPwa.classList.add('flex');
+            if (!localStorage.getItem('pwa_prompt_shown_ios')) {
+                setTimeout(() => {
+                    showInstallModal();
+                    localStorage.setItem('pwa_prompt_shown_ios', 'true');
+                }, 2000);
+            }
+        }
     </script>
 </body>
 
