@@ -1,4 +1,4 @@
-const CACHE_NAME = 'romracaphe-v1';
+const CACHE_NAME = 'romracaphe-v2'; // Bumped version to break old cache
 const ASSETS = [
     '/',
     '/index.html',
@@ -11,6 +11,8 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+    // Force the waiting service worker to become the active service worker
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(ASSETS);
@@ -43,6 +45,8 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+    // Claim control of all open clients immediately
+    event.waitUntil(self.clients.claim());
     event.waitUntil(
         caches.keys().then((keys) => {
             return Promise.all(
