@@ -128,9 +128,9 @@
 
                 <!-- Right: Search & Actions -->
                 <div class="flex flex-1 max-w-xl justify-end gap-2 sm:gap-4 items-center">
-                    <div class="relative hidden lg:flex w-full gap-2">
+                    <div class="relative hidden md:flex w-full gap-2">
                         <select id="size-filter" onchange="filterRecipes()"
-                            class="h-12 px-4 bg-white border-4 border-black brutal-shadow-sm focus:outline-none focus:ring-0 font-bold uppercase cursor-pointer hover:bg-slate-100 transition-colors">
+                            class="h-12 px-4 bg-white border-4 border-black brutal-shadow-sm focus:outline-none focus:ring-0 font-bold uppercase cursor-pointer hover:bg-slate-100 transition-colors w-full hidden">
                             <option value="">Tất cả</option>
                             <option value="S">Size S</option>
                             <option value="M">Size M</option>
@@ -377,6 +377,16 @@
             const sidebar = document.getElementById('sidebar');
             if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
                 toggleDrawer();
+            }
+
+            // Show size filter only on recipes page
+            const sizeFilter = document.getElementById('size-filter');
+            if (sizeFilter) {
+                if (route === 'recipes') {
+                    sizeFilter.style.display = 'inline-block';
+                } else {
+                    sizeFilter.style.display = 'none';
+                }
             }
 
             // Update Title & Content
