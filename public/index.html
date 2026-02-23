@@ -108,7 +108,7 @@
     </aside>
 
     <!-- Main Content Wrapper -->
-    <div class="md:ml-[240px] flex flex-col min-h-screen transition-all duration-300">
+    <div id="main-wrapper" class="md:ml-[240px] flex flex-col min-h-screen transition-all duration-300">
 
         <!-- Topbar -->
         <header
@@ -383,8 +383,12 @@
                     window.updateAuthState();
                     document.getElementById('modal-login').style.display = 'none';
                     showToast("Đăng nhập thành công! Mở khóa tính năng.");
-                    const currentRoute = document.querySelector('.nav-item.active')?.dataset.route || 'dashboard';
-                    navigate(currentRoute);
+
+                    document.getElementById('sidebar').style.display = 'flex';
+                    document.getElementById('topbar-header').style.display = 'flex';
+                    document.getElementById('main-wrapper').classList.add('md:ml-[240px]');
+
+                    navigate('dashboard');
                 } else {
                     showToast(j.error, "error");
                 }
@@ -419,7 +423,30 @@
         // ================= ROUTING LOGIC =================
 
         function navigate(route) {
-            if (!routes[route]) route = 'dashboard';
+            const role = window.currentUserRole;
+
+            // Chặn Guest vào các trang nội bộ
+            const adminRoutes = ['dashboard', 'inventory', 'roles', 'recipes', 'reports'];
+            if ((!role || role === 'guest') && adminRoutes.includes(route)) {
+                route = 'welcome';
+            }
+
+            if (!routes[route]) route = 'welcome';
+
+            // Cập nhật trạng thái hiển thị của UI Admin
+            const sidebar = document.getElementById('sidebar');
+            const topbar = document.getElementById('topbar-header');
+            const mainWrapper = document.getElementById('main-wrapper');
+
+            if (route === 'welcome' || route === 'usermenu') {
+                sidebar.style.display = 'none';
+                topbar.style.display = 'none';
+                mainWrapper.classList.remove('md:ml-[240px]');
+            } else {
+                sidebar.style.display = 'flex';
+                topbar.style.display = 'flex';
+                mainWrapper.classList.add('md:ml-[240px]');
+            }
 
             // Update active nav
             document.querySelectorAll('.nav-item').forEach(el => {
@@ -428,8 +455,8 @@
             });
 
             // Close mobile drawer if open
-            const sidebar = document.getElementById('sidebar');
-            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
+            const drawerSidebar = document.getElementById('sidebar');
+            if (!drawerSidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
                 toggleDrawer();
             }
 
@@ -462,11 +489,137 @@
                 });
             });
 
-            // Default route
-            navigate('dashboard');
+            // Default route based on authentication
+            if (window.currentUserRole) {
+                navigate('dashboard');
+            } else {
+                navigate('welcome');
+            }
         });
 
         // ================= VIEWS RENDERERS =================
+
+        // --- 0. PUBLIC WELCOME ---
+        function renderWelcome() {
+            appContent.innerHTML = `
+                <div class="fixed inset-0 bg-[#FFD600] flex flex-col items-center justify-center p-6 bg-[url('/img/pattern.png')] bg-repeat">
+                    <div class="absolute inset-0 bg-yellow-400 opacity-20 pointer-events-none mix-blend-multiply"></div>
+                    
+                    <button class="absolute top-4 right-4 bg-white border-4 border-black font-bold p-2 brutal-shadow-sm active:translate-y-1 active:shadow-none hover:bg-gray-100 z-50 flex items-center justify-center rounded-full transition-all" onclick="window.showLoginModal()" title="Khu vực Nội bộ">
+                        <span class="material-symbols-outlined text-black font-black">admin_panel_settings</span>
+                    </button>
+
+                    <div class="brutal-card bg-white w-full max-w-lg p-8 md:p-12 flex flex-col items-center text-center gap-6 relative z-10 animate-slide-up shadow-[12px_12px_0_0_#000]">
+                        <img src="/img/logo.png" alt="Rôm Rả Cà Phê Logo" class="h-24 w-auto object-contain mb-2 hover:scale-105 transition-transform">
+                        
+                        <h1 class="text-4xl md:text-5xl font-heading font-black tracking-tight leading-none uppercase">
+                            Xin chào!<br>Đến với Rôm Rả
+                        </h1>
+                        
+                        <p class="text-gray-700 font-bold text-lg mb-4">Cà phê đậm vị, đậm phong cách.</p>
+                        
+                        <button onclick="navigate('usermenu')" class="brutal-btn brutal-btn-primary w-full py-5 text-xl lg:text-2xl flex items-center justify-center gap-3 group animate-bounce hover:animate-none">
+                            XEM MENU ĐỒ UỐNG 
+                            <span class="material-symbols-outlined font-black group-hover:translate-x-2 transition-transform">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+             `;
+        }
+
+        // --- 0.5 PUBLIC MENU (CUSTOMER) ---
+        async function renderUserMenu() {
+            appContent.innerHTML = `
+                <!-- Public Header -->
+                <div class="w-full flex justify-between items-center bg-white border-4 border-black shadow-[4px_4px_0_0_#000] p-4 mb-8 sticky top-4 z-40 brutal-card mx-auto max-w-4xl">
+                    <button onclick="navigate('welcome')" class="bg-primary border-4 border-black w-12 h-12 flex items-center justify-center brutal-shadow-sm active:translate-y-1 active:translate-x-1 active:shadow-none transition-all">
+                        <span class="material-symbols-outlined font-black">arrow_back</span>
+                    </button>
+                    <h2 class="font-heading uppercase text-xl md:text-2xl font-black truncate px-2 text-center flex-1">Thực đơn</h2>
+                    <div class="w-12"></div> <!-- Spacer -->
+                </div>
+
+                <div class="w-full max-w-4xl mx-auto mb-6 flex gap-2 sm:gap-4 flex-col sm:flex-row">
+                    <div class="relative flex-1">
+                        <input type="text" id="public-search" placeholder="Bạn muốn uống gì?" oninput="filterPublicMenu()" class="w-full h-14 pl-12 pr-4 bg-white border-4 border-black shadow-[4px_4px_0_0_#000] focus:outline-none focus:translate-y-1 focus:shadow-none transition-all font-bold text-lg">
+                        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 font-black text-2xl">search</span>
+                    </div>
+                    <select id="public-size" onchange="filterPublicMenu()" class="h-14 px-4 bg-secondary text-white border-4 border-black shadow-[4px_4px_0_0_#000] focus:outline-none focus:translate-y-1 focus:shadow-none transition-all font-bold uppercase cursor-pointer w-full sm:w-48 text-lg">
+                        <option value="">Tất cả Size</option>
+                        <option value="S">Size S</option>
+                        <option value="M">Size M</option>
+                        <option value="L">Size L</option>
+                    </select>
+                </div>
+
+                <div id="public-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto pb-12">
+                    <div class="p-6 italic text-center col-span-full font-bold">Đang tải Menu...</div>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API_URL}/recipes`);
+                const json = await res.json();
+                const grid = document.getElementById('public-menu-grid');
+
+                if (!json.success || json.data.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center font-bold text-xl p-8 border-4 border-black border-dashed bg-white">Hiện chưa có món nào trong thực đơn.</div>`;
+                    return;
+                }
+
+                // Caching the recipes globally for faster public filtering
+                window.publicRecipesCache = json.data;
+                renderPublicMenuCards(json.data);
+
+            } catch (e) {
+                document.getElementById('public-menu-grid').innerHTML = `<div class="col-span-full p-4 bg-red-100 border-4 border-black font-bold">Lỗi tải Menu: ${e.message}</div>`;
+            }
+        }
+
+        window.renderPublicMenuCards = function (recipes) {
+            const grid = document.getElementById('public-menu-grid');
+            if (recipes.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center font-bold text-xl p-8 border-4 border-black border-dashed bg-white">Không tìm thấy món uống phù hợp.</div>`;
+                return;
+            }
+
+            grid.innerHTML = recipes.map(r => `
+                <div class="public-recipe-card brutal-card bg-white flex flex-col group overflow-hidden border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 cursor-pointer">
+                    <!-- Image -->
+                    <div class="h-48 w-full bg-slate-100 border-b-4 border-black relative overflow-hidden">
+                        <img src="${r.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop'}" 
+                             alt="${r.name}" 
+                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                        <div class="absolute top-3 right-3 bg-secondary text-white font-black px-3 py-1 border-2 border-black rotate-3 shadow-[2px_2px_0_0_#000]">
+                            Size ${r.size || 'M'}
+                        </div>
+                    </div>
+                    <!-- Details -->
+                    <div class="p-4 flex flex-col gap-2 bg-white flex-1 flex justify-between">
+                        <h3 class="font-heading font-black uppercase text-xl leading-tight line-clamp-2">${r.name}</h3>
+                        <div class="flex justify-between items-end mt-2">
+                            <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_rgba(0,0,0,1)] tracking-tight">${Number(r.price).toLocaleString('vi-VN')}đ</span>
+                            <button class="bg-black text-white p-2 border-2 border-white rounded-full hover:bg-primary hover:text-black transition-colors active:scale-95">
+                                <span class="material-symbols-outlined font-black">add</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.filterPublicMenu = function () {
+            const q = document.getElementById('public-search').value.toLowerCase();
+            const s = document.getElementById('public-size').value;
+            const originalData = window.publicRecipesCache || [];
+
+            const filtered = originalData.filter(r => {
+                const matchName = r.name.toLowerCase().includes(q);
+                const matchSize = s ? (r.size === s) : true;
+                return matchName && matchSize;
+            });
+            renderPublicMenuCards(filtered);
+        };
 
         // --- 1. DASHBOARD ---
         async function renderDashboard() {
