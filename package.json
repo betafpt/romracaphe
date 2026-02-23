@@ -2,17 +2,23 @@
   "name": "rom-ra-ca-phe",
   "version": "1.0.0",
   "description": "",
-  "main": "firebase-config.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "cors": "^2.8.6",
+    "csv-parser": "^3.2.0",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
-    "sqlite3": "^5.1.7"
+    "multer": "^2.0.2",
+    "pdfkit": "^0.17.2",
+    "pdfkit-table": "^0.1.99"
   }
 }

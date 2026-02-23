@@ -134,7 +134,8 @@ async function renderInventory() {
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <h2 class="text-3xl font-heading uppercase">Kho Nguyên Liệu</h2>
             <div class="flex gap-2 w-full sm:w-auto">
-                <button class="brutal-btn brutal-btn-secondary px-4 py-3 flex-1 sm:flex-none flex items-center justify-center gap-2">
+                <input type="file" id="csv-upload" accept=".csv" class="hidden">
+                <button class="brutal-btn brutal-btn-secondary px-4 py-3 flex-1 sm:flex-none flex items-center justify-center gap-2" onclick="document.getElementById('csv-upload').click()">
                     <span class="material-symbols-outlined">upload_file</span> IMPORT
                 </button>
                 <button class="brutal-btn brutal-btn-primary px-4 py-3 flex-1 sm:flex-none flex items-center justify-center gap-2" id="btn-add-inv">
@@ -178,6 +179,19 @@ async function renderInventory() {
                 </div>
             </div>
         </div>
+        
+        <!-- History Modal -->
+        <div id="modal-history" class="fixed inset-0 items-center justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+            <div class="brutal-card w-full max-w-2xl p-6 flex flex-col gap-4 max-h-[80vh]">
+                <div class="flex justify-between items-center border-b-4 border-black pb-2">
+                    <h3 class="text-2xl font-heading uppercase">Lịch sử nhập xuất</h3>
+                    <button onclick="document.getElementById('modal-history').style.display='none'" class="active:scale-95"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="overflow-y-auto flex-1 border-4 border-black p-4 bg-white" id="history-content">
+                    Đang tải...
+                </div>
+            </div>
+        </div>
     `;
 
     const loadData = async () => {
@@ -205,7 +219,10 @@ async function renderInventory() {
                     <td class="text-center">${item.unit}</td>
                     <td class="text-right">${item.price.toLocaleString('vi-VN')} đ</td>
                     <td class="text-right font-black text-secondary">${(item.price * item.stock).toLocaleString('vi-VN')} đ</td>
-                    <td class="text-center">
+                    <td class="text-center flex justify-center gap-2 items-center h-full">
+                        <button class="text-blue-500 hover:text-blue-700 active:scale-90 transition-transform p-1" onclick="window.showInventoryHistory(${item.id}, '${item.name}')" title="Xem lịch sử">
+                            <span class="material-symbols-outlined font-bold text-xl">history</span>
+                        </button>
                         <button class="text-red-500 hover:text-red-700 active:scale-90 transition-transform p-1" onclick="window.deleteInventory(${item.id})" title="Xóa Nguyên Liệu">
                             <span class="material-symbols-outlined font-bold text-xl">delete</span>
                         </button>
@@ -264,6 +281,81 @@ async function renderInventory() {
             showToast("Lỗi xóa db", "error");
         }
     };
+
+    window.showInventoryHistory = async function (id, name) {
+        document.getElementById('modal-history').style.display = 'flex';
+        const content = document.getElementById('history-content');
+        content.innerHTML = `<div class="text-center italic font-bold">Đang tải lịch sử cho ${name}...</div>`;
+
+        try {
+            const res = await fetch(`${API_URL}/inventory/${id}/history`);
+            const json = await res.json();
+            if (json.success) {
+                if (json.data.length === 0) {
+                    content.innerHTML = `<div class="text-center p-4">Chưa có dữ liệu lịch sử.</div>`;
+                    return;
+                }
+                content.innerHTML = `
+                    <table class="w-full text-left">
+                        <thead><tr class="border-b-2 border-slate-300">
+                            <th class="py-2">Thời gian</th>
+                            <th class="py-2">Hành động</th>
+                            <th class="py-2 text-right">Biến động kho</th>
+                            <th class="py-2 text-right">Đơn giá áp dụng</th>
+                        </tr></thead>
+                        <tbody>
+                            ${json.data.map(h => {
+                    const date = new Date(h.timestamp).toLocaleString('vi-VN');
+                    let actionColor = h.action_type === 'IMPORT' ? 'text-green-600' :
+                        (h.action_type === 'UPDATE' ? 'text-blue-600' : 'text-slate-600');
+                    return `
+                                <tr class="border-b border-slate-100">
+                                    <td class="py-2 text-sm">${date}</td>
+                                    <td class="py-2 font-bold ${actionColor}">${h.action_type}</td>
+                                    <td class="py-2 text-right font-black">${h.quantity_changed}</td>
+                                    <td class="py-2 text-right">${h.price.toLocaleString('vi-VN')}đ</td>
+                                </tr>
+                                `
+                }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                content.innerHTML = `<div class="text-red-500 text-center font-bold">Lỗi tải lịch sử.</div>`;
+            }
+        } catch (e) {
+            content.innerHTML = `<div class="text-red-500 text-center font-bold">Lỗi kết nối.</div>`;
+        }
+    };
+
+    // --- CSV IMPORT HOOK ---
+    document.getElementById('csv-upload').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        showToast("Đang import dữ liệu...", "success");
+
+        try {
+            const res = await fetch(`${API_URL}/inventory/import`, {
+                method: 'POST',
+                body: formData
+            });
+            const check = await res.json();
+            if (check.success) {
+                showToast(check.message, "success");
+                loadData();
+            } else {
+                showToast(check.error, "error");
+            }
+        } catch (error) {
+            showToast("Lỗi khi tải file lên máy chủ", "error");
+        } finally {
+            e.target.value = ''; // Reset input
+        }
+    });
 }
 
 // --- 4. ROLES / USERS ---

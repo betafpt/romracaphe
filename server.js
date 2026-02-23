@@ -1,10 +1,18 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 const path = require('path');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+const multer = require('multer');
+const csv = require('csv-parser');
+const { Readable } = require('stream');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Setup Multer for in-memory file uploads
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware
 app.use(cors());
@@ -12,208 +20,452 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize Database
-const db = new sqlite3.Database('./dev.sqlite', sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-    if (err) {
-        console.error('Lỗi khi mở cơ sở dữ liệu!', err.message);
-    } else {
-        console.log('Đã kết nối tới cơ sở dữ liệu dev.sqlite');
-        initSchemas();
-    }
-});
+// Initialize Supabase Client
+const supabaseUrl = process.env.SUPABASE_URL || 'https://mjyldmkdcoiyrolggpje.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_B8Y5rZc4yiHAtmjCXC9C5A_Qt5rZqsM'; // Khuyến nghị: Sử dụng SERVICE_ROLE_KEY cho backend thay vì ANON_KEY
 
-function initSchemas() {
-    db.serialize(() => {
-        // Create tables without dropping
-        db.run(`CREATE TABLE IF NOT EXISTS inventory (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE,
-            stock INTEGER DEFAULT 0,
-            unit TEXT,
-            pack_size REAL DEFAULT 1,
-            pack_unit TEXT,
-            recipe_unit TEXT,
-            recipe_unit_ratio REAL DEFAULT 1,
-            price INTEGER DEFAULT 0,
-            last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-        db.run(`CREATE TABLE IF NOT EXISTS recipes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            size TEXT DEFAULT 'M',
-            cogs REAL DEFAULT 0,
-            steps INTEGER DEFAULT 3,
-            price REAL DEFAULT 0,
-            ingredients TEXT,
-            steps_detail TEXT,
-            image TEXT
-        )`);
+console.log('Đã kết nối tới Supabase Database');
 
-        db.run(`CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT DEFAULT 'staff',
-            permissions TEXT
-        )`);
-
-        console.log('Đã khởi tạo xong các bảng CSDL Rôm Rả Cà Phê.');
-
-        // Seed data giả lập
-        seedData();
-    });
-}
-
-function seedData() {
-    console.log('Seeding dữ liệu ban đầu...');
-    // Seed Users
-    db.get("SELECT count(*) as count FROM users", (err, row) => {
-        if (row && row.count === 0) {
-            db.run(`INSERT INTO users (username, password, role, permissions) VALUES 
-                ('Admin', 'admin123', 'admin', 'FULL'),
-                ('Nhân viên A', '123456', 'staff', 'READ_ONLY')`);
-        }
-    });
-
-    // Seed Inventory
-    db.get("SELECT count(*) as count FROM inventory", (err, row) => {
-        if (row && row.count === 0) {
-            db.run(`INSERT INTO inventory (name, stock, unit, pack_size, pack_unit, recipe_unit, recipe_unit_ratio, price) VALUES 
-                ('Hạt cà phê Robusta', 45, 'Bao', 10, 'Kg', 'gram', 10000, 1200000),
-                ('Hạt cà phê Arabica', 8, 'Bao', 5, 'Kg', 'gram', 5000, 1250000), 
-                ('Sữa đặc Phương Nam', 120, 'Thùng', 24, 'Lon', 'ml', 9120, 528000),
-                ('Đường cát trắng', 5, 'Bao', 50, 'Kg', 'gram', 50000, 1000000)`);
-        }
-    });
-
-    // Seed Recipes
-    db.get("SELECT count(*) as count FROM recipes", (err, row) => {
-        if (row && row.count === 0) {
-            db.run(`INSERT INTO recipes (name, size, cogs, steps, price) VALUES 
-                ('Cà phê Đen Đá', 'M', 8000, 3, 25000),
-                ('Bạc Xỉu', 'L', 12000, 4, 35000),
-                ('Cà phê Muối', 'M', 15000, 5, 40000)`);
-        }
-    });
-
-    console.log('Seeding Data Hoàn Tất!');
-}
 
 // ================= API ENDPOINTS =================
 
 // --- Inventory ---
-app.get('/api/inventory', (req, res) => {
-    db.all(`SELECT * FROM inventory ORDER BY name ASC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ success: false, error: err.message });
-        res.json({ success: true, data: rows });
-    });
+app.get('/api/inventory', async (req, res) => {
+    const { data: rows, error } = await supabase.from('inventory').select('*').order('name', { ascending: true });
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: rows });
 });
 
-app.post('/api/inventory', (req, res) => {
+app.post('/api/inventory', async (req, res) => {
     const { name, stock, unit, pack_size, pack_unit, recipe_unit, recipe_unit_ratio, price } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Tên nguyên liệu không được trống' });
 
-    db.run(`INSERT INTO inventory (name, stock, unit, pack_size, pack_unit, recipe_unit, recipe_unit_ratio, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [name, stock || 0, unit || 'Cái', pack_size || 1, pack_unit || unit, recipe_unit || unit || 'Cái', recipe_unit_ratio || 1, price || 0],
-        function (err) {
-            if (err) return res.status(500).json({ success: false, error: err.message });
-            res.json({ success: true, data: { id: this.lastID, name, stock, unit, pack_size, pack_unit, recipe_unit, recipe_unit_ratio, price } });
-        });
+    const newRow = {
+        name,
+        stock: stock || 0,
+        unit: unit || 'Cái',
+        pack_size: pack_size || 1,
+        pack_unit: pack_unit || unit,
+        recipe_unit: recipe_unit || unit || 'Cái',
+        recipe_unit_ratio: recipe_unit_ratio || 1,
+        price: price || 0
+    };
+
+    const { data, error } = await supabase.from('inventory').insert([newRow]).select().single();
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+
+    // Ghi lịch sử nhập kho
+    await supabase.from('inventory_history').insert([{
+        inventory_id: data.id,
+        action_type: 'IMPORT',
+        quantity_changed: stock || 0,
+        price: price || 0
+    }]);
+
+    res.json({ success: true, data });
 });
 
-app.delete('/api/inventory/:id', (req, res) => {
-    db.run(`DELETE FROM inventory WHERE id=?`, req.params.id, function (err) {
-        if (err) return res.status(500).json({ success: false, error: err.message });
-        res.json({ success: true, data: { changes: this.changes } });
-    });
+app.delete('/api/inventory/:id', async (req, res) => {
+    const { error, count } = await supabase.from('inventory').delete({ count: 'exact' }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: { changes: count } });
 });
 
-app.put('/api/inventory/:id', (req, res) => {
+app.put('/api/inventory/:id', async (req, res) => {
     const { name, stock, unit, pack_size, pack_unit, recipe_unit, recipe_unit_ratio, price } = req.body;
-    db.run(`UPDATE inventory SET name=?, stock=?, unit=?, pack_size=?, pack_unit=?, recipe_unit=?, recipe_unit_ratio=?, price=? WHERE id=?`,
-        [name, stock, unit, pack_size, pack_unit, recipe_unit, recipe_unit_ratio, price, req.params.id],
-        function (err) {
-            if (err) return res.status(500).json({ success: false, error: err.message });
-            res.json({ success: true, data: { changes: this.changes } });
+
+    const updateData = { name, stock, unit, pack_size, pack_unit, recipe_unit, recipe_unit_ratio, price };
+
+    const { error } = await supabase.from('inventory').update(updateData).eq('id', req.params.id);
+    if (error) return res.status(500).json({ success: false, error: error.message });
+
+    // Ghi lịch sử cập nhật
+    await supabase.from('inventory_history').insert([{
+        inventory_id: req.params.id,
+        action_type: 'UPDATE',
+        quantity_changed: stock || 0,
+        price: price || 0
+    }]);
+
+    res.json({ success: true, data: { changes: 1 } });
+});
+
+app.get('/api/inventory/:id/history', async (req, res) => {
+    const { data: rows, error } = await supabase.from('inventory_history').select('*').eq('inventory_id', req.params.id).order('timestamp', { ascending: false });
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: rows });
+});
+
+// --- Export Inventory ---
+
+app.get('/api/inventory/export/csv', async (req, res) => {
+    const { data: rows, error } = await supabase.from('inventory').select('id, name, stock, unit, price').order('name', { ascending: true });
+    if (error) return res.status(500).json({ success: false, error: error.message });
+
+    let csvContent = "ID,Tên Nguyên Liệu,Số Lượng,Đơn Vị, Đơn Giá\n";
+    rows.forEach(r => {
+        csvContent += `"${r.id}","${r.name}","${r.stock}","${r.unit}","${r.price}"\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="inventory_export.csv"');
+    res.send(Buffer.from('\uFEFF' + csvContent, 'utf-8'));
+});
+
+app.get('/api/inventory/export/excel', async (req, res) => {
+    try {
+        const { data: rows, error } = await supabase.from('inventory').select('id, name, stock, unit, price').order('name', { ascending: true });
+        if (error) throw error;
+
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Kho Nguyên Liệu');
+
+        sheet.columns = [
+            { header: 'ID', key: 'id', width: 10 },
+            { header: 'TÊN NGUYÊN LIỆU', key: 'name', width: 35 },
+            { header: 'SỐ LƯỢNG', key: 'stock', width: 15 },
+            { header: 'ĐƠN VỊ', key: 'unit', width: 15 },
+            { header: 'ĐƠN GIÁ (VNĐ)', key: 'price', width: 20 },
+            { header: 'TỔNG VỐN (VNĐ)', key: 'total', width: 25 },
+        ];
+
+        // Brutalism Header Styling
+        const headerRow = sheet.getRow(1);
+        headerRow.font = { name: 'Arial', family: 4, size: 12, bold: true, color: { argb: 'FF000000' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD600' } }; // Rôm Rả Yellow
+        headerRow.eachCell((cell) => {
+            cell.border = {
+                top: { style: 'thick' }, left: { style: 'thick' }, bottom: { style: 'thick' }, right: { style: 'thick' }
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+
+        rows.forEach(r => {
+            const row = sheet.addRow({
+                id: r.id, name: r.name, stock: r.stock, unit: r.unit, price: r.price, total: r.stock * r.price
+            });
+            row.eachCell((cell) => {
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                if (cell.col >= 3) cell.alignment = { horizontal: 'right' };
+            });
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="Kho_Rôm_Rả_Cà_Phê.xlsx"');
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/inventory/export/pdf', async (req, res) => {
+    const { data: rows, error } = await supabase.from('inventory').select('id, name, stock, unit, price').order('name', { ascending: true });
+    if (error) return res.status(500).json({ success: false, error: error.message });
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Bao_Cao_Kho_Rom_Ra.pdf"');
+    doc.pipe(res);
+
+    // Header Background (Simulate Brutalism Yellow Block)
+    doc.rect(50, 40, 495, 60).fillAndStroke('#FFD600', '#000000');
+    doc.lineWidth(4); // Thick borders
+    doc.rect(50, 40, 495, 60).stroke();
+
+    // Title
+    doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold').text('RÔM RẢ CÀ PHÊ - KHO NGUYÊN LIỆU', 0, 58, { align: 'center' });
+
+    doc.moveDown(3);
+    doc.fontSize(10).font('Helvetica-Bold');
+
+    let y = 140;
+    const colWidths = [40, 200, 60, 60, 100];
+    const headers = ["ID", "TEN NGUYEN LIEU", "SL", "D.VI", "TONG VON(VND)"];
+
+    // Draw Table Header
+    let x = 50;
+    headers.forEach((h, i) => {
+        doc.rect(x, y, colWidths[i], 30).fillAndStroke('#000000', '#000000');
+        doc.fillColor('#FFFFFF').text(h, x + 5, y + 10);
+        x += colWidths[i];
+    });
+
+    y += 30;
+    doc.font('Helvetica').fillColor('#000000');
+    doc.lineWidth(1);
+
+    rows.forEach((r, idx) => {
+        if (y > 750) {
+            doc.addPage();
+            y = 50;
         }
-    );
+        x = 50;
+        const isAlt = idx % 2 === 0;
+        const values = [r.id.toString(), r.name, r.stock.toString(), r.unit, (r.stock * r.price).toLocaleString('en-US')];
+        values.forEach((val, i) => {
+            doc.rect(x, y, colWidths[i], 25).fillAndStroke(isAlt ? '#f8fafc' : '#ffffff', '#000000');
+            doc.fillColor('#000000').text(val, x + 5, y + 8);
+            x += colWidths[i];
+        });
+        y += 25;
+    });
+
+    doc.end();
+});
+
+app.post('/api/inventory/import', upload.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ success: false, error: 'Vui lòng chọn file CSV' });
+
+    const results = [];
+
+    // Convert Buffer to stream
+    const stream = Readable.from(req.file.buffer.toString('utf-8'));
+
+    stream
+        .pipe(csv())
+        .on('data', (data) => results.push(data))
+        .on('end', async () => {
+            if (results.length === 0) return res.status(400).json({ success: false, error: 'File rỗng hoặc sai định dạng' });
+
+            // Cố gắng update các mặt hàng có sẵn dựa trên ID hoặc Tên
+            let errorOccurred = false;
+            let successCount = 0;
+
+            for (const row of results) {
+                const id = row['ID'] || row['id'];
+                const name = row['Tên Nguyên Liệu'] || row['name'] || row['TEN NGUYEN LIEU'];
+                const addedStock = parseFloat(row['Số Lượng']) || parseFloat(row['SL']) || parseFloat(row['stock']) || 0;
+                const price = parseFloat(row['Đơn Giá']) || parseFloat(row['price']) || parseFloat(row['GIA VON(VND)']) || 0;
+
+                if (!name && !id) continue; // Skip invalid rows
+
+                try {
+                    // Fetch existing to get current stock and true ID
+                    let query = supabase.from('inventory').select('id, stock');
+                    if (id) query = query.eq('id', id);
+                    else if (name) query = query.eq('name', name);
+
+                    const { data: existingData, error: fetchErr } = await query.single();
+
+                    if (fetchErr && fetchErr.code !== 'PGRST116') { // PGRST116 is no rows
+                        errorOccurred = true;
+                        continue;
+                    }
+
+                    if (existingData) {
+                        const newStock = parseFloat(existingData.stock) + addedStock;
+                        const { error: updateErr } = await supabase.from('inventory').update({ stock: newStock, price }).eq('id', existingData.id);
+
+                        if (!updateErr) {
+                            await supabase.from('inventory_history').insert([{
+                                inventory_id: existingData.id,
+                                action_type: 'BATCH_IMPORT',
+                                quantity_changed: addedStock,
+                                price: price
+                            }]);
+                            successCount++;
+                        } else {
+                            errorOccurred = true;
+                        }
+                    } else {
+                        // Optional: Insert new if doesn't exist? Currently only update supported basically
+                    }
+                } catch (err) {
+                    errorOccurred = true;
+                }
+            }
+
+            if (errorOccurred && successCount === 0) {
+                return res.status(500).json({ success: false, error: 'Lỗi parse file hoặc cập nhật dữ liệu' });
+            } else {
+                res.json({ success: true, message: `Đã import hoặc kiểm tra xong file. Cập nhật được ${successCount} dòng dữ liệu` });
+            }
+        });
 });
 
 // --- Recipes ---
-app.get('/api/recipes', (req, res) => {
-    db.all(`SELECT * FROM inventory`, [], (err, invRows) => {
-        if (err) return res.status(500).json({ success: false, error: err.message });
+app.get('/api/recipes', async (req, res) => {
+    const { data: invRows, error: invErr } = await supabase.from('inventory').select('*');
+    if (invErr) return res.status(500).json({ success: false, error: invErr.message });
 
-        const invMap = {};
-        const invNameMap = {};
-        const invRatioMap = {}; // mapping for real unit price calculation
-        invRows.forEach(i => {
-            const ratio = i.recipe_unit_ratio && i.recipe_unit_ratio > 0 ? i.recipe_unit_ratio : 1;
-            const trueUnitCost = i.price / ratio;
-            invMap[i.id] = trueUnitCost;
-            invNameMap[i.name] = trueUnitCost;
-        });
-
-        db.all(`SELECT * FROM recipes ORDER BY name ASC`, [], (err, rows) => {
-            if (err) return res.status(500).json({ success: false, error: err.message });
-
-            rows.forEach(r => {
-                let totalCost = 0;
-                if (r.ingredients) {
-                    try {
-                        const ings = JSON.parse(r.ingredients);
-                        ings.forEach(ing => {
-                            let unitCost = 0;
-                            if (ing.invId && invMap[ing.invId]) {
-                                unitCost = invMap[ing.invId];
-                            } else if (invNameMap[ing.name]) {
-                                unitCost = invNameMap[ing.name];
-                            }
-                            totalCost += (ing.amount || 0) * unitCost;
-                        });
-                    } catch (e) { }
-                }
-
-                // Override raw cogs with real-time computed totalCost
-                r.cogs = totalCost;
-                r.profit = r.price - totalCost;
-                r.profit_margin = r.price > 0 ? (r.profit / r.price) * 100 : 0;
-            });
-
-            res.json({ success: true, data: rows });
-        });
+    const invMap = {};
+    const invNameMap = {};
+    invRows.forEach(i => {
+        const ratio = i.recipe_unit_ratio && Number(i.recipe_unit_ratio) > 0 ? Number(i.recipe_unit_ratio) : 1;
+        const trueUnitCost = Number(i.price) / ratio;
+        invMap[i.id] = trueUnitCost;
+        invNameMap[i.name] = trueUnitCost;
     });
+
+    const { data: rows, error: recErr } = await supabase.from('recipes').select('*').order('name', { ascending: true });
+    if (recErr) return res.status(500).json({ success: false, error: recErr.message });
+
+    rows.forEach(r => {
+        let totalCost = 0;
+        if (r.ingredients) {
+            try {
+                // with Supabase JSONB, it might already be parsed, check if string
+                const ings = typeof r.ingredients === 'string' ? JSON.parse(r.ingredients) : r.ingredients;
+                ings.forEach(ing => {
+                    let unitCost = 0;
+                    if (ing.invId && invMap[ing.invId]) {
+                        unitCost = invMap[ing.invId];
+                    } else if (invNameMap[ing.name]) {
+                        unitCost = invNameMap[ing.name];
+                    }
+                    totalCost += (ing.amount || 0) * unitCost;
+                });
+            } catch (e) { }
+        }
+
+        // Override raw cogs with real-time computed totalCost
+        r.cogs = totalCost;
+        r.profit = r.price - totalCost;
+        r.profit_margin = r.price > 0 ? (r.profit / r.price) * 100 : 0;
+    });
+
+    res.json({ success: true, data: rows });
 });
 
-app.post('/api/recipes', (req, res) => {
-    const { name, size, cogs, steps, price, image } = req.body;
+app.get('/api/recipes/export/pdf', async (req, res) => {
+    // 1. Fetch Inventory to build cost map
+    const { data: invRows, error: invErr } = await supabase.from('inventory').select('*');
+    if (invErr) return res.status(500).json({ success: false, error: invErr.message });
+
+    const invMap = {};
+    const invNameMap = {};
+    invRows.forEach(i => {
+        const ratio = i.recipe_unit_ratio && Number(i.recipe_unit_ratio) > 0 ? Number(i.recipe_unit_ratio) : 1;
+        const trueUnitCost = Number(i.price) / ratio;
+        invMap[i.id] = trueUnitCost;
+        invNameMap[i.name] = trueUnitCost;
+    });
+
+    // 2. Fetch Recipes
+    const { data: rows, error: recErr } = await supabase.from('recipes').select('*').order('name', { ascending: true });
+    if (recErr) return res.status(500).json({ success: false, error: recErr.message });
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Menu_Cong_Thuc_Rom_Ra.pdf"');
+    doc.pipe(res);
+
+    // Brutalism Header
+    doc.rect(50, 40, 495, 60).fillAndStroke('#FFD600', '#000000');
+    doc.lineWidth(4);
+    doc.rect(50, 40, 495, 60).stroke();
+
+    // Title
+    doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold').text('RÔM RẢ CÀ PHÊ - MENU CÔNG THỨC', 0, 58, { align: 'center' });
+
+    doc.moveDown(3);
+    doc.fontSize(10).font('Helvetica-Bold');
+
+    let y = 140;
+    const colWidths = [180, 50, 40, 100, 100];
+    const headers = ["TEN MON", "SIZE", "B.CAO", "GIA VON(VND)", "GIA BAN(VND)"];
+
+    // Draw Table Header
+    let x = 50;
+    headers.forEach((h, i) => {
+        doc.rect(x, y, colWidths[i], 30).fillAndStroke('#000000', '#000000');
+        doc.fillColor('#FFFFFF').text(h, x + 5, y + 10);
+        x += colWidths[i];
+    });
+
+    y += 30;
+    doc.font('Helvetica').fillColor('#000000');
+    doc.lineWidth(1);
+
+    rows.forEach((r, idx) => {
+        if (y > 750) {
+            doc.addPage();
+            y = 50;
+        }
+
+        // Calculate Dynamic COGS
+        let totalCost = 0;
+        if (r.ingredients) {
+            try {
+                const ings = typeof r.ingredients === 'string' ? JSON.parse(r.ingredients) : r.ingredients;
+                ings.forEach(ing => {
+                    let unitCost = 0;
+                    if (ing.invId && invMap[ing.invId]) unitCost = invMap[ing.invId];
+                    else if (invNameMap[ing.name]) unitCost = invNameMap[ing.name];
+                    totalCost += (ing.amount || 0) * unitCost;
+                });
+            } catch (e) { }
+        }
+
+        x = 50;
+        const isAlt = idx % 2 === 0;
+        const values = [r.name, r.size || 'M', r.steps.toString() + ' Buoc', totalCost.toLocaleString('en-US'), Number(r.price).toLocaleString('en-US')];
+
+        values.forEach((val, i) => {
+            doc.rect(x, y, colWidths[i], 25).fillAndStroke(isAlt ? '#f8fafc' : '#ffffff', '#000000');
+            doc.fillColor('#000000').text(val, x + 5, y + 8);
+            x += colWidths[i];
+        });
+        y += 25;
+    });
+
+    doc.end();
+});
+
+app.post('/api/recipes', async (req, res) => {
+    const { name, size, cogs, steps, price, image, ingredients, steps_detail } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Tên công thức không được trống' });
 
-    db.run(`INSERT INTO recipes (name, size, cogs, steps, price, image) VALUES (?, ?, ?, ?, ?, ?)`,
-        [name, size || 'M', cogs || 0, steps || 1, price || 0, image || ''],
-        function (err) {
-            if (err) return res.status(500).json({ success: false, error: err.message });
-            res.json({ success: true, data: { id: this.lastID, name, size, cogs, steps, price, image } });
-        });
+    // Ensure JSON is passed for JSONB
+    let parsedIngredients = ingredients;
+    let parsedSteps = steps_detail;
+    try {
+        if (typeof ingredients === 'string') parsedIngredients = JSON.parse(ingredients);
+        if (typeof steps_detail === 'string') parsedSteps = JSON.parse(steps_detail);
+    } catch (e) { }
+
+    const newObj = {
+        name,
+        size: size || 'M',
+        cogs: cogs || 0,
+        steps: steps || 1,
+        price: price || 0,
+        image: image || '',
+        ingredients: parsedIngredients, // Supabase allows storing JSON objects directly into JSONB
+        steps_detail: parsedSteps
+    };
+
+    const { data, error } = await supabase.from('recipes').insert([newObj]).select().single();
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data });
 });
 
-app.put('/api/recipes/:id', (req, res) => {
+app.put('/api/recipes/:id', async (req, res) => {
     const { name, size, cogs, steps, price, ingredients, steps_detail, image } = req.body;
-    db.run(`UPDATE recipes SET name=?, size=?, cogs=?, steps=?, price=?, ingredients=?, steps_detail=?, image=? WHERE id=?`,
-        [name, size, cogs, steps, price, ingredients, steps_detail, image, req.params.id],
-        function (err) {
-            if (err) return res.status(500).json({ success: false, error: err.message });
-            res.json({ success: true, data: { changes: this.changes } });
-        }
-    );
+
+    let parsedIngredients = ingredients;
+    let parsedSteps = steps_detail;
+    try {
+        if (typeof ingredients === 'string') parsedIngredients = JSON.parse(ingredients);
+        if (typeof steps_detail === 'string') parsedSteps = JSON.parse(steps_detail);
+    } catch (e) { }
+
+    const updateObj = { name, size, cogs, steps, price, image, ingredients: parsedIngredients, steps_detail: parsedSteps };
+
+    const { error } = await supabase.from('recipes').update(updateObj).eq('id', req.params.id);
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: { changes: 1 } });
 });
 
-app.delete('/api/recipes/:id', (req, res) => {
-    db.run(`DELETE FROM recipes WHERE id=?`, req.params.id, function (err) {
-        if (err) return res.status(500).json({ success: false, error: err.message });
-        res.json({ success: true, data: { changes: this.changes } });
-    });
+app.delete('/api/recipes/:id', async (req, res) => {
+    const { error, count } = await supabase.from('recipes').delete({ count: 'exact' }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: { changes: count } });
 });
 
 // --- Reports ---
@@ -252,23 +504,21 @@ app.get('/api/reports/dashboard', (req, res) => {
 });
 
 // --- Users ---
-app.post('/api/users/login', (req, res) => {
+app.post('/api/users/login', async (req, res) => {
     const { username, password } = req.body;
-    db.get(`SELECT * FROM users WHERE username = ? AND password = ?`, [username, password], (err, row) => {
-        if (err) return res.status(500).json({ success: false, error: err.message });
-        if (!row) return res.status(401).json({ success: false, error: 'Sai tên đăng nhập hoặc mật khẩu' });
-        res.json({ success: true, data: { id: row.id, username: row.username, role: row.role } });
-    });
+    const { data: row, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).single();
+
+    if (error || !row) return res.status(401).json({ success: false, error: 'Sai tên đăng nhập hoặc mật khẩu' });
+    res.json({ success: true, data: { id: row.id, username: row.username, role: row.role } });
 });
 
-app.get('/api/users', (req, res) => {
-    db.all(`SELECT * FROM users ORDER BY role ASC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ success: false, error: err.message });
-        res.json({ success: true, data: rows });
-    });
+app.get('/api/users', async (req, res) => {
+    const { data: rows, error } = await supabase.from('users').select('*').order('role', { ascending: true });
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: rows });
 });
 
-app.post('/api/users', (req, res) => {
+app.post('/api/users', async (req, res) => {
     const { username, password, role } = req.body;
     if (!username || !password) {
         return res.status(400).json({ success: false, error: 'Thiếu tên hoặc mật khẩu' });
@@ -283,46 +533,39 @@ app.post('/api/users', (req, res) => {
 
     const permissions = role === 'admin' ? 'FULL' : 'READ_ONLY';
 
-    db.run(`INSERT INTO users (username, password, role, permissions) VALUES (?, ?, ?, ?)`,
-        [username, password, role, permissions],
-        function (err) {
-            if (err) return res.status(500).json({ success: false, error: err.message });
-            res.json({ success: true, data: { id: this.lastID, username, role, permissions } });
-        });
+    const { data, error } = await supabase.from('users').insert([{ username, password, role, permissions }]).select().single();
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: { id: data.id, username, role, permissions } });
 });
 
-app.put('/api/users/:id/password', (req, res) => {
+app.put('/api/users/:id/password', async (req, res) => {
     const { password } = req.body;
     if (!password) {
         return res.status(400).json({ success: false, error: 'Thiếu mật khẩu mới' });
     }
 
-    db.run(`UPDATE users SET password = ? WHERE id = ?`,
-        [password, req.params.id],
-        function (err) {
-            if (err) return res.status(500).json({ success: false, error: err.message });
-            if (this.changes === 0) return res.status(404).json({ success: false, error: 'Không tìm thấy tài khoản' });
-            res.json({ success: true, message: 'Đổi mật khẩu thành công' });
-        });
+    const { error, count } = await supabase.from('users').update({ password }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
 });
 
-app.delete('/api/users/:id', (req, res) => {
+app.delete('/api/users/:id', async (req, res) => {
     // Không cho phép xóa ID = 1 (Tài khoản Admin root)
     if (req.params.id == 1) {
         return res.status(403).json({ success: false, error: 'Không thể xóa tài khoản Quản trị viên gốc' });
     }
-    db.run(`DELETE FROM users WHERE id=?`, req.params.id, function (err) {
-        if (err) return res.status(500).json({ success: false, error: err.message });
-        if (this.changes === 0) return res.status(404).json({ success: false, error: 'Không tìm thấy tài khoản' });
-        res.json({ success: true, data: { changes: this.changes } });
-    });
+    const { error, count } = await supabase.from('users').delete({ count: 'exact' }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: { changes: count } });
 });
 
-
-// Use simple middleware if necessary, but express.static is enough for SPA.
-// If you use browser router, might need specific routes.
 
 // Start the Express server
-app.listen(port, () => {
-    console.log(`Server v2 is running on http://localhost:${port}`);
-});
+if (!process.env.VERCEL) {
+    app.listen(port, () => {
+        console.log(`Server v3 (Supabase) is running on http://localhost:${port}`);
+    });
+}
+
+// Export for Vercel Serverless Function
+module.exports = app;
