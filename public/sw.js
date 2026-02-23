@@ -1,4 +1,4 @@
-const CACHE_NAME = 'romracaphe-v2'; // Bumped version to break old cache
+const CACHE_NAME = 'romracaphe-v3'; // Bumped version to break old cache
 const ASSETS = [
     '/',
     '/index.html',
