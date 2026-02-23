@@ -417,7 +417,7 @@ app.get('/api/recipes/export/pdf', async (req, res) => {
 });
 
 app.post('/api/recipes', async (req, res) => {
-    const { name, size, cogs, steps, price, image, ingredients, steps_detail } = req.body;
+    const { name, size, cogs, steps, price, image, ingredients, steps_detail, description, is_best_seller, is_sold_out } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Tên công thức không được trống' });
 
     // Ensure JSON is passed for JSONB
@@ -435,6 +435,9 @@ app.post('/api/recipes', async (req, res) => {
         steps: steps || 1,
         price: price || 0,
         image: image || '',
+        description: description || '',
+        is_best_seller: is_best_seller || false,
+        is_sold_out: is_sold_out || false,
         ingredients: parsedIngredients, // Supabase allows storing JSON objects directly into JSONB
         steps_detail: parsedSteps
     };
@@ -445,7 +448,7 @@ app.post('/api/recipes', async (req, res) => {
 });
 
 app.put('/api/recipes/:id', async (req, res) => {
-    const { name, size, cogs, steps, price, ingredients, steps_detail, image } = req.body;
+    const { name, size, cogs, steps, price, ingredients, steps_detail, image, description, is_best_seller, is_sold_out } = req.body;
 
     let parsedIngredients = ingredients;
     let parsedSteps = steps_detail;
@@ -454,7 +457,11 @@ app.put('/api/recipes/:id', async (req, res) => {
         if (typeof steps_detail === 'string') parsedSteps = JSON.parse(steps_detail);
     } catch (e) { }
 
-    const updateObj = { name, size, cogs, steps, price, image, ingredients: parsedIngredients, steps_detail: parsedSteps };
+    const updateObj = {
+        name, size, cogs, steps, price, image,
+        description, is_best_seller, is_sold_out,
+        ingredients: parsedIngredients, steps_detail: parsedSteps
+    };
 
     const { error } = await supabase.from('recipes').update(updateObj).eq('id', req.params.id);
 

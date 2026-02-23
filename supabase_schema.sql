@@ -31,7 +31,10 @@ CREATE TABLE public.recipes (
     price NUMERIC DEFAULT 0,
     ingredients JSONB,
     steps_detail JSONB,
-    image TEXT
+    image TEXT,
+    description TEXT,
+    is_best_seller BOOLEAN DEFAULT false,
+    is_sold_out BOOLEAN DEFAULT false
 );
 
 -- 4. Create Inventory History Table
