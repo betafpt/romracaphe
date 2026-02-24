@@ -734,10 +734,53 @@
                     </select>
                 </div>
 
-                <div id="public-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto pb-12">
+                <div id="public-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto pb-32">
                     <div class="p-6 italic text-center col-span-full font-bold bg-white border-4 border-black">Đang tải Menu...</div>
                 </div>
                 </div>
+
+                <!-- Floating Cart Bar -->
+                <div id="cart-floating-bar" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-white border-4 border-black p-3 shadow-[8px_8px_0_0_#000] z-50 flex justify-between items-center brutal-card cursor-pointer transition-transform duration-300 translate-y-32" onclick="window.toggleCartModal()">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-primary border-4 border-black rounded-full flex items-center justify-center font-black text-xl" id="cart-total-qty">0</div>
+                        <div>
+                            <div class="font-black text-sm uppercase">Giỏ hàng của bạn</div>
+                            <div class="font-bold text-lg text-primary drop-shadow-[1px_1px_0_#000]" id="cart-total-price">0đ</div>
+                        </div>
+                    </div>
+                    <span class="material-symbols-outlined font-black text-3xl animate-pulse">shopping_bag</span>
+                </div>
+
+                <!-- Cart Modal -->
+                <div id="cart-modal" class="fixed inset-0 bg-black/80 z-[60] flex flex-col justify-end hidden opacity-0 transition-opacity duration-300 backdrop-blur-sm">
+                    <div class="bg-white w-full max-w-md mx-auto border-t-8 border-black shadow-[0_-8px_0_0_var(--color-primary)] flex flex-col max-h-[85vh] transition-transform duration-300 translate-y-full" id="cart-modal-content">
+                        <!-- Header -->
+                        <div class="p-4 border-b-4 border-black flex justify-between items-center bg-gray-100">
+                            <h3 class="font-heading font-black text-2xl uppercase">GIỎ HÀNG</h3>
+                            <button onclick="window.toggleCartModal()" class="w-10 h-10 border-4 border-black brutal-shadow-sm bg-red-500 text-white font-black flex items-center justify-center hover:bg-red-600 active:translate-y-1 active:shadow-none">
+                                <span class="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Items -->
+                        <div id="cart-items-container" class="p-4 flex-1 overflow-y-auto flex flex-col gap-4 bg-slate-50">
+                            <!-- Injected by JS -->
+                        </div>
+
+                        <!-- Footer / Checkout -->
+                        <div class="p-4 border-t-4 border-black bg-white">
+                            <div class="flex justify-between items-center mb-4 text-xl font-black">
+                                <span>TỔNG TIỀN:</span>
+                                <span class="text-primary drop-shadow-[1px_1px_0_#000] text-3xl" id="cart-modal-total">0đ</span>
+                            </div>
+                            <button onclick="window.submitCartOrder()" class="w-full h-16 bg-primary border-4 border-black brutal-shadow-sm font-heading font-black text-xl uppercase hover:brightness-110 active:translate-y-1 active:shadow-none flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined">payments</span>
+                                CHỐT ĐƠN !
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 </div>
             `;
             setTimeout(initBlueprintGrid, 50);
@@ -926,7 +969,7 @@
                         </div>
                         <div class="flex justify-between items-end mt-2">
                             <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_rgba(0,0,0,1)] tracking-tight">${Number(r.price).toLocaleString('vi-VN')}đ</span>
-                            <button class="bg-black text-white p-2 border-2 border-white rounded-full hover:bg-primary hover:text-black transition-colors active:scale-95">
+                            <button onclick="window.addToCart(${r.id}, event)" class="bg-black text-white p-2 border-2 border-white rounded-full hover:bg-primary hover:text-black transition-colors active:scale-95 z-40 relative group-hover:scale-110">
                                 <span class="material-symbols-outlined font-black">add</span>
                             </button>
                         </div>
@@ -2372,6 +2415,157 @@
                 document.body.style.overflow = 'hidden';
             }
         }
+
+        // ================= CUSTOMER CART LOGIC =================
+        window.currentCart = []; // array of { recipeId, quantity, details }
+
+        window.addToCart = function (recipeId, event) {
+            // Prevent toggling card expansion if any, just act as button click
+            if (event) event.stopPropagation();
+
+            const recipe = window.publicRecipesCache?.find(r => r.id === recipeId);
+            if (!recipe) {
+                showToast("Món không tồn tại", "error");
+                return;
+            }
+
+            const existingIdx = window.currentCart.findIndex(item => item.recipeId === recipeId);
+            if (existingIdx > -1) {
+                window.currentCart[existingIdx].quantity += 1;
+            } else {
+                window.currentCart.push({
+                    recipeId: recipe.id,
+                    name: recipe.name,
+                    price: recipe.price,
+                    image: recipe.image,
+                    quantity: 1
+                });
+            }
+
+            showToast(`Đã thêm ${recipe.name} vào giỏ`, "success");
+            window.updateCartUI();
+        };
+
+        window.updateCartUI = function () {
+            const floatingBar = document.getElementById('cart-floating-bar');
+            if (!floatingBar) return;
+
+            const totalQty = window.currentCart.reduce((sum, item) => sum + item.quantity, 0);
+            const totalPrice = window.currentCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            // Cập nhật Bar
+            document.getElementById('cart-total-qty').innerText = totalQty;
+            document.getElementById('cart-total-price').innerText = totalPrice.toLocaleString('vi-VN') + 'đ';
+
+            if (totalQty > 0) {
+                floatingBar.classList.remove('translate-y-32');
+                floatingBar.classList.remove('opacity-0');
+            } else {
+                floatingBar.classList.add('translate-y-32');
+                floatingBar.classList.add('opacity-0');
+                // Nếu rỗng khi đang mở modal thì đóng modal
+                const modal = document.getElementById('cart-modal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    window.toggleCartModal();
+                }
+            }
+
+            // Cảnh báo Bounce giỏ hàng (Micro-interaction)
+            floatingBar.classList.add('-translate-y-2', 'scale-105');
+            setTimeout(() => {
+                floatingBar.classList.remove('-translate-y-2', 'scale-105');
+            }, 200);
+
+            // Cập nhật Modal Header Total
+            const modalTotal = document.getElementById('cart-modal-total');
+            if (modalTotal) modalTotal.innerText = totalPrice.toLocaleString('vi-VN') + 'đ';
+
+            // Xây dựng List Items
+            window.renderCartItems();
+        };
+
+        window.renderCartItems = function () {
+            const container = document.getElementById('cart-items-container');
+            if (!container) return;
+
+            if (window.currentCart.length === 0) {
+                container.innerHTML = `<div class="text-center font-bold text-gray-500 py-8">Giỏ hàng trống</div>`;
+                return;
+            }
+
+            container.innerHTML = window.currentCart.map(item => {
+                let displayImg = item.image ? item.image.split('|')[0] : 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+                return `
+                    <div class="flex border-4 border-black bg-white brutal-shadow-sm p-3 items-center gap-3 relative">
+                        <!-- Xóa item -->
+                        <button onclick="window.changeCartQuantity(${item.recipeId}, -999)" class="absolute -top-3 -right-3 w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-red-500 font-bold border-2 border-white z-10 scale-90 transition-transform active:scale-75">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                        
+                        <img src="${displayImg}" class="w-16 h-16 object-cover border-4 border-black bg-slate-100" />
+                        <div class="flex-1">
+                            <h4 class="font-black leading-tight text-sm">${item.name}</h4>
+                            <div class="font-bold text-primary drop-shadow-[1px_1px_0_#000]">${Number(item.price).toLocaleString('vi-VN')}đ</div>
+                        </div>
+                        <div class="flex items-center gap-2 font-black border-4 border-black p-1 bg-gray-100">
+                            <button onclick="window.changeCartQuantity(${item.recipeId}, -1)" class="w-8 h-8 flex items-center justify-center hover:bg-yellow-300 active:scale-90">-</button>
+                            <span class="w-6 text-center select-none">${item.quantity}</span>
+                            <button onclick="window.changeCartQuantity(${item.recipeId}, 1)" class="w-8 h-8 flex items-center justify-center hover:bg-yellow-300 active:scale-90">+</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.changeCartQuantity = function (recipeId, delta) {
+            const idx = window.currentCart.findIndex(i => i.recipeId === recipeId);
+            if (idx === -1) return;
+
+            window.currentCart[idx].quantity += delta;
+
+            if (window.currentCart[idx].quantity <= 0) {
+                window.currentCart.splice(idx, 1);
+            }
+            window.updateCartUI();
+        };
+
+        window.toggleCartModal = function () {
+            const modal = document.getElementById('cart-modal');
+            const content = document.getElementById('cart-modal-content');
+            if (!modal) return;
+
+            const isHidden = modal.classList.contains('hidden');
+            if (isHidden) {
+                // Mở
+                modal.classList.remove('hidden');
+                // Allow reflow
+                void modal.offsetWidth;
+                modal.classList.remove('opacity-0');
+                content.classList.remove('translate-y-full');
+                document.body.style.overflow = 'hidden';
+            } else {
+                // Đóng
+                modal.classList.add('opacity-0');
+                content.classList.add('translate-y-full');
+                document.body.style.overflow = '';
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300); // 300ms khớp duration-300 Tailwind
+            }
+        };
+
+        window.submitCartOrder = async function () {
+            // Sẽ gọi API tạo order ở backend ở bước tiếp theo
+            showToast("Đang phát triển gọi qua API", "info");
+
+            // Tạm thời Clear Giỏ hàng
+            setTimeout(() => {
+                alert("Đơn hàng đã được đặt nháp (TBD API).");
+                window.currentCart = [];
+                window.updateCartUI();
+                window.toggleCartModal();
+            }, 500);
+        };
     </script>
     <script>
         // Đăng kí Bộ Não PWA (Service Worker) để Chạy Mượt Mà Mọi Lúc 
