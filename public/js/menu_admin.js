@@ -48,6 +48,14 @@ window.renderAdminMenu = async function () {
                             <label class="font-bold text-sm block mb-1 uppercase">Tên Món</label>
                             <input type="text" id="menu-name" required class="brutal-input py-2" placeholder="Ví dụ: Cà phê sữa đá">
                         </div>
+                        <div class="w-1/4">
+                            <label class="font-bold text-sm block mb-1 uppercase">Size</label>
+                            <select id="menu-size" class="brutal-input py-2 bg-white">
+                                <option value="S">S</option>
+                                <option value="M" selected>M</option>
+                                <option value="L">L</option>
+                            </select>
+                        </div>
                         <div class="w-1/3">
                             <label class="font-bold text-sm block mb-1 uppercase">Giá Bán</label>
                             <input type="number" id="menu-price" required class="brutal-input py-2" placeholder="0">
@@ -161,6 +169,7 @@ window.renderAdminMenuList = function () {
 window.openAddMenuModal = function () {
     document.getElementById('form-edit-menu').reset();
     document.getElementById('menu-id').value = '';
+    document.getElementById('menu-size').value = 'M';
     document.getElementById('menu-modal-title').innerText = 'Thêm Món Mới';
     window.removeMenuImage(); // Reset image preview
     document.getElementById('modal-edit-menu').style.display = 'flex';
@@ -173,6 +182,7 @@ window.openEditMenuModal = function (id) {
     document.getElementById('menu-id').value = item.id;
     document.getElementById('menu-modal-title').innerText = `Sửa Món: ${item.name}`;
     document.getElementById('menu-name').value = item.name || '';
+    document.getElementById('menu-size').value = item.size || 'M';
     document.getElementById('menu-price').value = item.price || 0;
     document.getElementById('menu-description').value = item.description || '';
     document.getElementById('menu-is-best-seller').checked = item.is_best_seller || false;
@@ -215,6 +225,7 @@ window.saveAdminMenu = async function (event) {
 
     const id = document.getElementById('menu-id').value;
     const name = document.getElementById('menu-name').value.trim();
+    const size = document.getElementById('menu-size').value || 'M';
     const price = Number(document.getElementById('menu-price').value) || 0;
     const description = document.getElementById('menu-description').value;
     const is_best_seller = document.getElementById('menu-is-best-seller').checked;
@@ -239,6 +250,7 @@ window.saveAdminMenu = async function (event) {
         payload = {
             ...existing,
             name,
+            size,
             price,
             description,
             is_best_seller,
@@ -251,7 +263,7 @@ window.saveAdminMenu = async function (event) {
         payload = {
             name,
             price,
-            size: 'M',
+            size,
             steps: 0,
             cogs: 0,
             description,
