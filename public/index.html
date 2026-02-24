@@ -781,6 +781,21 @@
                     </div>
                 </div>
 
+                <!-- Success Modal -->
+                <div id="cart-success-modal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4">
+                    <div class="absolute inset-0 bg-green-400 opacity-0 transition-opacity duration-300" id="cart-success-bg"></div>
+                    <div class="bg-white border-8 border-black shadow-[16px_16px_0_0_#000] p-8 max-w-sm w-full relative z-10 flex flex-col items-center text-center transform scale-0 transition-transform duration-500 delay-100" id="cart-success-card" style="transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);">
+                        <div class="w-32 h-32 bg-primary border-8 border-black rounded-full flex items-center justify-center mb-6 animate-bounce transition-all">
+                            <span class="material-symbols-outlined text-black" style="font-size: 80px; font-weight: 900;">check</span>
+                        </div>
+                        <h3 class="font-heading font-black text-4xl uppercase mb-4 text-black drop-shadow-[2px_2px_0_#fff]" style="line-height: 1;">CHỐT ĐƠN!</h3>
+                        <p class="font-bold text-xl mb-6 text-gray-800">Cảm ơn bạn đã đặt món.<br>Vui lòng chờ trong giây lát nhé!</p>
+                        <button onclick="window.closeSuccessModal()" class="w-full bg-black text-white border-4 border-black font-heading font-black text-xl py-4 hover:bg-primary hover:text-black hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all">
+                            TUYỆT VỜI
+                        </button>
+                    </div>
+                </div>
+
                 </div>
             `;
             setTimeout(initBlueprintGrid, 50);
@@ -2556,14 +2571,37 @@
 
         window.submitCartOrder = async function () {
             // Sẽ gọi API tạo order ở backend ở bước tiếp theo
-            showToast("Đang phát triển gọi qua API", "info");
 
-            // Tạm thời Clear Giỏ hàng
+            // Xóa rỗng giỏ hàng và ẩn Modal giỏ hàng
+            window.currentCart = [];
+            window.updateCartUI();
+            window.toggleCartModal();
+
+            // Hiện Modal Thành Công với hiệu ứng
+            const sModal = document.getElementById('cart-success-modal');
+            const sBg = document.getElementById('cart-success-bg');
+            const sCard = document.getElementById('cart-success-card');
+
+            sModal.classList.remove('hidden');
+            sModal.classList.add('flex');
+            void sModal.offsetWidth; // Force Browser to repaint (giúp trigger transition CSS)
+
+            sBg.classList.replace('opacity-0', 'opacity-100');
+            sCard.classList.replace('scale-0', 'scale-100');
+        };
+
+        window.closeSuccessModal = function () {
+            const sModal = document.getElementById('cart-success-modal');
+            const sBg = document.getElementById('cart-success-bg');
+            const sCard = document.getElementById('cart-success-card');
+
+            sBg.classList.replace('opacity-100', 'opacity-0');
+            sCard.classList.replace('scale-100', 'scale-0');
+
+            // Chờ animation chạy xong rồi mới hide hẳn thẻ DIV
             setTimeout(() => {
-                alert("Đơn hàng đã được đặt nháp (TBD API).");
-                window.currentCart = [];
-                window.updateCartUI();
-                window.toggleCartModal();
+                sModal.classList.add('hidden');
+                sModal.classList.remove('flex');
             }, 500);
         };
     </script>
