@@ -537,7 +537,7 @@ app.post('/api/orders', async (req, res) => {
         const { data: orderData, error: oErr } = await supabase.from('orders').insert({
             payment_method: paymentMethod || 'cash',
             total_amount: serverTotal,
-            status: 'completed' // Mặc định chốt là xong (có thể đổi thành pending nếu cần duyệt)
+            status: 'pending' // Chờ thu ngân/chế biến xác nhận
         }).select().single();
 
         if (oErr) throw oErr;
@@ -554,7 +554,52 @@ app.post('/api/orders', async (req, res) => {
         res.json({ success: true, orderId: orderData.id });
     } catch (e) {
         console.error('Order Error:', e);
-        res.status(500).json({ success: false, error: e.message || 'Lỗi server khi tạo đơn' });
+    }
+});
+
+// Lấy danh sách Order (live POS)
+app.get('/api/orders', async (req, res) => {
+    try {
+        // Lấy danh sách 50 đơn mới nhất
+        const { data, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                order_items (
+                    id, quantity, price,
+                    recipes (name, size)
+                )
+            `)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (e) {
+        console.error('Fetch Orders Error:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Cập nhật trạng thái Order (pending -> processing -> completed / cancelled)
+app.put('/api/orders/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        const validStatuses = ['pending', 'processing', 'completed', 'cancelled'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ success: false, error: "Trạng thái không hợp lệ" });
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ status })
+            .eq('id', req.params.id);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Update Order Status Error:', e);
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 

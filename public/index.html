@@ -155,6 +155,10 @@
                 class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
                 <span class="material-symbols-outlined">restaurant_menu</span> Thực đơn
             </a>
+            <a href="#" data-route="pos"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent text-[#FFD600] animate-pulse">
+                <span class="material-symbols-outlined">point_of_sale</span> Đơn Hàng LIVE
+            </a>
             <a href="#" data-route="inventory"
                 class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
                 <span class="material-symbols-outlined">inventory_2</span> Kho nguyên liệu
@@ -486,6 +490,10 @@
                 title: 'Tổng quan',
                 render: () => renderDashboard()
             },
+            pos: {
+                title: 'Live POS - Quản lý Nhận Đơn',
+                render: () => typeof renderPOS === 'function' ? renderPOS() : null
+            },
             inventory: {
                 title: 'Kho nguyên liệu',
                 render: () => renderInventory()
@@ -519,10 +527,15 @@
         // ================= ROUTING LOGIC =================
 
         function navigate(route) {
+            // Clean up intervals when leaving Live POS
+            if (window.posInterval) {
+                clearInterval(window.posInterval);
+                window.posInterval = null;
+            }
             const role = window.currentUserRole;
 
             // Chặn Guest vào các trang nội bộ
-            const adminRoutes = ['dashboard', 'inventory', 'roles', 'recipes', 'reports', 'menu_admin'];
+            const adminRoutes = ['dashboard', 'pos', 'inventory', 'roles', 'recipes', 'reports', 'menu_admin'];
             if ((!role || role === 'guest') && adminRoutes.includes(route)) {
                 route = 'welcome';
             }
@@ -2358,6 +2371,145 @@
         }
 
 
+
+        // --- 6. LIVE POS ---
+        function renderPOS() {
+            appContent.innerHTML = `
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-heading uppercase tracking-tight flex items-center gap-2">Màn hình Bếp & POS <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-bounce">LIVE</span></h2>
+                <div class="flex gap-2">
+                    <button class="bg-black text-white px-3 py-2 text-sm font-bold border-2 border-transparent hover:bg-gray-800" onclick="loadPOSData()">
+                        <span class="material-symbols-outlined text-sm align-middle">refresh</span> Làm mới
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[75vh]">
+                <!-- Column 1: Chờ xử lý -->
+                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000]">
+                    <div class="bg-yellow-300 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Chờ Xử Lý (Pending)</div>
+                    <div id="pos-col-pending" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50"></div>
+                </div>
+                
+                <!-- Column 2: Đang làm -->
+                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000]">
+                    <div class="bg-[#85C1E9] border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Đang Pha Chế</div>
+                    <div id="pos-col-processing" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50"></div>
+                </div>
+
+                <!-- Column 3: Đã Xong -->
+                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000]">
+                    <div class="bg-green-400 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Hoàn Thành (Xong)</div>
+                    <div id="pos-col-completed" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50 bg-opacity-80"></div>
+                </div>
+            </div>
+            `;
+
+            loadPOSData();
+            // Tự động quét đơn mới mỗi 5 giây
+            window.posInterval = setInterval(loadPOSData, 5000);
+        }
+
+        async function loadPOSData() {
+            try {
+                const res = await fetch('/api/orders');
+                const j = await res.json();
+                if (j.success) {
+                    const colPending = document.getElementById('pos-col-pending');
+                    const colProcessing = document.getElementById('pos-col-processing');
+                    const colCompleted = document.getElementById('pos-col-completed');
+
+                    if (!colPending || !colProcessing || !colCompleted) return;
+
+                    colPending.innerHTML = '';
+                    colProcessing.innerHTML = '';
+                    colCompleted.innerHTML = '';
+
+                    const orders = j.data;
+                    orders.forEach(order => {
+                        const itemsHtml = order.order_items.map(oi => `
+                            <div class="flex justify-between text-sm items-center border-b-2 border-dashed border-gray-300 pb-1 mb-1">
+                                <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.recipes?.name || 'Món Đã Xóa'}</span> (${oi.recipes?.size || '-'})</span>
+                            </div>
+                        `).join('');
+
+                        let bgColor = 'bg-white';
+                        let actionBtn = '';
+                        let paymentBadgeBorder = order.payment_method === 'transfer' ? 'border-[#4A235A] bg-[#E8DAEF] text-[#4A235A]' : 'border-green-800 bg-green-100 text-green-800';
+                        let paymentText = order.payment_method === 'transfer' ? 'CK VIETQR' : 'TIỀN MẶT';
+
+                        // Cấu hình Nút bấm dựa trên trạng thái hóa đơn
+                        if (order.status === 'pending') {
+                            actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'processing')" class="w-full bg-blue-500 text-white font-black font-heading py-3 text-lg border-2 border-black hover:bg-blue-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">NHẬN ĐƠN (PHA CHẾ)</button>`;
+                        } else if (order.status === 'processing') {
+                            bgColor = 'bg-blue-50';
+                            actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'completed')" class="w-full bg-green-500 text-black font-black font-heading py-3 text-lg border-2 border-black hover:bg-green-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">✅ XONG, GIAO KHÁCH</button>`;
+                        } else if (order.status === 'completed') {
+                            bgColor = 'bg-gray-200';
+                            actionBtn = `<div class="text-center text-xs font-bold text-gray-400 mt-2 uppercase">Giao dịch Hoàn tất</div>`;
+                        }
+
+                        // Hiển thị nút "Xác nhận tiền" đối với Chuyển khoản
+                        let verifyBtn = '';
+                        if (order.payment_method === 'transfer' && order.status !== 'completed') {
+                            verifyBtn = `<button class="w-full bg-purple-600 text-white text-xs font-bold py-2 border-2 border-black mt-2 hover:bg-purple-700 active:scale-95 transition-transform blink-btn" onclick="this.innerHTML='✓ ĐÃ NHẬN TIỀN CK'; this.classList.replace('bg-purple-600','bg-green-600'); this.classList.replace('text-white','text-white'); this.classList.remove('blink-btn');">? CHƯA THẤY TIỀN (BẤM ĐỂ DUYỆT)</button>`;
+                        } else if (order.payment_method === 'transfer' && order.status === 'completed') {
+                            verifyBtn = `<div class="w-full bg-green-600 text-white text-xs font-bold py-1 text-center border-2 border-black mt-2 opacity-50">✓ ĐÃ THU TIỀN</div>`;
+                        }
+
+                        const d = new Date(order.created_at);
+                        const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+                        const cardHtml = `
+                        <div class="${bgColor} border-[3px] border-black p-3 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${order.id}</span>
+                                <span class="font-bold text-xs bg-white border-2 border-black px-1 pb-1 pt-0.5 flex flex-col items-end"><span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>${timeStr}</span>
+                            </div>
+                            
+                            <div class="mb-3 mt-1 px-1">
+                                ${itemsHtml}
+                            </div>
+                            
+                            <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-black border-dashed">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-bold uppercase text-gray-500">Hình thức</span>
+                                    <span class="text-[10px] font-black uppercase border-2 p-1 ${paymentBadgeBorder}">${paymentText}</span>
+                                </div>
+                                <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_#000]" style="line-height:1;">${Number(order.total_amount).toLocaleString('vi-VN')}</span>
+                            </div>
+                            
+                            ${verifyBtn}
+                            ${actionBtn}
+                        </div>
+                        `;
+
+                        if (order.status === 'pending') colPending.innerHTML += cardHtml;
+                        else if (order.status === 'processing') colProcessing.innerHTML += cardHtml;
+                        else colCompleted.innerHTML += cardHtml;
+                    });
+                }
+            } catch (e) { console.error("Poll POS Error:", e) }
+        }
+
+        window.updateOrderStatus = async function (id, newStatus) {
+            try {
+                const res = await fetch('/api/orders/' + id + '/status', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                const j = await res.json();
+                if (j.success) {
+                    showToast("Cập nhật trạng thái thành công!");
+                    loadPOSData();
+                } else {
+                    showToast(j.error, "error");
+                }
+            } catch (e) {
+                showToast("Lỗi cập nhật", "error");
+            }
+        }
 
         // ================= UTILITIES =================
         function showToast(message, type = "success") {
