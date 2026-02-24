@@ -607,15 +607,24 @@
                 const soldOutBadge = r.is_sold_out ? '<div class="absolute inset-0 bg-black/40 flex items-center justify-center z-20"><span class="bg-black text-white px-4 py-2 font-black border-4 border-white rotate-[-5deg] text-xl">HẾT HÀNG</span></div>' : '';
                 const bestSellerBadge = r.is_best_seller && !r.is_sold_out ? '<div class="absolute top-[-10px] left-[-10px] bg-red-600 text-white font-black px-3 py-1 border-4 border-black -rotate-12 shadow-[4px_4px_0_0_#000] z-30 flex items-center gap-1"><span class="material-symbols-outlined text-sm">local_fire_department</span> BEST SELLER</div>' : '';
 
+                let displayImg = r.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+                let imgOffsetY = 50;
+                if (displayImg && displayImg.includes('|')) {
+                    const parts = displayImg.split('|');
+                    displayImg = parts[0];
+                    imgOffsetY = parseFloat(parts[1]) || 50;
+                }
+
                 return `
-                <div class="public-recipe-card brutal-card bg-white flex flex-col group border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 cursor-pointer relative ${soldOutClass}">
+                <div class="public-recipe-card brutal-card bg-white flex flex-col group border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 cursor-pointer relative ${soldOutClass} mt-2 ml-2">
                     ${bestSellerBadge}
                     <!-- Image -->
                     <div class="h-48 w-full bg-slate-100 border-b-4 border-black relative overflow-hidden">
                         ${soldOutBadge}
-                        <img src="${r.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop'}" 
+                        <img src="${displayImg}" 
                              alt="${r.name}" 
-                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                             style="object-position: center ${imgOffsetY}%"
+                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-white">
                         <div class="absolute top-3 right-3 bg-secondary text-white font-black px-3 py-1 border-2 border-black rotate-3 shadow-[2px_2px_0_0_#000] z-10">
                             Size ${r.size || 'M'}
                         </div>
