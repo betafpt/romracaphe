@@ -130,9 +130,17 @@ window.renderAdminMenuList = function () {
 
         let statusHtml = statuses.length > 0 ? `<div class="flex flex-col gap-1">${statuses.join('')}</div>` : `<span class="text-green-600 font-bold text-sm">Đang bán</span>`;
 
+        let displayImg = item.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+        let imgOffsetY = 50;
+        if (displayImg && displayImg.includes('|')) {
+            const parts = displayImg.split('|');
+            displayImg = parts[0];
+            imgOffsetY = parseFloat(parts[1]) || 50;
+        }
+
         html += `
             <tr>
-                <td class="w-20"><img src="${item.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop'}" class="w-12 h-12 object-cover border-2 border-black"></td>
+                <td class="w-20"><img src="${displayImg}" style="object-position: center ${imgOffsetY}%" class="w-12 h-12 object-cover border-2 border-black bg-white"></td>
                 <td>
                     <div class="font-bold text-lg">${item.name}</div>
                     <div class="text-xs text-gray-500 max-w-[200px] truncate">${item.description || 'Chưa có mô tả'}</div>
