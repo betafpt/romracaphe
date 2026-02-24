@@ -10,6 +10,9 @@ window.renderAdminMenu = async function () {
     appContent.innerHTML = `
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-3xl font-heading uppercase tracking-tight">Quản Lý Thực Đơn</h2>
+            <button class="brutal-btn brutal-btn-primary px-4 py-3 flex items-center gap-2 admin-only" onclick="window.openAddMenuModal()">
+                <span class="material-symbols-outlined font-bold">add</span> THÊM MÓN
+            </button>
         </div>
 
         <div class="brutal-table-container">
@@ -29,7 +32,7 @@ window.renderAdminMenu = async function () {
             </table>
         </div>
 
-        <!-- Edit Menu Modal -->
+        <!-- Form Add/Edit Menu Modal -->
         <div id="modal-edit-menu" class="fixed inset-0 items-center justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
             <div class="brutal-card w-full max-w-lg p-6 flex flex-col gap-4 relative max-h-[90vh] overflow-y-auto">
                 <button class="absolute top-4 right-4 text-black hover:text-red-600 active:scale-90" onclick="document.getElementById('modal-edit-menu').style.display='none'">
@@ -40,9 +43,35 @@ window.renderAdminMenu = async function () {
                 <form id="form-edit-menu" onsubmit="window.saveAdminMenu(event)" class="flex flex-col gap-4 mt-2">
                     <input type="hidden" id="menu-id">
                     
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="font-bold text-sm block mb-1 uppercase">Tên Món</label>
+                            <input type="text" id="menu-name" required class="brutal-input py-2" placeholder="Ví dụ: Cà phê sữa đá">
+                        </div>
+                        <div class="w-1/3">
+                            <label class="font-bold text-sm block mb-1 uppercase">Giá Bán</label>
+                            <input type="number" id="menu-price" required class="brutal-input py-2" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- Image Section -->
+                    <div class="flex flex-col items-center justify-center border-b-2 border-black pb-4 relative group admin-only">
+                        <label class="font-bold text-sm block w-full mb-1 uppercase">Ảnh đại diện</label>
+                        <div class="w-full h-32 bg-gray-200 border-4 border-dashed border-black flex items-center justify-center relative overflow-hidden cursor-move transition-colors hover:border-blue-500" id="menu-preview-container" onmousedown="window.startDragMenuImage(event)" ontouchstart="window.startDragMenuImage(event)">
+                            <img id="menu-preview-img" src="" class="absolute inset-0 w-full h-full object-cover hidden z-10 pointer-events-none">
+                            <span class="material-symbols-outlined text-gray-500 text-4xl group-hover:scale-110 transition-transform pointer-events-none" id="menu-preview-icon">add_a_photo</span>
+                        </div>
+                        <input type="file" id="upload-menu-image" accept="image/*" class="hidden" onchange="window.handleMenuImageUpload(event)">
+                        <div class="flex gap-2 w-full mt-2">
+                            <button type="button" id="btn-trigger-menu-upload" class="flex-1 bg-black hover:bg-gray-800 transition-colors py-2 text-white font-bold text-xs" onclick="document.getElementById('upload-menu-image').click()">TẢI ẢNH MỚI</button>
+                            <button type="button" title="Xóa Ảnh" class="w-10 bg-[#eb5757] hover:bg-red-600 transition-colors py-2 flex items-center justify-center text-white" onclick="window.removeMenuImage()"><span class="material-symbols-outlined text-sm font-bold">delete</span></button>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 font-bold uppercase">(Kéo ảnh Lên/Xuống để canh giữa)</span>
+                    </div>
+
                     <div>
-                        <label class="font-bold text-sm block mb-1">Mô tả món (Cho khách xem)</label>
-                        <textarea id="menu-description" class="brutal-input h-24 pt-2" placeholder="Ví dụ: Cà phê đâm đà, thơm béo..."></textarea>
+                        <label class="font-bold text-sm block mb-1 uppercase">Mô tả món</label>
+                        <textarea id="menu-description" class="brutal-input h-20 pt-2" placeholder="Ví dụ: Cà phê đậm đà, thơm béo..."></textarea>
                     </div>
 
                     <div class="flex items-center gap-4">
@@ -121,15 +150,48 @@ window.renderAdminMenuList = function () {
     tbody.innerHTML = html;
 };
 
+window.openAddMenuModal = function () {
+    document.getElementById('form-edit-menu').reset();
+    document.getElementById('menu-id').value = '';
+    document.getElementById('menu-modal-title').innerText = 'Thêm Món Mới';
+    window.removeMenuImage(); // Reset image preview
+    document.getElementById('modal-edit-menu').style.display = 'flex';
+};
+
 window.openEditMenuModal = function (id) {
     const item = window.adminMenuData.find(x => x.id == id);
     if (!item) return;
 
     document.getElementById('menu-id').value = item.id;
     document.getElementById('menu-modal-title').innerText = `Sửa Món: ${item.name}`;
+    document.getElementById('menu-name').value = item.name || '';
+    document.getElementById('menu-price').value = item.price || 0;
     document.getElementById('menu-description').value = item.description || '';
     document.getElementById('menu-is-best-seller').checked = item.is_best_seller || false;
     document.getElementById('menu-is-sold-out').checked = item.is_sold_out || false;
+
+    window.currentMenuImageBase64 = item.image || null;
+    window.currentMenuImageOffsetY = 50;
+    const previewImg = document.getElementById('menu-preview-img');
+    const previewIcon = document.getElementById('menu-preview-icon');
+    if (previewImg) {
+        if (item.image) {
+            let imgUrl = item.image;
+            if (imgUrl.includes('|')) {
+                const parts = imgUrl.split('|');
+                imgUrl = parts[0];
+                window.currentMenuImageOffsetY = parseFloat(parts[1]) || 50;
+            }
+            previewImg.src = imgUrl;
+            previewImg.style.objectPosition = `center ${window.currentMenuImageOffsetY}%`;
+            previewImg.classList.remove('hidden');
+            if (previewIcon) previewIcon.classList.add('hidden');
+        } else {
+            previewImg.src = '';
+            previewImg.classList.add('hidden');
+            if (previewIcon) previewIcon.classList.remove('hidden');
+        }
+    }
 
     document.getElementById('modal-edit-menu').style.display = 'flex';
 };
@@ -144,23 +206,58 @@ window.saveAdminMenu = async function (event) {
     }
 
     const id = document.getElementById('menu-id').value;
+    const name = document.getElementById('menu-name').value.trim();
+    const price = Number(document.getElementById('menu-price').value) || 0;
     const description = document.getElementById('menu-description').value;
     const is_best_seller = document.getElementById('menu-is-best-seller').checked;
     const is_sold_out = document.getElementById('menu-is-sold-out').checked;
 
-    const existing = window.adminMenuData.find(x => x.id == id);
-    if (!existing) return;
+    let finalImgString = window.currentMenuImageBase64;
+    if (finalImgString) {
+        if (finalImgString.includes('|')) {
+            finalImgString = finalImgString.split('|')[0] + '|' + (window.currentMenuImageOffsetY || 50);
+        } else {
+            finalImgString = finalImgString + '|' + (window.currentMenuImageOffsetY || 50);
+        }
+    }
 
-    const payload = {
-        ...existing,
-        description,
-        is_best_seller,
-        is_sold_out
-    };
+    let payload = {};
+    let url = `${API_URL}/recipes`;
+    let method = 'POST';
+
+    if (id) { // Cập nhật
+        const existing = window.adminMenuData.find(x => x.id == id);
+        if (!existing) return;
+        payload = {
+            ...existing,
+            name,
+            price,
+            description,
+            is_best_seller,
+            is_sold_out,
+            image: finalImgString
+        };
+        url = `${API_URL}/recipes/${id}`;
+        method = 'PUT';
+    } else { // Thêm mới
+        payload = {
+            name,
+            price,
+            size: 'M',
+            steps: 0,
+            cogs: 0,
+            description,
+            is_best_seller,
+            is_sold_out,
+            image: finalImgString,
+            ingredients: [],
+            steps_detail: []
+        };
+    }
 
     try {
-        const res = await fetch(`${API_URL}/recipes/${id}`, {
-            method: 'PUT',
+        const res = await fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
@@ -169,6 +266,9 @@ window.saveAdminMenu = async function (event) {
             if (typeof showToast === 'function') showToast("Đã lưu thông tin Menu thành công!");
             document.getElementById('modal-edit-menu').style.display = 'none';
             await window.loadAdminMenuData(); // Reload list
+            if (typeof window.loadRecipes === 'function') {
+                window.loadRecipes(); // also reload for recipes tab sync
+            }
         } else {
             throw new Error(j.error);
         }
@@ -176,3 +276,143 @@ window.saveAdminMenu = async function (event) {
         if (typeof showToast === 'function') showToast(e.message, "error");
     }
 };
+
+// ================= IMAGE UPLOAD LOGIC IN MENU ADMIN =================
+window.currentMenuImageBase64 = null;
+window.currentMenuImageOffsetY = 50;
+
+window.removeMenuImage = function () {
+    window.currentMenuImageBase64 = null;
+    window.currentMenuImageOffsetY = 50;
+    const previewImg = document.getElementById('menu-preview-img');
+    const previewIcon = document.getElementById('menu-preview-icon');
+    if (previewImg) {
+        previewImg.src = '';
+        previewImg.classList.add('hidden');
+    }
+    if (previewIcon) previewIcon.classList.remove('hidden');
+};
+
+window.handleMenuImageUpload = function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const previewImg = document.getElementById('menu-preview-img');
+    const previewIcon = document.getElementById('menu-preview-icon');
+    const uploadBtn = document.getElementById('btn-trigger-menu-upload');
+    const ogText = uploadBtn ? uploadBtn.innerText : 'TẢI ẢNH MỚI';
+
+    if (uploadBtn) {
+        uploadBtn.innerText = 'ĐANG XỬ LÝ...';
+        uploadBtn.disabled = true;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const img = new Image();
+        img.onload = function () {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Nén ảnh
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    if (typeof showToast === 'function') showToast('Lỗi xử lý ảnh!', 'error');
+                    if (uploadBtn) { uploadBtn.innerText = ogText; uploadBtn.disabled = false; }
+                    return;
+                }
+
+                if (!window.SupabaseStorage) {
+                    if (typeof showToast === 'function') showToast('Mất kết nối Storage! F5 thử lại', 'error');
+                    if (uploadBtn) { uploadBtn.innerText = ogText; uploadBtn.disabled = false; }
+                    return;
+                }
+
+                const fileName = `menu_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
+                if (uploadBtn) uploadBtn.innerText = 'ĐANG TẢI LÊN...';
+
+                window.SupabaseStorage.from('recipes').upload(fileName, blob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'image/jpeg'
+                }).then(({ data, error }) => {
+                    if (error) {
+                        if (typeof showToast === 'function') showToast('Lỗi tải ảnh lên: ' + error.message, 'error');
+                        if (uploadBtn) { uploadBtn.innerText = ogText; uploadBtn.disabled = false; }
+                    } else {
+                        const { data: publicUrlData } = window.SupabaseStorage.from('recipes').getPublicUrl(fileName);
+                        const downloadURL = publicUrlData.publicUrl;
+
+                        window.currentMenuImageBase64 = downloadURL;
+                        window.currentMenuImageOffsetY = 50;
+
+                        if (previewImg) {
+                            previewImg.src = downloadURL;
+                            previewImg.style.objectPosition = `center 50%`;
+                            previewImg.classList.remove('hidden');
+                            if (previewIcon) previewIcon.classList.add('hidden');
+                        }
+
+                        if (uploadBtn) { uploadBtn.innerText = ogText; uploadBtn.disabled = false; }
+                    }
+                }).catch(err => {
+                    if (uploadBtn) { uploadBtn.innerText = ogText; uploadBtn.disabled = false; }
+                });
+            }, 'image/jpeg', 0.8);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+// Drag Image positioning
+let isMenuDraggingImg = false;
+let startMenuYDrag = 0;
+let initialMenuOffsetY = 50;
+
+window.startDragMenuImage = function (e) {
+    if (!window.currentMenuImageBase64) {
+        document.getElementById('upload-menu-image').click();
+        return;
+    }
+    isMenuDraggingImg = true;
+    startMenuYDrag = e.touches ? e.touches[0].clientY : e.clientY;
+    initialMenuOffsetY = window.currentMenuImageOffsetY || 50;
+};
+
+window.addEventListener('mousemove', (e) => {
+    if (!isMenuDraggingImg) return;
+    const clientY = e.clientY;
+    const delta = clientY - startMenuYDrag;
+    let newOffsetY = initialMenuOffsetY - (delta * 0.5);
+    newOffsetY = Math.max(0, Math.min(100, newOffsetY));
+    window.currentMenuImageOffsetY = newOffsetY;
+    const img = document.getElementById('menu-preview-img');
+    if (img) img.style.objectPosition = `center ${newOffsetY}%`;
+});
+
+window.addEventListener('mouseup', () => { isMenuDraggingImg = false; });
+
+window.addEventListener('touchmove', (e) => {
+    if (!isMenuDraggingImg) return;
+    const clientY = e.touches[0].clientY;
+    const delta = clientY - startMenuYDrag;
+    let newOffsetY = initialMenuOffsetY - (delta * 0.5);
+    newOffsetY = Math.max(0, Math.min(100, newOffsetY));
+    window.currentMenuImageOffsetY = newOffsetY;
+    const img = document.getElementById('menu-preview-img');
+    if (img) img.style.objectPosition = `center ${newOffsetY}%`;
+}, { passive: false });
+
+window.addEventListener('touchend', () => { isMenuDraggingImg = false; });
