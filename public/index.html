@@ -800,6 +800,13 @@
 
                         <!-- Footer / Checkout -->
                         <div class="p-4 border-t-4 border-black bg-white">
+                            <div class="mb-4">
+                                <label class="font-black text-sm uppercase block mb-2">Hình thức thanh toán:</label>
+                                <select id="cart-payment-method" class="w-full h-12 px-3 border-4 border-black font-bold focus:outline-none focus:translate-y-1 shadow-[4px_4px_0_0_#000] focus:shadow-[0_0_0_0_#000] transition-all cursor-pointer bg-white">
+                                    <option value="cash">Tiền mặt tại quầy</option>
+                                    <option value="transfer">Chuyển khoản (VietQR)</option>
+                                </select>
+                            </div>
                             <div class="flex justify-between items-center mb-4 text-xl font-black">
                                 <span>TỔNG TIỀN:</span>
                                 <span class="text-primary drop-shadow-[1px_1px_0_#000] text-3xl" id="cart-modal-total">0đ</span>
@@ -815,13 +822,22 @@
                 <!-- Success Modal -->
                 <div id="cart-success-modal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4">
                     <div class="absolute inset-0 bg-green-400 opacity-0" id="cart-success-bg"></div>
-                    <div class="bg-white border-8 border-black shadow-[16px_16px_0_0_#000] p-8 max-w-sm w-full relative z-10 flex flex-col items-center text-center opacity-0" id="cart-success-card">
-                        <div class="w-32 h-32 bg-primary border-8 border-black rounded-full flex items-center justify-center mb-6 animate-bounce transition-all">
-                            <span class="material-symbols-outlined text-black" style="font-size: 80px; font-weight: 900;">check</span>
+                    <div class="bg-white border-8 border-black shadow-[16px_16px_0_0_#000] p-8 max-w-sm w-full relative z-10 flex flex-col items-center text-center opacity-0 max-h-[95vh] overflow-y-auto" id="cart-success-card">
+                        <div class="w-24 h-24 sm:w-32 sm:h-32 bg-primary border-8 border-black rounded-full flex items-center justify-center mb-4 animate-bounce transition-all shrink-0">
+                            <span class="material-symbols-outlined text-black" style="font-size: 60px; font-weight: 900;">check</span>
                         </div>
                         <h3 class="font-heading font-black text-4xl uppercase mb-4 text-black drop-shadow-[2px_2px_0_#fff]" style="line-height: 1;">CHỐT ĐƠN!</h3>
-                        <p class="font-bold text-xl mb-6 text-gray-800">Cảm ơn bạn đã đặt món.<br>Vui lòng chờ trong giây lát nhé!</p>
-                        <button onclick="window.closeSuccessModal()" class="w-full bg-black text-white border-4 border-black font-heading font-black text-xl py-4 hover:bg-primary hover:text-black hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all">
+                        
+                        <!-- QR Code Container -->
+                        <div id="cart-qr-container" class="hidden flex-col items-center w-full mb-4">
+                            <p class="font-bold text-sm mb-2 text-gray-800 uppercase bg-yellow-300 w-full p-2 border-4 border-black">Quét mã VietQR để thanh toán</p>
+                            <img id="cart-qr-img" src="" alt="Mã VietQR Thanh Toán" class="w-48 h-48 object-contain border-4 border-black shadow-[4px_4px_0_0_#000] bg-white p-2 mb-2" />
+                            <p class="font-bold text-xs text-center border-2 border-dashed border-gray-400 p-2 italic w-full">Techcombank: 870788888888<br>Nguyen Hong Minh Giang</p>
+                        </div>
+
+                        <p id="cart-success-msg" class="font-bold text-lg mb-6 text-gray-800">Cảm ơn bạn đã đặt món.<br>Vui lòng chờ trong giây lát nhé!</p>
+                        
+                        <button onclick="window.closeSuccessModal()" class="w-full bg-black text-white border-4 border-black font-heading font-black text-xl py-4 hover:bg-primary hover:text-black hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all mt-auto shrink-0">
                             TUYỆT VỜI
                         </button>
                     </div>
@@ -2603,10 +2619,43 @@
         window.submitCartOrder = async function () {
             // Sẽ gọi API tạo order ở backend ở bước tiếp theo
 
+            if (window.currentCart.length === 0) {
+                showToast("Giỏ hàng rỗng!", "warning");
+                return;
+            }
+
+            const totalPrice = window.currentCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const paymentMethod = document.getElementById('cart-payment-method').value;
+
             // Xóa rỗng giỏ hàng và ẩn Modal giỏ hàng
             window.currentCart = [];
             window.updateCartUI();
             window.toggleCartModal();
+
+            // Cập nhật thông tin Modal Thành công
+            const qrContainer = document.getElementById('cart-qr-container');
+            const qrImg = document.getElementById('cart-qr-img');
+            const successMsg = document.getElementById('cart-success-msg');
+
+            if (paymentMethod === 'transfer') {
+                // Generate VietQR Link
+                const bankInfo = {
+                    bin: 'techcombank',
+                    accountNo: '870788888888',
+                    accountName: 'Nguyen Hong Minh Giang'
+                };
+                const addInfo = encodeURIComponent('Thanh toan RRC');
+                const qrUrl = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
+
+                qrImg.src = qrUrl;
+                qrContainer.classList.remove('hidden');
+                qrContainer.classList.add('flex');
+                successMsg.innerHTML = "Nhân viên sẽ chuẩn bị món ngay khi nhận được thanh toán.";
+            } else {
+                qrContainer.classList.add('hidden');
+                qrContainer.classList.remove('flex');
+                successMsg.innerHTML = "Cảm ơn bạn đã đặt món.<br>Vui lòng thanh toán tiền mặt tại quầy bằng mã QR này hoặc mã bill (sẽ làm sau).";
+            }
 
             // Hiện Modal Thành Công với hiệu ứng tĩnh
             const sModal = document.getElementById('cart-success-modal');
