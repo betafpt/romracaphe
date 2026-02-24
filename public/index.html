@@ -331,7 +331,8 @@
     </div>
 
     <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2"></div>
+    <div id="toast-container" class="fixed top-20 md:top-24 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+    </div>
 
     <!-- Load Menu Admin script -->
     <script src="/js/menu_admin.js"></script>
@@ -783,16 +784,16 @@
                 </div>
                 </div>
 
-                <!-- Floating Cart Bar -->
-                <div id="cart-floating-bar" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-white border-4 border-black p-3 shadow-[8px_8px_0_0_#000] z-50 flex justify-between items-center brutal-card cursor-pointer transition-transform duration-300 translate-y-32" onclick="window.toggleCartModal()">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 bg-primary border-4 border-black rounded-full flex items-center justify-center font-black text-xl" id="cart-total-qty">0</div>
-                        <div>
-                            <div class="font-black text-sm uppercase">Giỏ hàng của bạn</div>
-                            <div class="font-bold text-lg text-primary drop-shadow-[1px_1px_0_#000]" id="cart-total-price">0đ</div>
-                        </div>
+                <!-- Floating Cart Bar (Tucked to Right) -->
+                <div id="cart-floating-bar" class="fixed bottom-24 md:bottom-12 right-0 bg-white border-y-4 border-l-4 border-black p-2 shadow-[-4px_4px_0_0_#000] z-50 flex items-center gap-3 brutal-card cursor-pointer transition-transform duration-300 translate-x-full opacity-0 rounded-l-2xl group hover:-translate-x-2" onclick="window.toggleCartModal()">
+                    <div class="relative w-16 h-16 bg-primary text-black border-4 border-black rounded-full flex flex-col items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <span class="material-symbols-outlined font-black text-2xl leading-none">shopping_cart</span>
+                        <div class="absolute -top-2 -right-2 bg-red-500 text-white font-black text-sm border-2 border-black rounded-full w-7 h-7 flex items-center justify-center" id="cart-total-qty">0</div>
                     </div>
-                    <span class="material-symbols-outlined font-black text-3xl animate-pulse">shopping_bag</span>
+                    <div class="pr-3 flex flex-col items-end">
+                        <div class="font-black text-sm uppercase text-gray-800">GIỎ HÀNG</div>
+                        <div class="font-black text-xl text-primary drop-shadow-[1px_1px_0_#000]" id="cart-total-price">0đ</div>
+                    </div>
                 </div>
 
                 <!-- Cart Modal -->
@@ -2375,11 +2376,17 @@
         // --- 6. LIVE POS ---
         function renderPOS() {
             appContent.innerHTML = `
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h2 class="text-3xl font-heading uppercase tracking-tight flex items-center gap-2">Màn hình Bếp & POS <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-bounce">LIVE</span></h2>
-                <div class="flex gap-2">
-                    <button class="bg-black text-white px-3 py-2 text-sm font-bold border-2 border-transparent hover:bg-gray-800" onclick="loadPOSData()">
-                        <span class="material-symbols-outlined text-sm align-middle">refresh</span> Làm mới
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <!-- Tab Switcher -->
+                    <div class="flex border-4 border-black brutal-shadow-sm bg-white overflow-hidden text-sm md:text-base font-bold uppercase w-full md:w-auto">
+                        <button id="pos-tab-local" class="flex-1 md:flex-none px-4 py-2 hover:bg-yellow-200 transition-colors bg-yellow-400" onclick="window.switchPOSTab('local')">Đơn Tại Quán</button>
+                        <button id="pos-tab-app" class="flex-1 md:flex-none px-4 py-2 border-l-4 border-black hover:bg-green-200 transition-colors text-gray-400 bg-gray-100" onclick="window.switchPOSTab('app')">Đơn Online (App)</button>
+                    </div>
+                    
+                    <button class="bg-black text-white px-3 py-2 text-sm font-bold border-2 border-transparent hover:bg-gray-800 ml-auto md:ml-2 brutal-shadow-sm active:translate-y-1 active:shadow-none" onclick="loadPOSData()">
+                        <span class="material-symbols-outlined text-sm align-middle">refresh</span>
                     </button>
                 </div>
             </div>
@@ -2404,11 +2411,26 @@
                 </div>
             </div>
             `;
-
+            window.posCurrentTab = 'local';
             loadPOSData();
             // Tự động quét đơn mới mỗi 5 giây
             window.posInterval = setInterval(loadPOSData, 5000);
         }
+
+        window.switchPOSTab = function (tab) {
+            window.posCurrentTab = tab;
+            const btnLocal = document.getElementById('pos-tab-local');
+            const btnApp = document.getElementById('pos-tab-app');
+
+            if (tab === 'local') {
+                btnLocal.className = "flex-1 md:flex-none px-4 py-2 transition-colors bg-yellow-400 text-black";
+                btnApp.className = "flex-1 md:flex-none px-4 py-2 border-l-4 border-black hover:bg-green-200 transition-colors text-gray-400 bg-gray-100";
+            } else {
+                btnApp.className = "flex-1 md:flex-none px-4 py-2 border-l-4 border-black transition-colors bg-green-400 text-black";
+                btnLocal.className = "flex-1 md:flex-none px-4 py-2 hover:bg-yellow-200 transition-colors text-gray-400 bg-gray-100";
+            }
+            loadPOSData();
+        };
 
         async function loadPOSData() {
             try {
@@ -2425,7 +2447,16 @@
                     colProcessing.innerHTML = '';
                     colCompleted.innerHTML = '';
 
-                    const orders = j.data;
+                    let orders = j.data;
+                    window.currentOrders = orders;
+
+                    // Filter based on selected tab
+                    if (window.posCurrentTab === 'local') {
+                        orders = orders.filter(o => !o.platform || o.platform === 'local');
+                    } else {
+                        orders = orders.filter(o => o.platform && o.platform !== 'local');
+                    }
+
                     orders.forEach(order => {
                         const itemsHtml = order.order_items.map(oi => `
                             <div class="flex justify-between text-sm items-center border-b-2 border-dashed border-gray-300 pb-1 mb-1">
@@ -2439,29 +2470,50 @@
                         let paymentText = order.payment_method === 'transfer' ? 'CK VIETQR' : 'TIỀN MẶT';
 
                         // Cấu hình Nút bấm dựa trên trạng thái hóa đơn
-                        if (order.status === 'pending') {
-                            actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'processing')" class="w-full bg-blue-500 text-white font-black font-heading py-3 text-lg border-2 border-black hover:bg-blue-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">NHẬN ĐƠN (PHA CHẾ)</button>`;
-                        } else if (order.status === 'processing') {
-                            bgColor = 'bg-blue-50';
-                            actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'completed')" class="w-full bg-green-500 text-black font-black font-heading py-3 text-lg border-2 border-black hover:bg-green-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">✅ XONG, GIAO KHÁCH</button>`;
-                        } else if (order.status === 'completed') {
-                            bgColor = 'bg-gray-200';
-                            actionBtn = `<div class="text-center text-xs font-bold text-gray-400 mt-2 uppercase">Giao dịch Hoàn tất</div>`;
-                        }
+                        const isApp = order.platform && order.platform !== 'local';
 
-                        // Hiển thị nút "Xác nhận tiền" đối với Chuyển khoản
-                        let verifyBtn = '';
-                        if (order.payment_method === 'transfer' && order.status !== 'completed') {
-                            verifyBtn = `<button class="w-full bg-purple-600 text-white text-xs font-bold py-2 border-2 border-black mt-2 hover:bg-purple-700 active:scale-95 transition-transform blink-btn" onclick="this.innerHTML='✓ ĐÃ NHẬN TIỀN CK'; this.classList.replace('bg-purple-600','bg-green-600'); this.classList.replace('text-white','text-white'); this.classList.remove('blink-btn');">? CHƯA THẤY TIỀN (BẤM ĐỂ DUYỆT)</button>`;
-                        } else if (order.payment_method === 'transfer' && order.status === 'completed') {
-                            verifyBtn = `<div class="w-full bg-green-600 text-white text-xs font-bold py-1 text-center border-2 border-black mt-2 opacity-50">✓ ĐÃ THU TIỀN</div>`;
+                        if (isApp) {
+                            // Giao diện cho Đơn từ App (Grab/Shopee)
+                            actionBtn = `
+                           <div class="flex gap-2 mt-3">
+                               <button onclick="printOrderLabel(${order.id})" class="flex-1 bg-white text-black font-black font-heading py-2 text-sm border-2 border-black hover:bg-gray-200 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center gap-1" title="In Tem dán từng ly (50x30mm)">
+                                   <span class="material-symbols-outlined font-bold text-xl">label</span> IN TEM
+                               </button>
+                               <button onclick="printReceipt(${order.id})" class="flex-1 bg-[#D1F2EB] text-[#0E6251] font-black font-heading py-2 text-sm border-2 border-black hover:bg-[#A3E4D7] active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center gap-1" title="In Hóa đơn tổng (58mm)">
+                                   <span class="material-symbols-outlined font-bold text-xl">receipt_long</span> HÓA ĐƠN
+                               </button>
+                               <button onclick="updateOrderStatus(${order.id}, 'completed')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Xóa khỏi màn hình (Xong)">X</button>
+                           </div>
+                           `;
+                            verifyBtn = ''; // App tự xử lý thanh toán
+                        } else {
+                            // Giao diện cho Đơn Tại Quán
+                            if (order.status === 'pending') {
+                                actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'processing')" class="w-full bg-blue-500 text-white font-black font-heading py-3 text-lg border-2 border-black hover:bg-blue-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">NHẬN ĐƠN (PHA CHẾ)</button>`;
+                            } else if (order.status === 'processing') {
+                                bgColor = 'bg-blue-50';
+                                actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'completed')" class="w-full bg-green-500 text-black font-black font-heading py-3 text-lg border-2 border-black hover:bg-green-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">✅ XONG, GIAO KHÁCH</button>`;
+                            } else if (order.status === 'completed') {
+                                bgColor = 'bg-gray-200';
+                                actionBtn = `<div class="text-center text-xs font-bold text-gray-400 mt-2 uppercase">Giao dịch Hoàn tất</div>`;
+                            }
+
+                            // Hiển thị nút "Xác nhận tiền" đối với Chuyển khoản
+                            if (order.payment_method === 'transfer' && order.status !== 'completed') {
+                                verifyBtn = `<button class="w-full bg-purple-600 text-white text-xs font-bold py-2 border-2 border-black mt-2 hover:bg-purple-700 active:scale-95 transition-transform blink-btn" onclick="this.innerHTML='✓ ĐÃ NHẬN TIỀN CK'; this.classList.replace('bg-purple-600','bg-green-600'); this.classList.replace('text-white','text-white'); this.classList.remove('blink-btn');">? CHƯA THẤY TIỀN (BẤM ĐỂ DUYỆT)</button>`;
+                            } else if (order.payment_method === 'transfer' && order.status === 'completed') {
+                                verifyBtn = `<div class="w-full bg-green-600 text-white text-xs font-bold py-1 text-center border-2 border-black mt-2 opacity-50">✓ ĐÃ THU TIỀN</div>`;
+                            }
                         }
 
                         const d = new Date(order.created_at);
                         const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
+                        const appBadge = isApp ? `<span class="px-2 py-0.5 text-xs font-black uppercase text-white bg-${order.platform === 'grab' ? 'green-600' : 'orange-500'} absolute -top-3 -right-3 border-2 border-black rotate-12 shadow-[2px_2px_0_0_#000] z-10">${order.platform}</span>` : '';
+
                         const cardHtml = `
                         <div class="${bgColor} border-[3px] border-black p-3 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none">
+                            ${appBadge}
                             <div class="flex justify-between items-start mb-2">
                                 <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${order.id}</span>
                                 <span class="font-bold text-xs bg-white border-2 border-black px-1 pb-1 pt-0.5 flex flex-col items-end"><span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>${timeStr}</span>
@@ -2511,22 +2563,161 @@
             }
         }
 
+        window.printOrderLabel = function (orderId) {
+            const order = window.currentOrders?.find(o => o.id === orderId);
+            if (!order) return showToast("Không tìm thấy đơn hàng", "error");
+
+            const platformName = (order.platform || 'LOCAL').toUpperCase();
+            const timeStr = new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+            let labelsHtml = '';
+
+            // Lặp qua từng món và từng số lượng để in 1 tem/ly
+            order.order_items.forEach((oi) => {
+                for (let i = 1; i <= oi.quantity; i++) {
+                    labelsHtml += `
+                    <div class="label-page">
+                        <div class="header">
+                            <span class="app-name">${platformName}</span>
+                            <span class="order-id">#${order.id}</span>
+                        </div>
+                        <div class="item-name">${oi.recipes?.name || 'Món'}</div>
+                        <div class="details">
+                            <span>Size: ${oi.recipes?.size || '-'}</span>
+                            <span style="float: right;">${i}/${oi.quantity}</span>
+                        </div>
+                        <div class="note">Ghi chú: ${oi.note || ''}</div>
+                        <div class="footer">${timeStr}</div>
+                    </div>
+                    `;
+                }
+            });
+
+            const printHtml = `
+                <html>
+                <head>
+                    <title>In Tem #${order.id}</title>
+                    <style>
+                        /* 50x30mm: 1mm ~ 3.78px -> ~189x113px */
+                        @page { size: 50mm 30mm; margin: 0; }
+                        body { 
+                            font-family: sans-serif; 
+                            margin: 0; 
+                            padding: 0;
+                            color: #000;
+                            width: 50mm;
+                        }
+                        .label-page {
+                            width: 50mm;
+                            height: 30mm;
+                            padding: 2mm 3mm;
+                            box-sizing: border-box;
+                            page-break-after: always;
+                            display: flex;
+                            flex-direction: column;
+                            position: relative;
+                            overflow: hidden;
+                        }
+                        .label-page:last-child { page-break-after: auto; }
+                        .header { font-weight: bold; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
+                        .app-name { float: left; }
+                        .order-id { float: right; }
+                        .item-name { font-weight: 900; font-size: 12px; line-height: 1.1; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                        .details { font-size: 9px; font-weight: bold; margin-bottom: 1px; }
+                        .note { font-size: 8px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-height: 10px; }
+                        .footer { font-size: 7px; position: absolute; bottom: 2px; right: 3px; }
+                    </style>
+                </head>
+                <body>
+                    ${labelsHtml}
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', '_blank', 'width=400,height=300');
+            printWindow.document.open();
+            printWindow.document.write(printHtml);
+            printWindow.document.close();
+        }
+
+        window.printReceipt = function (orderId) {
+            const order = window.currentOrders?.find(o => o.id === orderId);
+            if (!order) return showToast("Không tìm thấy đơn hàng", "error");
+
+            const itemsHtml = order.order_items.map(oi => `
+                <div style="margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 8px;">
+                    <div style="font-size: 16px; font-weight: bold;">${oi.quantity} x ${oi.recipes?.name || 'Món'}</div>
+                    <div style="font-size: 13px;">Size: ${oi.recipes?.size || '-'} | Giá: ${Number(oi.price).toLocaleString('vi-VN')}</div>
+                    ${oi.note ? `<div style="font-size: 12px; font-style: italic;">*${oi.note}</div>` : ''}
+                </div>
+            `).join('');
+
+            const platformName = (order.platform || 'LOCAL').toUpperCase();
+            const timeStr = new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+            const receiptHtml = `
+                <html>
+                <head>
+                    <title>Hóa Đơn #${order.id}</title>
+                    <style>
+                        body { font-family: monospace; width: 58mm; margin: 0 auto; padding: 10px; color: #000; }
+                        h2 { text-align: center; margin: 0 0 10px 0; font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                        .center { text-align: center; }
+                        .mb { margin-bottom: 10px; }
+                        .text-sm { font-size: 12px; }
+                        .text-lg { font-size: 16px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h2>RÔM RẢ CÀ PHÊ</h2>
+                    <div class="center mb">
+                        <strong>ĐƠN ${platformName} #${order.id}</strong><br/>
+                        <span class="text-sm">${timeStr}</span>
+                    </div>
+                    <div class="mb">
+                        ${itemsHtml}
+                    </div>
+                    <div class="center text-lg" style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px;">
+                        TỔNG CỘNG:<br/>${Number(order.total_amount).toLocaleString('vi-VN')}đ
+                    </div>
+                    <div class="center text-sm" style="margin-top:20px;">
+                        -- Cảm ơn Quý Khách --
+                    </div>
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', '_blank', 'width=400,height=600');
+            printWindow.document.open();
+            printWindow.document.write(receiptHtml);
+            printWindow.document.close();
+        }
+
         // ================= UTILITIES =================
         function showToast(message, type = "success") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
 
             const isError = type === "error";
-            toast.className = `p-4 px-6 border-[3px] border-black shadow-[4px_4px_0_0_#000] flex items-center gap-3 transition-all transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] text-white'}`;
+            toast.className = `p-4 px-6 border-[3px] border-black shadow-[4px_4px_0_0_#000] flex items-center gap-3 transition-all
+transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] text-white'}`;
             toast.innerHTML = `
-                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center border-2 border-black shrink-0">
-                    <span class="material-symbols-outlined ${isError ? 'text-red-500' : 'text-[#52c48e]'} font-black text-xl">${isError ? 'close' : 'check'}</span>
-                </div>
-                <div class="flex flex-col">
-                    <span class="font-heading font-black uppercase text-sm tracking-wide text-white" style="-webkit-text-stroke: 0.5px black;">${isError ? 'THẤT BẠI!' : 'THÀNH CÔNG!'}</span>
-                    <span class="text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">${message}</span>
-                </div>
-            `;
+<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center border-2 border-black shrink-0">
+    <span class="material-symbols-outlined ${isError ? 'text-red-500' : 'text-[#52c48e]'} font-black text-xl">${isError
+                    ? 'close' : 'check'}</span>
+</div>
+<div class="flex flex-col">
+    <span class="font-heading font-black uppercase text-sm tracking-wide text-white"
+        style="-webkit-text-stroke: 0.5px black;">${isError ? 'THẤT BẠI!' : 'THÀNH CÔNG!'}</span>
+    <span class="text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">${message}</span>
+</div>
+`;
 
             container.appendChild(toast);
 
@@ -2567,7 +2758,7 @@
                     }
                 }
             }
-        }
+        };
 
         // ================= GLOBAL THEME LOGIC =================
         window.loadGlobalTheme = async function () {
@@ -2672,10 +2863,10 @@
             document.getElementById('cart-total-price').innerText = totalPrice.toLocaleString('vi-VN') + 'đ';
 
             if (totalQty > 0) {
-                floatingBar.classList.remove('translate-y-32');
+                floatingBar.classList.remove('translate-x-full');
                 floatingBar.classList.remove('opacity-0');
             } else {
-                floatingBar.classList.add('translate-y-32');
+                floatingBar.classList.add('translate-x-full');
                 floatingBar.classList.add('opacity-0');
                 // Nếu rỗng khi đang mở modal thì đóng modal
                 const modal = document.getElementById('cart-modal');

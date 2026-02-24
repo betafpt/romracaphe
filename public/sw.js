@@ -1,4 +1,4 @@
-const CACHE_NAME = 'romracaphe-v3'; // Bumped version to break old cache
+const CACHE_NAME = 'romracaphe-v4'; // Bumped to v4 to clear old cache
 const ASSETS = [
     '/',
     '/index.html',
@@ -26,21 +26,24 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Network First strategy: ưu tiên tải mạng để cập nhật UI mới nhất, nếu rớt mạng mới dùng Cache
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            // Trả về Cache nếu có, không có thì Network
-            return response || fetch(event.request).then(fetchRes => {
+        fetch(event.request)
+            .then(fetchRes => {
                 return caches.open(CACHE_NAME).then(cache => {
                     cache.put(event.request.url, fetchRes.clone());
                     return fetchRes;
                 });
-            });
-        }).catch(() => {
-            // Khi rớt mạng mà không tìm thấy css/js/html, mặc định nhả index
-            if (event.request.headers.get('accept').includes('text/html')) {
-                return caches.match('/index.html');
-            }
-        })
+            })
+            .catch(() => {
+                // Rớt mạng -> Lọc Cache
+                return caches.match(event.request).then((response) => {
+                    if (response) return response;
+                    if (event.request.headers.get('accept')?.includes('text/html')) {
+                        return caches.match('/index.html');
+                    }
+                });
+            })
     );
 });
 

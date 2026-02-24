@@ -519,7 +519,7 @@ app.delete('/api/recipes/:id', async (req, res) => {
 // --- Orders / POS ---
 app.post('/api/orders', async (req, res) => {
     try {
-        const { items, paymentMethod, clientTotal } = req.body;
+        const { items, paymentMethod, clientTotal, platform } = req.body;
         if (!items || items.length === 0) return res.status(400).json({ success: false, error: "Giỏ hàng rỗng" });
 
         // 1. Lấy giá chuẩn của các món từ CSDL để check gian lận
@@ -546,7 +546,8 @@ app.post('/api/orders', async (req, res) => {
         const { data: orderData, error: oErr } = await supabase.from('orders').insert({
             payment_method: paymentMethod || 'cash',
             total_amount: serverTotal,
-            status: 'pending' // Chờ thu ngân/chế biến xác nhận
+            status: 'pending', // Chờ thu ngân/chế biến xác nhận
+            platform: platform || 'local'
         }).select().single();
 
         if (oErr) throw oErr;
