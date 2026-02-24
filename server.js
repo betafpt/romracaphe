@@ -29,6 +29,38 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 console.log('Đã kết nối tới Supabase Database');
 
 
+// ================= THIẾT LẬP THEME TOÀN HỆ THỐNG =================
+const fs = require('fs');
+const THEME_FILE = path.join(__dirname, 'theme.json');
+let currentTheme = 'brutalism';
+
+try {
+    if (fs.existsSync(THEME_FILE)) {
+        currentTheme = JSON.parse(fs.readFileSync(THEME_FILE, 'utf-8')).theme || 'brutalism';
+    }
+} catch (e) {
+    console.warn("Chưa có file theme.json, dùng theme mặc định.");
+}
+
+app.get('/api/theme', (req, res) => {
+    res.json({ success: true, theme: currentTheme });
+});
+
+app.post('/api/theme', (req, res) => {
+    const { theme } = req.body;
+    if (theme === 'brutalism' || theme === 'cloud') {
+        currentTheme = theme;
+        try {
+            fs.writeFileSync(THEME_FILE, JSON.stringify({ theme: currentTheme }));
+        } catch (e) {
+            console.error("Không thể lưu theme.json");
+        }
+        res.json({ success: true, theme: currentTheme });
+    } else {
+        res.status(400).json({ success: false, error: 'Theme không hợp lệ' });
+    }
+});
+
 // ================= API ENDPOINTS =================
 
 // --- Inventory ---

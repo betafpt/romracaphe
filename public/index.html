@@ -207,6 +207,14 @@
                             id="topbar-role">GUEST</span>
                     </div>
 
+                    <!-- Theme Toggle Button (Admin only fallback, handled by JS later) -->
+                    <button id="btn-toggle-theme" onclick="window.toggleGlobalTheme()"
+                        class="hidden h-12 px-4 bg-white border-4 border-black brutal-shadow-sm items-center gap-2 font-bold uppercase whitespace-nowrap active:translate-y-1 active:translate-x-1 active:shadow-none transition-all hover:bg-yellow-300 mr-2 md:mr-0"
+                        title="Chuyển đổi giao diện (Theme)">
+                        <span class="material-symbols-outlined font-black text-xl">palette</span>
+                        <span class="hidden sm:inline">Theme</span>
+                    </button>
+
                     <!-- Custom PWA Install Button -->
                     <button id="btn-install-pwa"
                         class="hidden h-12 px-4 bg-primary border-4 border-black brutal-shadow-sm items-center gap-2 font-bold uppercase whitespace-nowrap active:translate-y-1 active:translate-x-1 active:shadow-none transition-all hover:bg-yellow-300 mr-2 md:mr-0">
@@ -354,6 +362,16 @@
 
             document.getElementById('topbar-username').innerText = name;
             document.getElementById('topbar-role').innerText = role ? role.toUpperCase() : 'GUEST';
+
+            // Hiển thị nút đổi theme nếu là Admin
+            const btnTheme = document.getElementById('btn-toggle-theme');
+            if (btnTheme) {
+                if (role === 'admin') {
+                    btnTheme.classList.replace('hidden', 'flex');
+                } else {
+                    btnTheme.classList.replace('flex', 'hidden');
+                }
+            }
 
             if (role === 'admin') {
                 document.body.classList.remove('role-staff');
@@ -2283,8 +2301,8 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#FFD600',
-                        secondary: '#021fba'
+                        primary: 'var(--color-primary)',
+                        secondary: 'var(--color-secondary)'
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
@@ -2293,6 +2311,51 @@
                 }
             }
         }
+
+        // ================= GLOBAL THEME LOGIC =================
+        window.loadGlobalTheme = async function () {
+            try {
+                const res = await fetch(`${API_URL}/theme`);
+                const json = await res.json();
+                if (json.success && json.theme) {
+                    document.documentElement.setAttribute('data-theme', json.theme);
+                }
+            } catch (e) {
+                console.error("Lỗi tải Theme: ", e);
+            }
+        }
+
+        window.toggleGlobalTheme = async function () {
+            if (window.currentUserRole !== 'admin') {
+                showToast("Bạn không có quyền đổi theme!", "error");
+                return;
+            }
+
+            const current = document.documentElement.getAttribute('data-theme') || 'brutalism';
+            const nextTheme = current === 'brutalism' ? 'cloud' : 'brutalism';
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            showToast(`Đã chuyển sang Theme: ${nextTheme}`, "success");
+
+            try {
+                const res = await fetch(`${API_URL}/theme`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ theme: nextTheme })
+                });
+                const json = await res.json();
+                if (!json.success) {
+                    showToast("Lỗi lưu theme lên máy chủ", "error");
+                    document.documentElement.setAttribute('data-theme', current);
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối khi lưu Theme", "error");
+                document.documentElement.setAttribute('data-theme', current);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.loadGlobalTheme();
+        });
 
         // Simple Mobile Drawer Logic
         const sidebar = document.getElementById('sidebar');
