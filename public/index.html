@@ -691,7 +691,9 @@
         // --- 0.5 PUBLIC MENU (CUSTOMER) ---
         async function renderUserMenu() {
             appContent.innerHTML = `
-                <div class="min-h-screen w-full bg-secondary bg-blueprint-grid bg-fixed p-4 md:p-8">
+                <div class="min-h-screen w-full bg-secondary p-4 md:p-8 relative">
+                    <canvas id="blueprint-grid" class="absolute inset-0 w-full h-full z-0 pointer-events-auto"></canvas>
+                    <div class="relative z-10">
                     <!-- Public Header -->
                 <div class="w-full flex justify-between items-center bg-white border-4 border-black shadow-[4px_4px_0_0_#000] p-4 mb-8 sticky top-4 z-40 brutal-card mx-auto max-w-4xl">
                     <button onclick="navigate('welcome')" class="bg-primary border-4 border-black w-12 h-12 flex items-center justify-center brutal-shadow-sm active:translate-y-1 active:translate-x-1 active:shadow-none transition-all">
@@ -718,7 +720,9 @@
                     <div class="p-6 italic text-center col-span-full font-bold bg-white border-4 border-black">Đang tải Menu...</div>
                 </div>
                 </div>
+                </div>
             `;
+            setTimeout(initBlueprintGrid, 50);
 
             try {
                 const res = await fetch(`${API_URL}/recipes`);
@@ -737,6 +741,129 @@
             } catch (e) {
                 document.getElementById('public-menu-grid').innerHTML = `<div class="col-span-full p-4 bg-red-100 border-4 border-black font-bold">Lỗi tải Menu: ${e.message}</div>`;
             }
+        }
+
+        function initBlueprintGrid() {
+            const canvas = document.getElementById('blueprint-grid');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w, h;
+            function resize() {
+                w = canvas.width = window.innerWidth;
+                // Height will be max of window inner height and document scroll height
+                h = canvas.height = Math.max(window.innerHeight, document.documentElement.scrollHeight);
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            let mouse = { x: -1000, y: -1000, isActive: false };
+            let mouseTimeout;
+
+            canvas.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                // Add scrollY so mouse Y is relative to document, not viewport
+                mouse.y = e.clientY + window.scrollY;
+                mouse.isActive = true;
+                clearTimeout(mouseTimeout);
+                mouseTimeout = setTimeout(() => { mouse.isActive = false; }, 2000);
+            });
+            canvas.addEventListener('mouseleave', () => { mouse.isActive = false; });
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    mouse.x = e.touches[0].clientX;
+                    mouse.y = e.touches[0].clientY + window.scrollY;
+                    mouse.isActive = true;
+                }
+            }, { passive: true });
+            canvas.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    mouse.x = e.touches[0].clientX;
+                    mouse.y = e.touches[0].clientY + window.scrollY;
+                    mouse.isActive = true;
+                    clearTimeout(mouseTimeout);
+                    mouseTimeout = setTimeout(() => { mouse.isActive = false; }, 2000);
+                }
+            }, { passive: true });
+            canvas.addEventListener('touchend', () => { mouse.isActive = false; });
+
+            const gridSize = 40;
+            let offsetTime = 0;
+
+            function drawGrid() {
+                ctx.clearRect(0, 0, w, h);
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+
+                // Animation parameter for grid scrolling
+                offsetTime += 0.2;
+                let yOffset = offsetTime % gridSize;
+                let xOffset = offsetTime % gridSize;
+
+                // Vẽ các đường dọc
+                for (let x = -gridSize + xOffset; x < w + gridSize; x += gridSize) {
+                    let prevDistortedX = null;
+                    for (let y = 0; y < h; y += 10) {
+                        let currentX = x;
+                        if (mouse.isActive) {
+                            let dx = x - mouse.x;
+                            let dy = y - mouse.y;
+                            let dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 150) {
+                                let force = (150 - dist) / 150;
+                                // Đẩy ra xa khỏi chuột
+                                currentX += (dx / dist) * force * 30;
+                            }
+                        }
+                        if (y === 0) {
+                            ctx.moveTo(currentX, y);
+                        } else {
+                            ctx.lineTo(currentX, y);
+                        }
+                    }
+                }
+
+                // Vẽ các đường ngang
+                for (let y = -gridSize + yOffset; y < h + gridSize; y += gridSize) {
+                    let prevDistortedY = null;
+                    for (let x = 0; x < w; x += 10) {
+                        let currentY = y;
+                        if (mouse.isActive) {
+                            let dx = x - mouse.x;
+                            let dy = y - mouse.y;
+                            let dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 150) {
+                                let force = (150 - dist) / 150;
+                                // Đẩy ra xa khỏi chuột
+                                currentY += (dy / dist) * force * 30;
+                            }
+                        }
+                        if (x === 0) {
+                            ctx.moveTo(x, currentY);
+                        } else {
+                            ctx.lineTo(x, currentY);
+                        }
+                    }
+                }
+                ctx.stroke();
+            }
+
+            let animId;
+            function render() {
+                if (!document.getElementById('blueprint-grid')) {
+                    cancelAnimationFrame(animId);
+                    window.removeEventListener('resize', resize);
+                    return;
+                }
+                // Check if scroll height changed dynamically (e.g., after fetching menu)
+                if (h !== Math.max(window.innerHeight, document.documentElement.scrollHeight)) {
+                    resize();
+                }
+
+                drawGrid();
+                animId = requestAnimationFrame(render);
+            }
+            render();
         }
 
         window.renderPublicMenuCards = function (recipes) {
