@@ -44,16 +44,22 @@
 
         @keyframes panBg {
             0% {
-                background-position: 0px 0px;
+                background-position: 0px 0px, 10px 10px;
             }
 
             100% {
-                background-position: 1000px 1000px;
+                background-position: 1000px 1000px, 1010px 1010px;
             }
         }
 
         .animate-pan-bg {
             animation: panBg 30s linear infinite;
+        }
+
+        .bg-retro-pattern {
+            background-image: radial-gradient(#000 15%, transparent 16%), radial-gradient(#000 15%, transparent 16%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
         }
 
         .delay-100 {
@@ -535,7 +541,7 @@
         // --- 0. PUBLIC WELCOME ---
         function renderWelcome() {
             appContent.innerHTML = `
-                <div class="fixed inset-0 bg-secondary flex flex-col items-center justify-center p-6 bg-[url('/img/pattern.png')] bg-repeat animate-pan-bg">
+                <div class="fixed inset-0 bg-secondary flex flex-col items-center justify-center p-6 bg-retro-pattern animate-pan-bg">
                     <div class="absolute inset-0 bg-black opacity-30 pointer-events-none mix-blend-multiply"></div>
                     
                     <button class="absolute top-4 right-4 bg-white border-4 border-black font-bold p-2 brutal-shadow-sm active:translate-y-1 active:shadow-none hover:bg-gray-100 z-50 flex items-center justify-center rounded-full transition-all" onclick="window.showLoginModal()" title="Khu vực Nội bộ">
