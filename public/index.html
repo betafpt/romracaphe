@@ -2617,8 +2617,6 @@
         };
 
         window.submitCartOrder = async function () {
-            // Sẽ gọi API tạo order ở backend ở bước tiếp theo
-
             if (window.currentCart.length === 0) {
                 showToast("Giỏ hàng rỗng!", "warning");
                 return;
@@ -2626,55 +2624,79 @@
 
             const totalPrice = window.currentCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const paymentMethod = document.getElementById('cart-payment-method').value;
+            const itemsToOrder = [...window.currentCart];
 
-            // Xóa rỗng giỏ hàng và ẩn Modal giỏ hàng
-            window.currentCart = [];
-            window.updateCartUI();
+            // Ẩn modal và show toast đang xử lý (optimistic UI)
             window.toggleCartModal();
+            showToast("Đang tạo đơn hàng...", "info");
 
-            // Cập nhật thông tin Modal Thành công
-            const qrContainer = document.getElementById('cart-qr-container');
-            const qrImg = document.getElementById('cart-qr-img');
-            const successMsg = document.getElementById('cart-success-msg');
+            try {
+                // 1. Gửi request lên API tạo Đơn
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: itemsToOrder, paymentMethod, clientTotal: totalPrice })
+                });
 
-            if (paymentMethod === 'transfer') {
-                // Generate VietQR Link
-                const bankInfo = {
-                    bin: 'techcombank',
-                    accountNo: '870788888888',
-                    accountName: 'Nguyen Hong Minh Giang'
-                };
-                const addInfo = encodeURIComponent('Thanh toan RRC');
-                const qrUrl = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
+                const data = await res.json();
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
 
-                qrImg.src = qrUrl;
-                qrContainer.classList.remove('hidden');
-                qrContainer.classList.add('flex');
-                successMsg.innerHTML = "Nhân viên sẽ chuẩn bị món ngay khi nhận được thanh toán.";
-            } else {
-                qrContainer.classList.add('hidden');
-                qrContainer.classList.remove('flex');
-                successMsg.innerHTML = "Cảm ơn bạn đã đặt món.<br>Vui lòng thanh toán tiền mặt tại quầy bằng mã QR này hoặc mã bill (sẽ làm sau).";
+                // 2. Thành công -> Xóa rỗng giỏ hàng
+                window.currentCart = [];
+                window.updateCartUI();
+
+                // 3. Chuẩn bị Modal Thành công
+                const qrContainer = document.getElementById('cart-qr-container');
+                const qrImg = document.getElementById('cart-qr-img');
+                const successMsg = document.getElementById('cart-success-msg');
+
+                if (paymentMethod === 'transfer') {
+                    // Generate VietQR Link
+                    const bankInfo = {
+                        bin: 'techcombank',
+                        accountNo: '870788888888',
+                        accountName: 'Nguyen Hong Minh Giang'
+                    };
+                    const addInfo = encodeURIComponent('Thanh toan RRC');
+                    const qrUrl = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
+
+                    qrImg.src = qrUrl;
+                    qrContainer.classList.remove('hidden');
+                    qrContainer.classList.add('flex');
+                    successMsg.innerHTML = "Nhân viên sẽ chuẩn bị món ngay khi nhận được thanh toán.";
+                } else {
+                    qrContainer.classList.add('hidden');
+                    qrContainer.classList.remove('flex');
+                    successMsg.innerHTML = "Cảm ơn bạn đã đặt món.<br>Vui lòng thanh toán tiền mặt tại quầy bằng mã QR này hoặc mã bill (sẽ làm sau).";
+                }
+
+                // Hiện Modal Thành Công với hiệu ứng tĩnh
+                const sModal = document.getElementById('cart-success-modal');
+                const sBg = document.getElementById('cart-success-bg');
+                const sCard = document.getElementById('cart-success-card');
+
+                sModal.classList.remove('hidden');
+                sModal.classList.add('flex');
+
+                // Xóa trigger cũ
+                sBg.classList.remove('giang-animate-fade');
+                sCard.classList.remove('giang-animate-pop');
+
+                // Force reflow
+                void sModal.offsetWidth;
+
+                // Chạy Animation
+                sBg.classList.add('giang-animate-fade');
+                sCard.classList.add('giang-animate-pop');
+
+            } catch (err) {
+                console.error("Lỗi khi tạo đơn:", err);
+                showToast("Lỗi khi tạo đơn: " + err.message, "error");
+                // Mở lại giỏ hàng vì bị lỗi
+                window.toggleCartModal();
             }
-
-            // Hiện Modal Thành Công với hiệu ứng tĩnh
-            const sModal = document.getElementById('cart-success-modal');
-            const sBg = document.getElementById('cart-success-bg');
-            const sCard = document.getElementById('cart-success-card');
-
-            sModal.classList.remove('hidden');
-            sModal.classList.add('flex');
-
-            // Xóa trigger cũ
-            sBg.classList.remove('giang-animate-fade');
-            sCard.classList.remove('giang-animate-pop');
-
-            // Force reflow
-            void sModal.offsetWidth;
-
-            // Chạy Animation
-            sBg.classList.add('giang-animate-fade');
-            sCard.classList.add('giang-animate-pop');
         };
 
         window.closeSuccessModal = function () {

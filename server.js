@@ -507,6 +507,57 @@ app.delete('/api/recipes/:id', async (req, res) => {
     res.json({ success: true, data: { changes: count } });
 });
 
+// --- Orders / POS ---
+app.post('/api/orders', async (req, res) => {
+    try {
+        const { items, paymentMethod, clientTotal } = req.body;
+        if (!items || items.length === 0) return res.status(400).json({ success: false, error: "Giỏ hàng rỗng" });
+
+        // 1. Lấy giá chuẩn của các món từ CSDL để check gian lận
+        const recipeIds = items.map(i => i.recipeId);
+        const { data: recipes, error: rErr } = await supabase.from('recipes').select('id, price').in('id', recipeIds);
+        if (rErr) throw rErr;
+
+        let serverTotal = 0;
+        const validItems = [];
+
+        items.forEach(item => {
+            const r = recipes.find(r => r.id === item.recipeId);
+            if (r) {
+                serverTotal += (r.price * item.quantity);
+                validItems.push({
+                    recipe_id: item.recipeId,
+                    quantity: item.quantity,
+                    price: r.price
+                });
+            }
+        });
+
+        // 2. Tạo record Order
+        const { data: orderData, error: oErr } = await supabase.from('orders').insert({
+            payment_method: paymentMethod || 'cash',
+            total_amount: serverTotal,
+            status: 'completed' // Mặc định chốt là xong (có thể đổi thành pending nếu cần duyệt)
+        }).select().single();
+
+        if (oErr) throw oErr;
+
+        // 3. Gắn Order ID vào chi tiết và Insert Order Items
+        const orderItemsToInsert = validItems.map(vi => ({
+            ...vi,
+            order_id: orderData.id
+        }));
+
+        const { error: oiErr } = await supabase.from('order_items').insert(orderItemsToInsert);
+        if (oiErr) throw oiErr;
+
+        res.json({ success: true, orderId: orderData.id });
+    } catch (e) {
+        console.error('Order Error:', e);
+        res.status(500).json({ success: false, error: e.message || 'Lỗi server khi tạo đơn' });
+    }
+});
+
 // --- Reports ---
 app.get('/api/reports/dashboard', (req, res) => {
     // Mocking 7-day revenue data
