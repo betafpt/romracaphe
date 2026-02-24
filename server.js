@@ -613,38 +613,109 @@ app.put('/api/orders/:id/status', async (req, res) => {
 });
 
 // --- Reports ---
-app.get('/api/reports/dashboard', (req, res) => {
-    // Mocking 7-day revenue data
-    const last7Days = [];
-    const revenues = [];
-    const costs = [];
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        last7Days.push(d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }));
-        revenues.push(Math.floor(Math.random() * 5000000) + 1000000); // 1M - 6M
-        costs.push(Math.floor(Math.random() * 2000000) + 500000);   // 500k - 2.5M
-    }
+app.get('/api/reports/dashboard', async (req, res) => {
+    try {
+        // 1. Khởi tạo mảng 7 ngày gần nhất (định dạng DD/MM)
+        const last7Days = [];
+        const dateKeyMap = {}; // Map DD/MM -> YYYY-MM-DD
 
-    const topProducts = [
-        { name: 'Cà phê Đen Đá', qty: 145, revenue: 145 * 25000 },
-        { name: 'Bạc Xỉu', qty: 98, revenue: 98 * 35000 },
-        { name: 'Cà phê Muối', qty: 120, revenue: 120 * 40000 },
-        { name: 'Trà Đào Cam Sả', qty: 85, revenue: 85 * 45000 }
-    ];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            // Cắt ra YYYY-MM-DD theo múi giờ local
+            const dStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
-    res.json({
-        success: true,
-        data: {
-            revenueData: { labels: last7Days, revenues, costs },
-            topProducts: topProducts,
-            summary: {
-                totalRevenue: revenues.reduce((a, b) => a + b, 0),
-                totalCost: costs.reduce((a, b) => a + b, 0),
-                totalOrders: 420
-            }
+            last7Days.push(label);
+            dateKeyMap[dStr] = label;
         }
-    });
+
+        // 2. Fetch toàn bộ order trong 7 ngày
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 6);
+        startDate.setHours(0, 0, 0, 0);
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                id, total_amount, created_at, status,
+                order_items (
+                    quantity, price,
+                    recipes (name)
+                )
+            `)
+            .gte('created_at', startDate.toISOString())
+            .eq('status', 'completed');
+
+        if (error) throw error;
+
+        // 3. Xử lý dữ liệu gom theo ngày và Top Products
+        const dailyRevenues = {};
+        const dailyCosts = {};
+        const productStats = {}; // { recipeName: { qty, rev } }
+        let totalRev = 0;
+        let totalCostAll = 0;
+
+        last7Days.forEach(day => {
+            dailyRevenues[day] = 0;
+            dailyCosts[day] = 0;
+        });
+
+        orders.forEach(order => {
+            // Xác định ngày của Order
+            const d = new Date(order.created_at);
+            const dStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            const label = dateKeyMap[dStr];
+
+            if (label && dailyRevenues[label] !== undefined) {
+                dailyRevenues[label] += order.total_amount;
+                // Giả định Cost = 40% doanh thu trong v1
+                dailyCosts[label] += order.total_amount * 0.4;
+
+                totalRev += order.total_amount;
+                totalCostAll += order.total_amount * 0.4;
+            }
+
+            // Tính Top Product
+            order.order_items.forEach(oi => {
+                const rName = oi.recipes?.name || 'Món Đã Xóa';
+                if (!productStats[rName]) {
+                    productStats[rName] = { qty: 0, revenue: 0 };
+                }
+                productStats[rName].qty += oi.quantity;
+                productStats[rName].revenue += (oi.quantity * (oi.price || 0));
+            });
+        });
+
+        // 4. Format Output Map thành Mảng cho Chart
+        const revenues = last7Days.map(day => dailyRevenues[day]);
+        const costs = last7Days.map(day => dailyCosts[day]);
+
+        let topProducts = Object.keys(productStats).map(name => ({
+            name: name,
+            qty: productStats[name].qty,
+            revenue: productStats[name].revenue
+        }));
+        // Sort descending by qty
+        topProducts.sort((a, b) => b.qty - a.qty);
+        topProducts = topProducts.slice(0, 4); // Chỉ lấy 4 món top
+
+        res.json({
+            success: true,
+            data: {
+                revenueData: { labels: last7Days, revenues, costs },
+                topProducts: topProducts,
+                summary: {
+                    totalRevenue: totalRev,
+                    totalCost: totalCostAll,
+                    totalOrders: orders.length
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Dashboard Report Error:", e);
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 // --- Users ---
