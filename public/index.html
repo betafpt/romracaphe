@@ -608,7 +608,7 @@
                 const bestSellerBadge = r.is_best_seller && !r.is_sold_out ? '<div class="absolute top-[-10px] left-[-10px] bg-red-600 text-white font-black px-3 py-1 border-4 border-black -rotate-12 shadow-[4px_4px_0_0_#000] z-30 flex items-center gap-1"><span class="material-symbols-outlined text-sm">local_fire_department</span> BEST SELLER</div>' : '';
 
                 return `
-                <div class="public-recipe-card brutal-card bg-white flex flex-col group overflow-hidden border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 cursor-pointer relative ${soldOutClass}">
+                <div class="public-recipe-card brutal-card bg-white flex flex-col group border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 cursor-pointer relative ${soldOutClass}">
                     ${bestSellerBadge}
                     <!-- Image -->
                     <div class="h-48 w-full bg-slate-100 border-b-4 border-black relative overflow-hidden">
