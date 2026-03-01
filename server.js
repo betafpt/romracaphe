@@ -72,6 +72,29 @@ app.post('/api/theme', (req, res) => {
 
 // ================= API ENDPOINTS =================
 
+// --- Categories ---
+app.get('/api/categories', async (req, res) => {
+    const { data: rows, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data: rows });
+});
+
+app.post('/api/categories', async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ success: false, error: 'Tên danh mục không được trống' });
+
+    const { data, error } = await supabase.from('categories').insert([{ name }]).select().single();
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data });
+});
+
+app.delete('/api/categories/:id', async (req, res) => {
+    const { id } = req.params;
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true });
+});
+
 // --- Inventory ---
 app.get('/api/inventory', async (req, res) => {
     const { data: rows, error } = await supabase.from('inventory').select('*').order('name', { ascending: true });
@@ -458,7 +481,7 @@ app.get('/api/recipes/export/pdf', async (req, res) => {
 });
 
 app.post('/api/recipes', async (req, res) => {
-    const { name, size, cogs, steps, price, image, ingredients, steps_detail, description, is_best_seller, is_sold_out } = req.body;
+    const { name, size, category, cogs, steps, price, image, ingredients, steps_detail, description, is_best_seller, is_sold_out } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Tên công thức không được trống' });
 
     // Ensure JSON is passed for JSONB
@@ -472,6 +495,7 @@ app.post('/api/recipes', async (req, res) => {
     const newObj = {
         name,
         size: size || 'M',
+        category: category || '',
         cogs: cogs || 0,
         steps: steps || 1,
         price: price || 0,
@@ -489,7 +513,7 @@ app.post('/api/recipes', async (req, res) => {
 });
 
 app.put('/api/recipes/:id', async (req, res) => {
-    const { name, size, cogs, steps, price, ingredients, steps_detail, image, description, is_best_seller, is_sold_out } = req.body;
+    const { name, size, category, cogs, steps, price, ingredients, steps_detail, image, description, is_best_seller, is_sold_out } = req.body;
 
     let parsedIngredients = ingredients;
     let parsedSteps = steps_detail;
@@ -499,7 +523,7 @@ app.put('/api/recipes/:id', async (req, res) => {
     } catch (e) { }
 
     const updateObj = {
-        name, size, cogs, steps, price, image,
+        name, size, category, cogs, steps, price, image,
         description, is_best_seller, is_sold_out,
         ingredients: parsedIngredients, steps_detail: parsedSteps
     };

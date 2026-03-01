@@ -642,13 +642,13 @@
                     </button>
 
                     <div class="brutal-card bg-white w-full max-w-lg p-8 md:p-12 flex flex-col items-center text-center gap-6 relative z-10 animate-slide-up shadow-[12px_12px_0_0_#000]">
-                        <img src="/img/logo.png" alt="Rôm Rả Cà Phê Logo" class="h-24 w-auto object-contain mb-2 hover:scale-105 transition-transform">
+                        <img src="/img/logo.png" alt="Rôm Rả Cà Phê Logo" class="h-40 md:h-56 w-auto object-contain mb-2 hover:scale-105 transition-transform">
                         
                         <h1 class="text-4xl md:text-5xl font-heading font-black tracking-tight leading-none uppercase">
-                            Xin chào!<br>Đến với Rôm Rả
+                            Xin chào!
                         </h1>
                         
-                        <p class="text-gray-700 font-bold text-lg mb-4">Cà phê đậm vị, đậm phong cách.</p>
+                        <p class="text-gray-700 font-bold text-lg mb-4 text-center">Cà phê đậm vị, đậm phong cách.</p>
                         
                         <button onclick="navigate('usermenu')" class="brutal-btn brutal-btn-primary w-full py-5 text-xl lg:text-2xl flex items-center justify-center gap-3 group animate-bounce hover:animate-none">
                             XEM MENU ĐỒ UỐNG 
@@ -787,21 +787,31 @@
                     <div class="w-12"></div> <!-- Spacer -->
                 </div>
 
-                <div class="w-full max-w-4xl mx-auto mb-6 flex gap-2 sm:gap-4 flex-col sm:flex-row">
-                    <div class="relative flex-1">
+                <!-- Filters -->
+                <div class="w-full max-w-4xl mx-auto mb-6 flex gap-4 flex-col">
+                    <div class="relative w-full">
                         <input type="text" id="public-search" placeholder="Bạn muốn uống gì?" oninput="filterPublicMenu()" class="w-full h-14 pl-12 pr-4 bg-white border-4 border-black shadow-[4px_4px_0_0_#000] focus:outline-none focus:translate-y-1 focus:shadow-none transition-all font-bold text-lg">
                         <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 font-black text-2xl">search</span>
                     </div>
-                    <div class="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0" id="public-size-buttons">
+
+                    <div class="flex gap-2 w-full overflow-x-auto pb-2 snap-x" id="public-category-buttons">
+                        <input type="hidden" id="public-category" value="">
+                        <button onclick="setPublicCategoryFilter(''); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-primary text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Tất cả</button>
+                        <button onclick="setPublicCategoryFilter('Cà phê'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Cà phê</button>
+                        <button onclick="setPublicCategoryFilter('Cacao'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Cacao</button>
+                        <button onclick="setPublicCategoryFilter('Trái cây'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Trái cây</button>
+                    </div>
+
+                    <div class="flex gap-2 w-full" id="public-size-buttons">
                         <input type="hidden" id="public-size" value="">
-                        <button onclick="setPublicSizeFilter(''); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-primary text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">ALL</button>
-                        <button onclick="setPublicSizeFilter('S'); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-white text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">S</button>
-                        <button onclick="setPublicSizeFilter('M'); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-white text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">M</button>
-                        <button onclick="setPublicSizeFilter('L'); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-white text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">L</button>
+                        <button onclick="setPublicSizeFilter(''); this.blur();" class="size-btn flex-1 h-12 bg-primary text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">SIZE ALL</button>
+                        <button onclick="setPublicSizeFilter('S'); this.blur();" class="size-btn w-16 md:w-20 shrink-0 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">S</button>
+                        <button onclick="setPublicSizeFilter('M'); this.blur();" class="size-btn w-16 md:w-20 shrink-0 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">M</button>
+                        <button onclick="setPublicSizeFilter('L'); this.blur();" class="size-btn w-16 md:w-20 shrink-0 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">L</button>
                     </div>
                 </div>
 
-                <div id="public-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto pb-32">
+                <div id="public-menu-grid" class="max-w-4xl mx-auto pb-32">
                     <div class="p-6 italic text-center col-span-full font-bold bg-white border-4 border-black">Đang tải Menu...</div>
                 </div>
                 </div>
@@ -903,6 +913,7 @@
                     if (!grouped[nameKey]) {
                         grouped[nameKey] = {
                             name: r.name.trim(),
+                            category: r.category || 'Khác',
                             description: r.description,
                             image: r.image,
                             is_best_seller: r.is_best_seller,
@@ -1049,7 +1060,7 @@
         window.renderPublicMenuCards = function (groupedArray, preferredSize = '') {
             const grid = document.getElementById('public-menu-grid');
             if (groupedArray.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center font-bold text-xl p-8 border-4 border-black border-dashed bg-white">Không tìm thấy món uống phù hợp.</div>`;
+                grid.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"><div class="col-span-full text-center font-bold text-xl p-8 border-4 border-black border-dashed bg-white">Không tìm thấy món uống phù hợp.</div></div>`;
                 return;
             }
 
@@ -1058,67 +1069,112 @@
                 if (g.variants) g.variants.sort((a, b) => (sizeOrder[a.size] || 99) - (sizeOrder[b.size] || 99));
             });
 
-            grid.innerHTML = groupedArray.map((g, index) => {
-                const soldOutClass = g.is_sold_out ? 'opacity-50 grayscale pointer-events-none' : '';
-                const soldOutBadge = g.is_sold_out ? '<div class="absolute inset-0 bg-black/40 flex items-center justify-center z-20"><span class="bg-black text-white px-4 py-2 font-black border-4 border-white rotate-[-5deg] text-xl">HẾT HÀNG</span></div>' : '';
-                const bestSellerBadge = g.is_best_seller && !g.is_sold_out ? '<div class="absolute top-[-10px] left-[-10px] bg-red-600 text-white font-black px-3 py-1 border-4 border-black -rotate-12 shadow-[4px_4px_0_0_#000] z-30 flex items-center gap-1"><span class="material-symbols-outlined text-sm">local_fire_department</span> BEST SELLER</div>' : '';
+            // Group by category for rendering headers
+            const itemsByCategory = {};
+            groupedArray.forEach(g => {
+                const cat = g.category || 'Khác';
+                if (!itemsByCategory[cat]) itemsByCategory[cat] = [];
+                itemsByCategory[cat].push(g);
+            });
 
-                let displayImg = g.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
-                let imgOffsetY = 50;
-                if (displayImg && displayImg.includes('|')) {
-                    const parts = displayImg.split('|');
-                    displayImg = parts[0];
-                    imgOffsetY = parseFloat(parts[1]) || 50;
-                }
+            // Make sure 'Khác' always goes last
+            let categoriesToRender = Object.keys(itemsByCategory).sort();
+            if (categoriesToRender.includes('Khác')) {
+                categoriesToRender = categoriesToRender.filter(c => c !== 'Khác');
+                categoriesToRender.push('Khác');
+            }
 
-                let defaultVar = g.variants && g.variants.length > 0 ? g.variants[0] : { id: g.id, size: 'M', price: g.price, is_sold_out: g.is_sold_out };
-                if (preferredSize) {
-                    const found = g.variants?.find(v => v.size === preferredSize);
-                    if (found) defaultVar = found;
+            let fullHtml = '';
+            let globalIndex = 0;
+
+            categoriesToRender.forEach(catName => {
+                // Render category Header
+                fullHtml += `<div class="w-full mt-8 mb-4 border-b-4 border-black border-dashed flex items-center justify-between"><h3 class="font-heading uppercase text-2xl font-black bg-yellow-300 border-x-4 border-t-4 border-black px-4 py-1 self-start shadow-[4px_0_0_0_#000] translate-y-1">${catName}</h3></div>`;
+
+                // Render the grid for this category
+                fullHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">`;
+                fullHtml += itemsByCategory[catName].map((g) => {
+                    const i = globalIndex++;
+                    const soldOutClass = g.is_sold_out ? 'opacity-50 grayscale pointer-events-none' : '';
+                    const soldOutBadge = g.is_sold_out ? '<div class="absolute inset-0 bg-black/40 flex items-center justify-center z-20"><span class="bg-black text-white px-4 py-2 font-black border-4 border-white rotate-[-5deg] text-xl">HẾT HÀNG</span></div>' : '';
+                    const bestSellerBadge = g.is_best_seller && !g.is_sold_out ? '<div class="absolute top-[-10px] left-[-10px] bg-red-600 text-white font-black px-3 py-1 border-4 border-black -rotate-12 shadow-[4px_4px_0_0_#000] z-30 flex items-center gap-1"><span class="material-symbols-outlined text-sm">local_fire_department</span> BEST SELLER</div>' : '';
+
+                    let displayImg = g.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+                    let imgOffsetY = 50;
+                    if (displayImg && displayImg.includes('|')) {
+                        const parts = displayImg.split('|');
+                        displayImg = parts[0];
+                        imgOffsetY = parseFloat(parts[1]) || 50;
+                    }
+
+                    let defaultVar = g.variants && g.variants.length > 0 ? g.variants[0] : { id: g.id, size: 'M', price: g.price, is_sold_out: g.is_sold_out };
+                    if (preferredSize) {
+                        const found = g.variants?.find(v => v.size === preferredSize);
+                        if (found) defaultVar = found;
+                    } else {
+                        const nonSoldOut = g.variants?.find(v => !v.is_sold_out);
+                        if (nonSoldOut) defaultVar = nonSoldOut;
+                    }
+
+                    let sizeButtonsHtml = '';
+                    if (g.variants && g.variants.length > 1) {
+                        sizeButtonsHtml = `<div class="flex gap-2 mb-2 mt-auto pt-2">` + g.variants.map((v, vIndex) => {
+                            const isSelected = v.id === defaultVar.id;
+                            const btnClass = isSelected ? 'bg-primary text-black' : 'bg-gray-100 text-gray-500 hover:bg-yellow-200';
+                            return `<button onclick="window.selectVariant(event, '${i}', '${vIndex}')" class="size-btn-group-${i} w-9 h-9 flex items-center justify-center border-[3px] border-black font-black font-heading text-base cursor-pointer transition-colors ${btnClass}" data-price="${v.price}" data-id="${v.id}" ${v.is_sold_out ? 'disabled style="opacity:0.3"' : ''}>${v.size}</button>`;
+                        }).join('') + `</div>`;
+                    } else if (g.variants && g.variants.length === 1) {
+                        sizeButtonsHtml = `<div class="flex gap-2 mb-2 mt-auto pt-2"><button type="button" class="w-9 h-9 flex items-center justify-center border-[3px] border-black font-black font-heading text-base cursor-default bg-primary text-black">${g.variants[0].size}</button></div>`;
+                    }
+
+                    return `
+                    <div class="public-recipe-card brutal-card bg-white flex flex-col group border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all cursor-default relative ${soldOutClass} mt-2 ml-2 h-full">
+                        ${bestSellerBadge}
+                        <!-- Image -->
+                        <div class="h-48 w-full bg-slate-100 border-b-4 border-black relative overflow-hidden shrink-0">
+                            ${soldOutBadge}
+                            <img src="${displayImg}" 
+                                 alt="${g.name}" 
+                                 style="object-position: center ${imgOffsetY}%"
+                                 class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-white group-hover:cursor-pointer">
+                        </div>
+                        <!-- Details -->
+                        <div class="p-4 flex flex-col gap-2 bg-white flex-1">
+                            <div>
+                                <h3 class="font-heading font-black uppercase text-xl leading-tight line-clamp-2">${g.name}</h3>
+                                ${g.description ? `<p class="text-sm font-bold text-gray-600 mt-1 line-clamp-2">${g.description}</p>` : ''}
+                            </div>
+                            ${sizeButtonsHtml}
+                            <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-dashed border-gray-300">
+                                <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_rgba(0,0,0,1)] tracking-tight" id="price-display-${i}">${Number(defaultVar.price).toLocaleString('vi-VN')}đ</span>
+                                <button id="add-btn-${i}" onclick="window.addToCart(${defaultVar.id}, event)" class="bg-black text-white p-2 border-2 border-white rounded-full hover:bg-primary hover:text-black transition-colors active:scale-95 z-40 relative group-hover:scale-110">
+                                    <span class="material-symbols-outlined font-black">add</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+
+                fullHtml += `</div>`; // Close grid for this category
+            });
+
+            grid.innerHTML = fullHtml;
+        };
+
+        window.setPublicCategoryFilter = function (cat) {
+            document.getElementById('public-category').value = cat;
+            const btns = document.querySelectorAll('#public-category-buttons .cat-btn');
+            btns.forEach(btn => {
+                const btnCat = btn.innerText.trim();
+                const targetCatText = cat === '' ? 'TẤT CẢ' : cat.toUpperCase();
+                if (btnCat.toUpperCase() === targetCatText) {
+                    btn.classList.replace('bg-white', 'bg-primary');
                 } else {
-                    const nonSoldOut = g.variants?.find(v => !v.is_sold_out);
-                    if (nonSoldOut) defaultVar = nonSoldOut;
+                    btn.classList.replace('bg-primary', 'bg-white');
                 }
-
-                let sizeButtonsHtml = '';
-                if (g.variants && g.variants.length > 1) {
-                    sizeButtonsHtml = `<div class="flex gap-2 mb-2 mt-auto pt-2">` + g.variants.map((v, vIndex) => {
-                        const isSelected = v.id === defaultVar.id;
-                        const btnClass = isSelected ? 'bg-primary text-black' : 'bg-gray-100 text-gray-500 hover:bg-yellow-200';
-                        return `<button onclick="window.selectVariant(event, '${index}', '${vIndex}')" class="size-btn-group-${index} w-9 h-9 flex items-center justify-center border-[3px] border-black font-black font-heading text-base cursor-pointer transition-colors ${btnClass}" data-price="${v.price}" data-id="${v.id}" ${v.is_sold_out ? 'disabled style="opacity:0.3"' : ''}>${v.size}</button>`;
-                    }).join('') + `</div>`;
-                } else if (g.variants && g.variants.length === 1) {
-                    sizeButtonsHtml = `<div class="flex gap-2 mb-2 mt-auto pt-2"><button type="button" class="w-9 h-9 flex items-center justify-center border-[3px] border-black font-black font-heading text-base cursor-default bg-primary text-black">${g.variants[0].size}</button></div>`;
-                }
-
-                return `
-                <div class="public-recipe-card brutal-card bg-white flex flex-col group border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all cursor-default relative ${soldOutClass} mt-2 ml-2 h-full">
-                    ${bestSellerBadge}
-                    <!-- Image -->
-                    <div class="h-48 w-full bg-slate-100 border-b-4 border-black relative overflow-hidden shrink-0">
-                        ${soldOutBadge}
-                        <img src="${displayImg}" 
-                             alt="${g.name}" 
-                             style="object-position: center ${imgOffsetY}%"
-                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-white group-hover:cursor-pointer">
-                    </div>
-                    <!-- Details -->
-                    <div class="p-4 flex flex-col gap-2 bg-white flex-1">
-                        <div>
-                            <h3 class="font-heading font-black uppercase text-xl leading-tight line-clamp-2">${g.name}</h3>
-                            ${g.description ? `<p class="text-sm font-bold text-gray-600 mt-1 line-clamp-2">${g.description}</p>` : ''}
-                        </div>
-                        ${sizeButtonsHtml}
-                        <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-dashed border-gray-300">
-                            <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_rgba(0,0,0,1)] tracking-tight" id="price-display-${index}">${Number(defaultVar.price).toLocaleString('vi-VN')}đ</span>
-                            <button id="add-btn-${index}" onclick="window.addToCart(${defaultVar.id}, event)" class="bg-black text-white p-2 border-2 border-white rounded-full hover:bg-primary hover:text-black transition-colors active:scale-95 z-40 relative group-hover:scale-110">
-                                <span class="material-symbols-outlined font-black">add</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                `;
-            }).join('');
+            });
+            filterPublicMenu();
         };
 
         window.selectVariant = function (e, cardIndex, variantIndex) {
@@ -1162,6 +1218,7 @@
         window.filterPublicMenu = function () {
             const q = document.getElementById('public-search').value.toLowerCase();
             const s = document.getElementById('public-size').value; // 'S', 'M', 'L', or ''
+            const c = document.getElementById('public-category') ? document.getElementById('public-category').value : '';
             const originalData = window.publicRecipesCache || [];
 
             const grouped = {};
@@ -1170,6 +1227,7 @@
                 if (!grouped[nameKey]) {
                     grouped[nameKey] = {
                         name: r.name.trim(),
+                        category: r.category || 'Khác',
                         description: r.description,
                         image: r.image,
                         is_best_seller: r.is_best_seller,
@@ -1185,7 +1243,8 @@
             const groupedArray = Object.values(grouped).filter(g => {
                 const matchName = g.name.toLowerCase().includes(q);
                 const matchSize = s === '' ? true : g.variants.some(v => v.size === s);
-                return matchName && matchSize;
+                const matchCategory = c === '' ? true : (g.category === c);
+                return matchName && matchSize && matchCategory;
             });
 
             renderPublicMenuCards(groupedArray, s);
