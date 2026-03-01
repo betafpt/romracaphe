@@ -802,13 +802,7 @@
                         <button onclick="setPublicCategoryFilter('Trái cây'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Trái cây</button>
                     </div>
 
-                    <div class="flex gap-2 w-full" id="public-size-buttons">
-                        <input type="hidden" id="public-size" value="">
-                        <button onclick="setPublicSizeFilter(''); this.blur();" class="size-btn flex-1 h-12 bg-primary text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">SIZE ALL</button>
-                        <button onclick="setPublicSizeFilter('S'); this.blur();" class="size-btn w-16 md:w-20 shrink-0 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">S</button>
-                        <button onclick="setPublicSizeFilter('M'); this.blur();" class="size-btn w-16 md:w-20 shrink-0 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">M</button>
-                        <button onclick="setPublicSizeFilter('L'); this.blur();" class="size-btn w-16 md:w-20 shrink-0 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">L</button>
-                    </div>
+
                 </div>
 
                 <div id="public-menu-grid" class="max-w-4xl mx-auto pb-32">
@@ -1200,24 +1194,8 @@
             document.getElementById('add-btn-' + cardIndex).setAttribute('onclick', `window.addToCart(${id}, event)`);
         };
 
-        window.setPublicSizeFilter = function (size) {
-            document.getElementById('public-size').value = size;
-            const btns = document.querySelectorAll('#public-size-buttons .size-btn');
-            btns.forEach(btn => {
-                const btnSize = btn.innerText.trim();
-                const targetSizeText = size === '' ? 'ALL' : size;
-                if (btnSize === targetSizeText) {
-                    btn.classList.replace('bg-white', 'bg-primary');
-                } else {
-                    btn.classList.replace('bg-primary', 'bg-white');
-                }
-            });
-            filterPublicMenu();
-        };
-
         window.filterPublicMenu = function () {
             const q = document.getElementById('public-search').value.toLowerCase();
-            const s = document.getElementById('public-size').value; // 'S', 'M', 'L', or ''
             const c = document.getElementById('public-category') ? document.getElementById('public-category').value : '';
             const originalData = window.publicRecipesCache || [];
 
@@ -1242,12 +1220,11 @@
 
             const groupedArray = Object.values(grouped).filter(g => {
                 const matchName = g.name.toLowerCase().includes(q);
-                const matchSize = s === '' ? true : g.variants.some(v => v.size === s);
                 const matchCategory = c === '' ? true : (g.category === c);
-                return matchName && matchSize && matchCategory;
+                return matchName && matchCategory;
             });
 
-            renderPublicMenuCards(groupedArray, s);
+            renderPublicMenuCards(groupedArray, '');
         };
 
         // --- 1. DASHBOARD ---
