@@ -88,6 +88,16 @@ app.post('/api/categories', async (req, res) => {
     res.json({ success: true, data });
 });
 
+app.put('/api/categories/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ success: false, error: 'Tên danh mục không được trống' });
+
+    const { data, error } = await supabase.from('categories').update({ name }).eq('id', id).select().single();
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data });
+});
+
 app.delete('/api/categories/:id', async (req, res) => {
     const { id } = req.params;
     const { error } = await supabase.from('categories').delete().eq('id', id);

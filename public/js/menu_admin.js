@@ -647,13 +647,40 @@ window.renderManageCategoryList = function () {
     }
 
     list.innerHTML = window.categoriesData.map(c => `
-        <li class="p-3 border-b-2 border-black flex justify-between items-center bg-white hover:bg-gray-100">
-            <span class="font-bold uppercase">${c.name}</span>
-            <button type="button" class="text-red-600 hover:text-red-800" onclick="window.deleteCategory('${c.id}')">
-                <span class="material-symbols-outlined font-bold">delete</span>
-            </button>
+        <li class="p-3 border-b-2 border-black flex justify-between items-center bg-white hover:bg-gray-100 group">
+            <span class="font-bold uppercase flex-1 truncate mr-2">${c.name}</span>
+            <div class="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <button type="button" class="text-yellow-600 hover:text-yellow-800" onclick="window.editCategory('${c.id}', '${c.name.replace(/'/g, "\\'")}')" title="Sửa tên">
+                    <span class="material-symbols-outlined font-bold">edit</span>
+                </button>
+                <button type="button" class="text-red-600 hover:text-red-800" onclick="window.deleteCategory('${c.id}')" title="Xóa">
+                    <span class="material-symbols-outlined font-bold">delete</span>
+                </button>
+            </div>
         </li>
     `).join('');
+};
+
+window.editCategory = async function (id, currentName) {
+    const newName = prompt("Nhập tên mới cho danh mục:", currentName);
+    if (newName === null || newName.trim() === "" || newName.trim() === currentName) return;
+
+    try {
+        const res = await fetch(`${API_URL}/categories/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName.trim() })
+        });
+        const json = await res.json();
+        if (json.success) {
+            await window.loadCategories();
+            window.renderManageCategoryList();
+        } else {
+            alert(json.error);
+        }
+    } catch (e) {
+        alert("Lỗi khi sửa danh mục: " + e.message);
+    }
 };
 
 window.addCategory = async function () {
