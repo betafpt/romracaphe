@@ -10,9 +10,14 @@ window.renderAdminMenu = async function () {
     appContent.innerHTML = `
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-3xl font-heading uppercase tracking-tight">Quản Lý Thực Đơn</h2>
-            <button class="brutal-btn brutal-btn-primary px-4 py-3 flex items-center gap-2 admin-only" onclick="window.openAddMenuModal()">
-                <span class="material-symbols-outlined font-bold">add</span> THÊM MÓN
-            </button>
+            <div class="flex gap-2">
+                <button class="brutal-btn px-4 py-3 flex items-center gap-2 admin-only bg-yellow-300" onclick="window.openManageCategoriesModal()">
+                    <span class="material-symbols-outlined font-bold">category</span> QUẢN LÝ DANH MỤC
+                </button>
+                <button class="brutal-btn brutal-btn-primary px-4 py-3 flex items-center gap-2 admin-only" onclick="window.openAddMenuModal()">
+                    <span class="material-symbols-outlined font-bold">add</span> THÊM MÓN
+                </button>
+            </div>
         </div>
 
         <div class="brutal-table-container">
@@ -49,6 +54,13 @@ window.renderAdminMenu = async function () {
                             <label class="font-bold text-sm block mb-1 uppercase">Tên Món (Dùng chung cho các Size)</label>
                             <input type="text" id="menu-name" required class="brutal-input py-2" placeholder="Ví dụ: Cà phê sữa đá" oninput="document.getElementById('menu-original-name').value = this.value">
                             <input type="hidden" id="menu-original-name">
+                        </div>
+                        
+                        <div class="w-full">
+                            <label class="font-bold text-sm block mb-1 uppercase">Danh mục</label>
+                            <select id="menu-category" class="brutal-input py-2 cursor-pointer bg-white">
+                                <option value="">Đang tải danh mục...</option>
+                            </select>
                         </div>
                         
                         <div class="flex flex-col gap-2 p-3 border-4 border-black bg-gray-50 shadow-[4px_4px_0_0_#000]">
@@ -115,8 +127,30 @@ window.renderAdminMenu = async function () {
                 </form>
             </div>
         </div>
+
+        <!-- Modal Manage Categories -->
+        <div id="modal-manage-categories" class="fixed inset-0 items-center justify-center p-4 content-center" style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+            <div class="brutal-card w-full max-w-sm p-6 flex flex-col gap-4 relative max-h-[90vh]">
+                <button class="absolute top-4 right-4 text-black hover:text-red-600 active:scale-90" onclick="document.getElementById('modal-manage-categories').style.display='none'">
+                    <span class="material-symbols-outlined text-3xl font-bold">close</span>
+                </button>
+                <h3 class="text-2xl font-heading uppercase border-b-4 border-black pb-2">Danh mục món</h3>
+                
+                <div class="flex gap-2">
+                    <input type="text" id="new-category-name" class="brutal-input flex-1 py-2" placeholder="Tên danh mục mới...">
+                    <button class="brutal-btn bg-black text-white px-4 shrink-0" onclick="window.addCategory()">Thêm</button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto border-4 border-black bg-gray-50 max-h-60 mt-2">
+                    <ul id="admin-category-list" class="flex flex-col">
+                        <li class="p-3 text-center italic text-gray-500">Đang tải...</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     `;
 
+    await window.loadCategories();
     await window.loadAdminMenuData();
 };
 
@@ -214,6 +248,7 @@ window.openAddMenuModal = function () {
     document.getElementById('form-edit-menu').reset();
     document.getElementById('menu-id').value = '';
     document.getElementById('menu-original-name').value = '';
+    document.getElementById('menu-category').value = '';
 
     // Default config
     document.getElementById('menu-has-s').checked = false;
@@ -249,6 +284,7 @@ window.openEditMenuModalGroup = function (encodedName) {
     document.getElementById('menu-id').value = baseItem.id;
     document.getElementById('menu-name').value = baseItem.name;
     document.getElementById('menu-original-name').value = baseItem.name;
+    document.getElementById('menu-category').value = baseItem.category || '';
     document.getElementById('menu-description').value = baseItem.description || '';
     document.getElementById('menu-is-best-seller').checked = baseItem.is_best_seller || false;
     document.getElementById('menu-is-sold-out').checked = baseItem.is_sold_out || false;
@@ -312,6 +348,7 @@ window.saveAdminMenu = async function (event) {
 
     const originalName = document.getElementById('menu-original-name').value.trim().toLowerCase();
     const newName = document.getElementById('menu-name').value.trim();
+    const category = document.getElementById('menu-category').value.trim();
     const description = document.getElementById('menu-description').value;
     const is_best_seller = document.getElementById('menu-is-best-seller').checked;
     const is_sold_out = document.getElementById('menu-is-sold-out').checked;
@@ -355,6 +392,7 @@ window.saveAdminMenu = async function (event) {
                 const payload = {
                     name: newName,
                     size: config.size,
+                    category: category,
                     price: config.price,
                     description,
                     is_best_seller,
@@ -559,3 +597,111 @@ window.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 window.addEventListener('touchend', () => { isMenuDraggingImg = false; });
+
+// ================= CATEGORY MANAGEMENT =================
+
+window.categoriesData = [];
+
+window.loadCategories = async function () {
+    try {
+        const res = await fetch(`${API_URL}/categories`);
+        const json = await res.json();
+        if (json.success) {
+            window.categoriesData = json.data;
+            window.renderCategorySelects();
+        }
+    } catch (e) {
+        console.error("Lỗi tải danh mục:", e);
+    }
+};
+
+window.renderCategorySelects = function () {
+    const select = document.getElementById('menu-category');
+    if (!select) return;
+
+    const currentVal = select.value;
+    let html = '<option value="">Chọn danh mục...</option>';
+    window.categoriesData.forEach(c => {
+        html += `<option value="${c.name}">${c.name}</option>`;
+    });
+
+    select.innerHTML = html;
+    if (currentVal && window.categoriesData.find(c => c.name === currentVal)) {
+        select.value = currentVal;
+    }
+};
+
+window.openManageCategoriesModal = function () {
+    document.getElementById('modal-manage-categories').style.display = 'flex';
+    document.getElementById('new-category-name').value = '';
+    window.renderManageCategoryList();
+};
+
+window.renderManageCategoryList = function () {
+    const list = document.getElementById('admin-category-list');
+    if (!list) return;
+
+    if (!window.categoriesData || window.categoriesData.length === 0) {
+        list.innerHTML = '<li class="p-3 text-center italic text-gray-500">Chưa có danh mục nào.</li>';
+        return;
+    }
+
+    list.innerHTML = window.categoriesData.map(c => `
+        <li class="p-3 border-b-2 border-black flex justify-between items-center bg-white hover:bg-gray-100">
+            <span class="font-bold uppercase">${c.name}</span>
+            <button type="button" class="text-red-600 hover:text-red-800" onclick="window.deleteCategory('${c.id}')">
+                <span class="material-symbols-outlined font-bold">delete</span>
+            </button>
+        </li>
+    `).join('');
+};
+
+window.addCategory = async function () {
+    const input = document.getElementById('new-category-name');
+    const name = input.value.trim();
+    if (!name) return;
+
+    const btn = event.currentTarget;
+    const ogText = btn.innerText;
+    btn.innerText = '...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/categories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        const json = await res.json();
+
+        if (json.success) {
+            input.value = '';
+            await window.loadCategories();
+            window.renderManageCategoryList();
+        } else {
+            alert(json.error);
+        }
+    } catch (e) {
+        alert("Lỗi khi thêm danh mục: " + e.message);
+    } finally {
+        btn.innerText = ogText;
+        btn.disabled = false;
+    }
+};
+
+window.deleteCategory = async function (id) {
+    try {
+        const res = await fetch(`${API_URL}/categories/${id}`, {
+            method: 'DELETE'
+        });
+        const json = await res.json();
+        if (json.success) {
+            await window.loadCategories();
+            window.renderManageCategoryList();
+        } else {
+            alert(json.error);
+        }
+    } catch (e) {
+        alert("Lỗi khi xóa danh mục: " + e.message);
+    }
+};
