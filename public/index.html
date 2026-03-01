@@ -367,6 +367,27 @@
             }
         };
 
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function (e) {
+            const userDropdown = document.getElementById('user-dropdown');
+            const avatarToggle = document.getElementById('avatar-img')?.parentElement;
+            if (userDropdown && !userDropdown.classList.contains('hidden')) {
+                if (!userDropdown.contains(e.target) && (!avatarToggle || !avatarToggle.contains(e.target))) {
+                    userDropdown.classList.add('hidden');
+                    userDropdown.classList.remove('flex');
+                }
+            }
+
+            const exportDropdown = document.getElementById('export-dropdown');
+            const btnExportMain = document.getElementById('btn-export-main');
+            if (exportDropdown && !exportDropdown.classList.contains('hidden')) {
+                if (!exportDropdown.contains(e.target) && (!btnExportMain || !btnExportMain.contains(e.target))) {
+                    exportDropdown.classList.add('hidden');
+                    exportDropdown.classList.remove('flex');
+                }
+            }
+        });
+
         window.triggerExport = function (format) {
             // Lấy route hiện tại từ nav ẩn (đã xử lý trong app.js navigate)
             const activeNav = document.querySelector('.nav-item.active');
@@ -771,12 +792,13 @@
                         <input type="text" id="public-search" placeholder="Bạn muốn uống gì?" oninput="filterPublicMenu()" class="w-full h-14 pl-12 pr-4 bg-white border-4 border-black shadow-[4px_4px_0_0_#000] focus:outline-none focus:translate-y-1 focus:shadow-none transition-all font-bold text-lg">
                         <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 font-black text-2xl">search</span>
                     </div>
-                    <select id="public-size" onchange="filterPublicMenu()" class="h-14 px-4 bg-secondary text-white border-4 border-black shadow-[4px_4px_0_0_#000] focus:outline-none focus:translate-y-1 focus:shadow-none transition-all font-bold uppercase cursor-pointer w-full sm:w-48 text-lg">
-                        <option value="">Tất cả Size</option>
-                        <option value="S">Size S</option>
-                        <option value="M">Size M</option>
-                        <option value="L">Size L</option>
-                    </select>
+                    <div class="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0" id="public-size-buttons">
+                        <input type="hidden" id="public-size" value="">
+                        <button onclick="setPublicSizeFilter(''); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-primary text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">ALL</button>
+                        <button onclick="setPublicSizeFilter('S'); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-white text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">S</button>
+                        <button onclick="setPublicSizeFilter('M'); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-white text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">M</button>
+                        <button onclick="setPublicSizeFilter('L'); this.blur();" class="size-btn flex-1 sm:w-20 h-14 bg-white text-black border-4 border-black font-black text-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase">L</button>
+                    </div>
                 </div>
 
                 <div id="public-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto pb-32">
@@ -873,7 +895,28 @@
 
                 // Caching the recipes globally for faster public filtering
                 window.publicRecipesCache = json.data;
-                renderPublicMenuCards(json.data);
+
+                // Group immediately for the first render
+                const grouped = {};
+                json.data.forEach(r => {
+                    const nameKey = r.name.trim().toLowerCase();
+                    if (!grouped[nameKey]) {
+                        grouped[nameKey] = {
+                            name: r.name.trim(),
+                            description: r.description,
+                            image: r.image,
+                            is_best_seller: r.is_best_seller,
+                            is_sold_out: r.is_sold_out,
+                            variants: []
+                        };
+                    }
+                    grouped[nameKey].variants.push({
+                        id: r.id, size: r.size || 'M', price: r.price, cogs: r.cogs, is_sold_out: r.is_sold_out
+                    });
+                });
+                const groupedArray = Object.values(grouped);
+
+                renderPublicMenuCards(groupedArray);
 
             } catch (e) {
                 document.getElementById('public-menu-grid').innerHTML = `<div class="col-span-full p-4 bg-red-100 border-4 border-black font-bold">Lỗi tải Menu: ${e.message}</div>`;
@@ -1003,19 +1046,24 @@
             render();
         }
 
-        window.renderPublicMenuCards = function (recipes) {
+        window.renderPublicMenuCards = function (groupedArray, preferredSize = '') {
             const grid = document.getElementById('public-menu-grid');
-            if (recipes.length === 0) {
+            if (groupedArray.length === 0) {
                 grid.innerHTML = `<div class="col-span-full text-center font-bold text-xl p-8 border-4 border-black border-dashed bg-white">Không tìm thấy món uống phù hợp.</div>`;
                 return;
             }
 
-            grid.innerHTML = recipes.map(r => {
-                const soldOutClass = r.is_sold_out ? 'opacity-50 grayscale pointer-events-none' : '';
-                const soldOutBadge = r.is_sold_out ? '<div class="absolute inset-0 bg-black/40 flex items-center justify-center z-20"><span class="bg-black text-white px-4 py-2 font-black border-4 border-white rotate-[-5deg] text-xl">HẾT HÀNG</span></div>' : '';
-                const bestSellerBadge = r.is_best_seller && !r.is_sold_out ? '<div class="absolute top-[-10px] left-[-10px] bg-red-600 text-white font-black px-3 py-1 border-4 border-black -rotate-12 shadow-[4px_4px_0_0_#000] z-30 flex items-center gap-1"><span class="material-symbols-outlined text-sm">local_fire_department</span> BEST SELLER</div>' : '';
+            const sizeOrder = { 'S': 1, 'M': 2, 'L': 3 };
+            groupedArray.forEach(g => {
+                if (g.variants) g.variants.sort((a, b) => (sizeOrder[a.size] || 99) - (sizeOrder[b.size] || 99));
+            });
 
-                let displayImg = r.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+            grid.innerHTML = groupedArray.map((g, index) => {
+                const soldOutClass = g.is_sold_out ? 'opacity-50 grayscale pointer-events-none' : '';
+                const soldOutBadge = g.is_sold_out ? '<div class="absolute inset-0 bg-black/40 flex items-center justify-center z-20"><span class="bg-black text-white px-4 py-2 font-black border-4 border-white rotate-[-5deg] text-xl">HẾT HÀNG</span></div>' : '';
+                const bestSellerBadge = g.is_best_seller && !g.is_sold_out ? '<div class="absolute top-[-10px] left-[-10px] bg-red-600 text-white font-black px-3 py-1 border-4 border-black -rotate-12 shadow-[4px_4px_0_0_#000] z-30 flex items-center gap-1"><span class="material-symbols-outlined text-sm">local_fire_department</span> BEST SELLER</div>' : '';
+
+                let displayImg = g.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
                 let imgOffsetY = 50;
                 if (displayImg && displayImg.includes('|')) {
                     const parts = displayImg.split('|');
@@ -1023,48 +1071,124 @@
                     imgOffsetY = parseFloat(parts[1]) || 50;
                 }
 
+                let defaultVar = g.variants && g.variants.length > 0 ? g.variants[0] : { id: g.id, size: 'M', price: g.price, is_sold_out: g.is_sold_out };
+                if (preferredSize) {
+                    const found = g.variants?.find(v => v.size === preferredSize);
+                    if (found) defaultVar = found;
+                } else {
+                    const nonSoldOut = g.variants?.find(v => !v.is_sold_out);
+                    if (nonSoldOut) defaultVar = nonSoldOut;
+                }
+
+                let sizeButtonsHtml = '';
+                if (g.variants && g.variants.length > 1) {
+                    sizeButtonsHtml = `<div class="flex gap-2 mb-2 mt-auto pt-2">` + g.variants.map((v, vIndex) => {
+                        const isSelected = v.id === defaultVar.id;
+                        const btnClass = isSelected ? 'bg-primary text-black' : 'bg-gray-100 text-gray-500 hover:bg-yellow-200';
+                        return `<button onclick="window.selectVariant(event, '${index}', '${vIndex}')" class="size-btn-group-${index} w-9 h-9 flex items-center justify-center border-[3px] border-black font-black font-heading text-base cursor-pointer transition-colors ${btnClass}" data-price="${v.price}" data-id="${v.id}" ${v.is_sold_out ? 'disabled style="opacity:0.3"' : ''}>${v.size}</button>`;
+                    }).join('') + `</div>`;
+                } else if (g.variants && g.variants.length === 1) {
+                    sizeButtonsHtml = `<div class="flex gap-2 mb-2 mt-auto pt-2"><button type="button" class="w-9 h-9 flex items-center justify-center border-[3px] border-black font-black font-heading text-base cursor-default bg-primary text-black">${g.variants[0].size}</button></div>`;
+                }
+
                 return `
-                <div class="public-recipe-card brutal-card bg-white flex flex-col group border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 cursor-pointer relative ${soldOutClass} mt-2 ml-2">
+                <div class="public-recipe-card brutal-card bg-white flex flex-col group border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all cursor-default relative ${soldOutClass} mt-2 ml-2 h-full">
                     ${bestSellerBadge}
                     <!-- Image -->
-                    <div class="h-48 w-full bg-slate-100 border-b-4 border-black relative overflow-hidden">
+                    <div class="h-48 w-full bg-slate-100 border-b-4 border-black relative overflow-hidden shrink-0">
                         ${soldOutBadge}
                         <img src="${displayImg}" 
-                             alt="${r.name}" 
+                             alt="${g.name}" 
                              style="object-position: center ${imgOffsetY}%"
-                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-white">
-                        <div class="absolute top-3 right-3 bg-secondary text-white font-black px-3 py-1 border-2 border-black rotate-3 shadow-[2px_2px_0_0_#000] z-10">
-                            Size ${r.size || 'M'}
-                        </div>
+                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-white group-hover:cursor-pointer">
                     </div>
                     <!-- Details -->
-                    <div class="p-4 flex flex-col gap-2 bg-white flex-1 flex justify-between">
+                    <div class="p-4 flex flex-col gap-2 bg-white flex-1">
                         <div>
-                            <h3 class="font-heading font-black uppercase text-xl leading-tight line-clamp-2">${r.name}</h3>
-                            ${r.description ? `<p class="text-sm font-bold text-gray-600 mt-1 line-clamp-2">${r.description}</p>` : ''}
+                            <h3 class="font-heading font-black uppercase text-xl leading-tight line-clamp-2">${g.name}</h3>
+                            ${g.description ? `<p class="text-sm font-bold text-gray-600 mt-1 line-clamp-2">${g.description}</p>` : ''}
                         </div>
-                        <div class="flex justify-between items-end mt-2">
-                            <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_rgba(0,0,0,1)] tracking-tight">${Number(r.price).toLocaleString('vi-VN')}đ</span>
-                            <button onclick="window.addToCart(${r.id}, event)" class="bg-black text-white p-2 border-2 border-white rounded-full hover:bg-primary hover:text-black transition-colors active:scale-95 z-40 relative group-hover:scale-110">
+                        ${sizeButtonsHtml}
+                        <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-dashed border-gray-300">
+                            <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_rgba(0,0,0,1)] tracking-tight" id="price-display-${index}">${Number(defaultVar.price).toLocaleString('vi-VN')}đ</span>
+                            <button id="add-btn-${index}" onclick="window.addToCart(${defaultVar.id}, event)" class="bg-black text-white p-2 border-2 border-white rounded-full hover:bg-primary hover:text-black transition-colors active:scale-95 z-40 relative group-hover:scale-110">
                                 <span class="material-symbols-outlined font-black">add</span>
                             </button>
                         </div>
                     </div>
                 </div>
-            `}).join('');
+                `;
+            }).join('');
+        };
+
+        window.selectVariant = function (e, cardIndex, variantIndex) {
+            e.stopPropagation();
+            const btn = e.currentTarget;
+            const price = btn.getAttribute('data-price');
+            const id = btn.getAttribute('data-id');
+
+            // Update buttons state
+            document.querySelectorAll('.size-btn-group-' + cardIndex).forEach(b => {
+                b.classList.replace('bg-primary', 'bg-gray-100');
+                b.classList.replace('text-black', 'text-gray-500');
+                b.classList.add('hover:bg-yellow-200');
+            });
+            btn.classList.replace('bg-gray-100', 'bg-primary');
+            btn.classList.replace('text-gray-500', 'text-black');
+            btn.classList.remove('hover:bg-yellow-200');
+
+            // Update Price
+            document.getElementById('price-display-' + cardIndex).innerText = Number(price).toLocaleString('vi-VN') + 'đ';
+
+            // Update Add button action
+            document.getElementById('add-btn-' + cardIndex).setAttribute('onclick', `window.addToCart(${id}, event)`);
+        };
+
+        window.setPublicSizeFilter = function (size) {
+            document.getElementById('public-size').value = size;
+            const btns = document.querySelectorAll('#public-size-buttons .size-btn');
+            btns.forEach(btn => {
+                const btnSize = btn.innerText.trim();
+                const targetSizeText = size === '' ? 'ALL' : size;
+                if (btnSize === targetSizeText) {
+                    btn.classList.replace('bg-white', 'bg-primary');
+                } else {
+                    btn.classList.replace('bg-primary', 'bg-white');
+                }
+            });
+            filterPublicMenu();
         };
 
         window.filterPublicMenu = function () {
             const q = document.getElementById('public-search').value.toLowerCase();
-            const s = document.getElementById('public-size').value;
+            const s = document.getElementById('public-size').value; // 'S', 'M', 'L', or ''
             const originalData = window.publicRecipesCache || [];
 
-            const filtered = originalData.filter(r => {
-                const matchName = r.name.toLowerCase().includes(q);
-                const matchSize = s ? (r.size === s) : true;
+            const grouped = {};
+            originalData.forEach(r => {
+                const nameKey = r.name.trim().toLowerCase();
+                if (!grouped[nameKey]) {
+                    grouped[nameKey] = {
+                        name: r.name.trim(),
+                        description: r.description,
+                        image: r.image,
+                        is_best_seller: r.is_best_seller,
+                        is_sold_out: r.is_sold_out,
+                        variants: []
+                    };
+                }
+                grouped[nameKey].variants.push({
+                    id: r.id, size: r.size || 'M', price: r.price, cogs: r.cogs, is_sold_out: r.is_sold_out
+                });
+            });
+
+            const groupedArray = Object.values(grouped).filter(g => {
+                const matchName = g.name.toLowerCase().includes(q);
+                const matchSize = s === '' ? true : g.variants.some(v => v.size === s);
                 return matchName && matchSize;
             });
-            renderPublicMenuCards(filtered);
+
+            renderPublicMenuCards(groupedArray, s);
         };
 
         // --- 1. DASHBOARD ---
@@ -1480,88 +1604,128 @@
                 try {
                     const res = await fetch(`${API_URL}/recipes`);
                     const json = await res.json();
-                    const grid = document.getElementById('recipe-list');
 
-                    if (json.data && json.data.length > 0) {
+                    if (json.data) {
                         window.allRecipes = json.data;
-                        grid.innerHTML = json.data.map(item => `
-                    <div class="brutal-card p-0 flex flex-col hover:cursor-pointer group">
-                        <div class="h-48 bg-secondary border-b-4 border-black relative overflow-hidden flex items-center justify-center">
-                            ${(() => {
-                                let imgUrl = item.image;
-                                let offsetY = 50;
-                                if (imgUrl && imgUrl.includes('|')) {
-                                    const parts = imgUrl.split('|');
-                                    imgUrl = parts[0];
-                                    offsetY = parts[1];
-                                }
-                                return imgUrl ? `<img src="${imgUrl}" style="object-position: center ${offsetY}%" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : `<span class="material-symbols-outlined text-white text-[80px] opacity-20 group-hover:scale-110 transition-transform">local_cafe</span>`;
-                            })()}
-                            <div class="absolute top-2 right-2 bg-primary brutal-border p-1 px-2 font-bold text-xs uppercase shadow-[2px_2px_0_0_#000]">Size ${item.size}</div>
-                        </div>
-                        <div class="p-5 flex flex-col gap-3">
-                            <div class="flex justify-between items-start">
-                                <h3 class="text-xl font-heading uppercase">${item.name}</h3>
-                                <span class="text-lg font-black text-secondary">${item.price.toLocaleString('vi-VN')} đ</span>
-                            </div>
-                            <div class="flex gap-2 text-xs font-bold">
-                                <span class="bg-gray-100 px-3 py-1.5 border-4 border-black font-black text-sm uppercase shadow-[4px_4px_0_0_#000] z-10 hover:-translate-y-1 transition-transform relative group-hover:bg-primary">${(() => { try { return JSON.parse(item.steps_detail || '[]').length; } catch (e) { return 0; } })()} Bước</span>
-                                <span class="bg-yellow-100 px-3 py-1.5 border-4 border-black font-black text-sm uppercase shadow-[4px_4px_0_0_#000] z-10 hover:-translate-y-1 transition-transform relative mt-1 group-hover:bg-[#f87171] group-hover:text-white group-hover:border-black">Cost: ${item.cogs.toLocaleString()}đ</span>
-                            </div>
-                            <button class="brutal-btn brutal-btn-secondary w-full py-3 mt-2" onclick="showRecipeDetail(${item.id})">CHI TIẾT</button>
-                        </div>
-                    </div>
-                `).join('');
-                    } else {
-                        grid.innerHTML = "Chưa có món nào.";
+                        window.filterRecipes();
                     }
                 } catch (e) { }
+            };
+
+            window.renderRecipeCards = function (recipesArray, preferredSize = '') {
+                const grid = document.getElementById('recipe-list');
+                if (recipesArray.length === 0) {
+                    grid.innerHTML = "<div class='col-span-full p-6 italic font-bold text-gray-500 text-center border-4 border-black border-dashed bg-white'>Chưa có công thức nào.</div>";
+                    return;
+                }
+
+                const sizeOrder = { 'S': 1, 'M': 2, 'L': 3 };
+                recipesArray.forEach(g => {
+                    if (g.variants) g.variants.sort((a, b) => (sizeOrder[a.size] || 99) - (sizeOrder[b.size] || 99));
+                });
+
+                grid.innerHTML = recipesArray.map((g, index) => {
+                    let displayImg = g.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+                    let imgOffsetY = 50;
+                    if (displayImg && displayImg.includes('|')) {
+                        const parts = displayImg.split('|');
+                        displayImg = parts[0];
+                        imgOffsetY = parseFloat(parts[1]) || 50;
+                    }
+
+                    let defaultVar = g.variants && g.variants.length > 0 ? g.variants[0] : { id: g.id, size: 'M', price: g.price, cogs: g.cogs, steps_detail: g.steps_detail };
+                    if (preferredSize) {
+                        const found = g.variants?.find(v => v.size === preferredSize);
+                        if (found) defaultVar = found;
+                    } else {
+                        // try to default to M
+                        const foundM = g.variants?.find(v => v.size === 'M');
+                        if (foundM) defaultVar = foundM;
+                    }
+
+                    let sizeButtonsHtml = '';
+                    if (g.variants && g.variants.length > 1) {
+                        sizeButtonsHtml = `<div class="flex gap-2 mb-2 mt-auto pt-2">` + g.variants.map((v, vIndex) => {
+                            const isSelected = v.id === defaultVar.id;
+                            const btnClass = isSelected ? 'bg-primary text-black' : 'bg-gray-100 text-gray-500 hover:bg-yellow-200';
+                            const stepCount = (() => { try { return JSON.parse(v.steps_detail || '[]').length; } catch (e) { return 0; } })();
+                            return `<button onclick="window.selectAdminRecipeVariant(event, '${index}', '${v.id}', ${v.cogs}, ${stepCount})" class="recipe-btn-group-${index} w-9 h-9 flex items-center justify-center border-[3px] border-black font-black font-heading text-base cursor-pointer transition-colors ${btnClass}">${v.size}</button>`;
+                        }).join('') + `</div>`;
+                    } else if (g.variants && g.variants.length === 1) {
+                        sizeButtonsHtml = `<div class="mt-auto pt-2 text-xs font-bold text-gray-500 uppercase">Duy nhất Size: ${g.variants[0].size}</div>`;
+                    }
+
+                    const defaultStepCount = (() => { try { return JSON.parse(defaultVar.steps_detail || '[]').length; } catch (e) { return 0; } })();
+
+                    return `
+                    <div class="brutal-card p-0 flex flex-col hover:cursor-default group relative h-full">
+                        <div class="h-48 bg-secondary border-b-4 border-black relative overflow-hidden flex items-center justify-center shrink-0">
+                            <img src="${displayImg}" style="object-position: center ${imgOffsetY}%" class="w-full h-full object-cover">
+                        </div>
+                        <div class="p-5 flex flex-col gap-3 flex-1">
+                            <div class="flex flex-col items-start gap-1">
+                                <h3 class="text-xl font-heading uppercase line-clamp-1" title="${g.name}">${g.name}</h3>
+                            </div>
+                            
+                            ${sizeButtonsHtml}
+
+                            <div class="flex gap-2 text-xs font-bold mt-2">
+                                <span class="bg-gray-100 px-3 py-1.5 border-[3px] border-black font-black text-xs uppercase" id="recipe-steps-${index}">${defaultStepCount} Bước</span>
+                                <span class="bg-yellow-100 px-3 py-1.5 border-[3px] border-black font-black text-xs uppercase" id="recipe-cost-${index}">Cost: ${Number(defaultVar.cogs).toLocaleString()}đ</span>
+                            </div>
+                            <button class="brutal-btn brutal-btn-secondary w-full py-3 mt-4" id="recipe-edit-btn-${index}" onclick="showRecipeDetail(${defaultVar.id})">SỬA ĐỊNH LƯỢNG KHO</button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            };
+
+            window.selectAdminRecipeVariant = function (e, cardIndex, id, cogs, steps) {
+                e.stopPropagation();
+                const btn = e.currentTarget;
+
+                // Update buttons state
+                document.querySelectorAll('.recipe-btn-group-' + cardIndex).forEach(b => {
+                    b.classList.replace('bg-primary', 'bg-gray-100');
+                    b.classList.replace('text-black', 'text-gray-500');
+                    b.classList.add('hover:bg-yellow-200');
+                });
+                btn.classList.replace('bg-gray-100', 'bg-primary');
+                btn.classList.replace('text-gray-500', 'text-black');
+                btn.classList.remove('hover:bg-yellow-200');
+
+                // Update info
+                document.getElementById('recipe-cost-' + cardIndex).innerText = `Cost: ${Number(cogs).toLocaleString()}đ`;
+                document.getElementById('recipe-steps-' + cardIndex).innerText = `${steps} Bước`;
+                document.getElementById('recipe-edit-btn-' + cardIndex).setAttribute('onclick', `showRecipeDetail(${id})`);
             };
 
             window.filterRecipes = function () {
                 const query = document.getElementById('search-input')?.value.toLowerCase() || '';
                 const size = document.getElementById('size-filter')?.value || '';
-                const grid = document.getElementById('recipe-list');
-                if (!grid || !window.allRecipes) return;
 
-                const filtered = window.allRecipes.filter(item => {
-                    const matchName = item.name.toLowerCase().includes(query);
-                    const matchSize = size === '' || item.size === size;
+                if (!window.allRecipes) return;
+
+                const grouped = {};
+                window.allRecipes.forEach(r => {
+                    const nameKey = r.name.trim().toLowerCase();
+                    if (!grouped[nameKey]) {
+                        grouped[nameKey] = {
+                            name: r.name.trim(),
+                            image: r.image,
+                            variants: []
+                        };
+                    }
+                    grouped[nameKey].variants.push(r);
+                });
+
+                const groupedArray = Object.values(grouped).filter(g => {
+                    const matchName = g.name.toLowerCase().includes(query);
+                    const matchSize = size === '' ? true : g.variants.some(v => v.size === size);
                     return matchName && matchSize;
                 });
 
-                if (filtered.length > 0) {
-                    grid.innerHTML = filtered.map(item => `
-                    <div class="brutal-card p-0 flex flex-col hover:cursor-pointer group">
-                        <div class="h-48 bg-secondary border-b-4 border-black relative overflow-hidden flex items-center justify-center">
-                            ${(() => {
-                            let imgUrl = item.image;
-                            let offsetY = 50;
-                            if (imgUrl && imgUrl.includes('|')) {
-                                const parts = imgUrl.split('|');
-                                imgUrl = parts[0];
-                                offsetY = parts[1];
-                            }
-                            return imgUrl ? '<img src="' + imgUrl + '" style="object-position: center ' + offsetY + '%" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">' : '<span class="material-symbols-outlined text-white text-[80px] opacity-20 group-hover:scale-110 transition-transform">local_cafe</span>';
-                        })()}
-                            <div class="absolute top-2 right-2 bg-primary brutal-border p-1 px-2 font-bold text-xs uppercase shadow-[2px_2px_0_0_#000]">Size ${item.size}</div>
-                        </div>
-                        <div class="p-5 flex flex-col gap-3">
-                            <div class="flex justify-between items-start">
-                                <h3 class="text-xl font-heading uppercase">${item.name}</h3>
-                                <span class="text-lg font-black text-secondary">${item.price.toLocaleString('vi-VN')} đ</span>
-                            </div>
-                            <div class="flex gap-2 text-xs font-bold">
-                                <span class="bg-gray-100 px-3 py-1.5 border-4 border-black font-black text-sm uppercase shadow-[4px_4px_0_0_#000] z-10 hover:-translate-y-1 transition-transform relative group-hover:bg-primary">${(() => { try { return JSON.parse(item.steps_detail || '[]').length; } catch (e) { return 0; } })()} Bước</span>
-                                <span class="bg-yellow-100 px-3 py-1.5 border-4 border-black font-black text-sm uppercase shadow-[4px_4px_0_0_#000] z-10 hover:-translate-y-1 transition-transform relative mt-1 group-hover:bg-[#f87171] group-hover:text-white group-hover:border-black">Cost: ${item.cogs.toLocaleString()}đ</span>
-                            </div>
-                            <button class="brutal-btn brutal-btn-secondary w-full py-3 mt-2" onclick="showRecipeDetail(${item.id})">CHI TIẾT</button>
-                        </div>
-                    </div>
-                `).join('');
-                } else {
-                    grid.innerHTML = "<div class='col-span-full p-6 italic font-bold text-gray-500 text-center'>Không tìm thấy công thức nào phù hợp.</div>";
-                }
+                window.renderRecipeCards(groupedArray, size);
             };
 
             await window.loadRecipes();
@@ -2466,6 +2630,7 @@
 
                         let bgColor = 'bg-white';
                         let actionBtn = '';
+                        let verifyBtn = '';
                         let paymentBadgeBorder = order.payment_method === 'transfer' ? 'border-[#4A235A] bg-[#E8DAEF] text-[#4A235A]' : 'border-green-800 bg-green-100 text-green-800';
                         let paymentText = order.payment_method === 'transfer' ? 'CK VIETQR' : 'TIỀN MẶT';
 

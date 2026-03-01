@@ -1,0 +1,376 @@
+{
+  "cookies": [
+    {
+      "name": "AWSELB",
+      "value": "53B7490F14CB44B3C3CAE476A7D8BD7A112F66C8F807333E5C78FD4109F65AFEAFB0F8798473D0CA151F3E1F3C14AD80105D9FDB040D98FBD8CE36ADD663732B438305F579",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "AWSELBCORS",
+      "value": "53B7490F14CB44B3C3CAE476A7D8BD7A112F66C8F807333E5C78FD4109F65AFEAFB0F8798473D0CA151F3E1F3C14AD80105D9FDB040D98FBD8CE36ADD663732B438305F579",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "DEVICE_ID",
+      "value": "9adc5169-e0e8-45f8-a1e7-2f6ec71af00f",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1806512357.353548,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gsvid",
+      "value": "0b7245cf-c700-461b-9187-e6b2d2c9cd5e",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1806541798.296906,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hwuuidtime",
+      "value": "1771952358",
+      "domain": "weblogin.grab.com",
+      "path": "/",
+      "expires": 1779757751,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "_gsvid",
+      "value": "3aceae80-2d11-4f8b-b0e4-a4b8753945cb",
+      "domain": "weblogin.grab.com",
+      "path": "/",
+      "expires": 1806541764.000478,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hwuuid",
+      "value": "704404f6-97ba-49dc-8de1-e624cb9cc601",
+      "domain": "weblogin.grab.com",
+      "path": "/",
+      "expires": 1779757751,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "hwuuidtime",
+      "value": "1771952428",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1779757769,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "hwuuid",
+      "value": "9f88b9d6-ee44-4bae-b961-7475f961a84b",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1779757769,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.2.899474570.1771952442",
+      "domain": ".grab.com",
+      "path": "/",
+      "expires": 1806541771.955131,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gid",
+      "value": "GA1.2.1107326158.1771952442",
+      "domain": ".grab.com",
+      "path": "/",
+      "expires": 1772068171,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gssid",
+      "value": "2601250109-mva84cmy0mk",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1771983598,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gssid",
+      "value": "2601250109-pg66nvxwrka",
+      "domain": "weblogin.grab.com",
+      "path": "/",
+      "expires": 1771983564,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "mexusers_authn_token",
+      "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6Il9kZWZhdWx0IiwidHlwIjoiSldUIn0.eyJhbXIiOiJXRUJMT0dJTiIsImF1ZCI6IlNTT19UT0tFTl9JU1NVSU5HX1NFUlZJQ0UiLCJlc2kiOiJ6ZHhxandPamFHT1NIZTVjcFhIazQ5ak4vUkI4TXhzejVnUEwwdjZDOTVISlpHbHNtd1g4K3BXaEIxckpiQT09IiwiZXhwIjoxNzcyMTU0NTYzLCJpYXQiOjE3NzE5ODE3NjAsImp0aSI6IjcyMDA3MGZjLWFmMDItNGMwMS05NWRjLThiYjQxOTNkZjU4ZCIsInN1YiI6Ijg1MzMzYmI1LTMzYTMtNDI5My05ZGU1LTY0ZGU1ODZhMzRiNSIsInN2YyI6Ik1FWFVTRVJTIn0.SJZPmX0jL8g5lgqNWhylATshGMTNW7RyPC2h4FJiUhWF-z81comMqQHW8FcRMNMSqEG9sqk9tbi922oM1QenM2FJHu5fuCC6cyRkSbwQUE0jw-7c_KlYPuD7f36TF8qVBINDbHweLR9shHE0JivyFqfWwS5qAXllFjUgxU_fpPQBsompyr4a0TAdlAaIht_38Fh-0qXxd8LD_PCXhb3katJ6P4bV-vmkWZMcBA_iBvDCF0hVvOroaSU6ADU33-wDd4B09xIckyRDHdfqIylFhK12QgYfbPMdZvaxg37WJt-YhMhCDxSAFCHpA8iBzc3vhg6h0dsHR_Q5r_qo-ZWNfg",
+      "domain": ".grab.com",
+      "path": "/",
+      "expires": 1772154563.995824,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "mexusers_authn_token_jti",
+      "value": "720070fc-af02-4c01-95dc-8bb4193df58d",
+      "domain": ".grab.com",
+      "path": "/",
+      "expires": 1772154563.995892,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sa_MEXUSERS_e5f6613e54",
+      "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6Il9kZWZhdWx0IiwidHlwIjoiSldUIn0.eyJhdWQiOiJNRVhVU0VSUyIsImV4cCI6MTc3NDU3Mzc2MywiaWF0IjoxNzcxOTgxNzYzLCJqdGkiOiIzMzFhNTRjYzI2MDg0YTc3OTQ3ODY1MjQ5OTdiMmM1YiIsIm5iZiI6MTc3MTk4MTczMywic3ViIjoiODUzMzNiYjUtMzNhMy00MjkzLTlkZTUtNjRkZTU4NmEzNGI1In0.fP2Zgc_qhqpyBCufGhh23-ILTqYO3FcHE_UOTs-DlUDlGlGuAcfCZ-DDqF8Odc08PT62iLTRdng6q6rQobNIX9cKRczniPCUpVpJS4ftv099oc13beDTpQiwx71se3SCHf8Oq8yGT4WYz2WgUsISqEvAZEmSsxqf8luaQnyMKp71BjcAR5OACf1u4Qdy6RRNK8pPsA8IW84xHivXqhf5ry4VfkYuWhx6cg95N67JIhua1JR8HcqlyIUTs1JlKu33oJe9rcsN8gIc0yYw0rOPrMkBVM6z3MhGvT5jpUEplngT3DsE7lYWUvo0LqLMuKqK91JF8dexihszu86df_MfZg",
+      "domain": ".grab.com",
+      "path": "/",
+      "expires": 1774573763.995911,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_dd_s",
+      "value": "rum=0&expire=1771982663168",
+      "domain": "weblogin.grab.com",
+      "path": "/",
+      "expires": 1771982663,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "OptanonConsent",
+      "value": "isGpcEnabled=0&datestamp=Wed+Feb+25+2026+08%3A09%3A24+GMT%2B0700+(Indochina+Time)&version=202304.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&landingPath=https%3A%2F%2Fmerchant.grab.com%2Fportal&groups=C0001%3A1%2CC0002%3A1%2CC0003%3A1%2CC0004%3A1",
+      "domain": ".grab.com",
+      "path": "/",
+      "expires": 1803517764,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "visits",
+      "value": "4",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1803517764,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hwToken",
+      "value": "bcadc2317ac4c29fdadab5149e928ab8",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1779757770,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "hwTime",
+      "value": "1771981770008",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1779757770,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "_dd_s",
+      "value": "logs=1&id=96ac62e9-187f-4a37-9cc3-93217bb545d9&created=1771981748734&expire=1771982792138&rum=0",
+      "domain": "merchant.grab.com",
+      "path": "/",
+      "expires": 1771982833,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://merchant.grab.com",
+      "localStorage": [
+        {
+          "name": "lang",
+          "value": "VN"
+        },
+        {
+          "name": "authz-create-permissions",
+          "value": "[]"
+        },
+        {
+          "name": "selectedMerchant",
+          "value": "{\"85333bb5-33a3-4293-9de5-64de586a34b5\":{\"id\":\"VNMG20260122054131019643\",\"display_name\":\"Rôm Rả Cà phê\",\"type\":\"MLM\",\"has_no_linked_store\":false}}"
+        },
+        {
+          "name": "RefreshToken",
+          "value": "undefined"
+        },
+        {
+          "name": "hwuuid",
+          "value": "9f88b9d6-ee44-4bae-b961-7475f961a84b"
+        },
+        {
+          "name": "JWT",
+          "value": ""
+        },
+        {
+          "name": "businessLineIds",
+          "value": "[\"GF\"]"
+        },
+        {
+          "name": "featureFlags",
+          "value": "{\"canCallPaysiDealerMerchantFeature\":false,\"hasAccessMenu\":true,\"hasAccessUMP\":false,\"hasAccessInvoices\":false,\"hasAccessMarketing\":false,\"hasTaxCommission\":true,\"hasDisableAutoDownloadOfGeneratedReport\":false,\"hasFlexiblePayoutSchedule\":false,\"hasKYBCompleteCheckEnabled\":false,\"hasTrxInvoiceEnabled\":false,\"hasAccessPayNow\":false,\"hasInvoiceFiltering\":false,\"hasViewDineInCash\":true,\"insightsHideAds\":true,\"isPayoutEmergencyBannerEnabled\":false,\"hasMultiEntityEnabled\":true,\"hasPayoutEmergencyBannerType\":\"\",\"hasPayoutEmergencyBannerDate\":\"\",\"enableMrcFeedPortal\":true,\"enableItemFillRateInsight\":true,\"hasMarketingSuccessFee\":true,\"hasFinanceErrorBanner\":false,\"financeMSRViewRule\":{\"entity_type\":{\"blacklist\":[],\"rule\":\"all\",\"whitelist\":[]},\"show_in_phoenix\":true},\"enableLeadsgenStoreFlowTroyPortal\":true,\"mexHasImOrder\":true,\"mexHasMmOrder\":false,\"mexHasPromo\":true,\"meMexHasGFBusinessLine\":false,\"meMexHasGMBusinessLine\":false,\"meMexHasGPBusinessLine\":false,\"enableInsightsMaintenanceBanner\":{\"cn\":{\"desc\":\"您的部分数据仍在处理中。请稍后再回来查看完整数据。\",\"title\":\"稍后再回来获取更多数据\"},\"en\":{\"desc\":\"Some of your data are still being processed. Please come back later to see the complete data.\",\"title\":\"Come back later for more data\"},\"enable\":false,\"gb\":{\"desc\":\"Some of your data are still being processed. Please come back later to see the complete data.\",\"title\":\"Come back later for more data\"},\"id\":{\"desc\":\"Beberapa data Anda masih diproses. Silakan kembali lagi nanti untuk melihat data yang lengkap.\",\"title\":\"Silakan kembali lagi nanti untuk data yang lebih lengkap\"},\"my\":{\"desc\":\"Beberapa data anda masih diproses. Sila datang semula kemudian untuk melihat data lengkap.\",\"title\":\"Kembali kemudian untuk mendapatkan lebih banyak data\"},\"th\":{\"desc\":\"ข้อมูลบางส่วนของคุณยังประมวลผลไม่เสร็จ โปรดกลับมาดูข้อมูลทั้งหมดภายหลัง\",\"title\":\"บริการไม่สามารถใช้งานได้เนื่องจากการบำรุงรักษา\"},\"type\":\"warning\",\"vn\":{\"desc\":\"Một số dữ liệu của bạn vẫn đang được xử lý. Vui lòng quay lại sau để xem thông tin số liệu hoàn chỉnh.\",\"title\":\"Vui lòng quay lại sau để cập nhật thêm số liệu\"}},\"enableItemPhotoCoverage\":true,\"enableAppealIncident\":true,\"mexPortalUserPermissionSystem\":{\"config\":{\"cashier\":\"default_cashier\",\"homepageEnabled\":true,\"manager\":\"default_manager\",\"owner\":\"default_owner\",\"zeus_merchant\":\"zeus_merchant\",\"zeus_store\":\"zeus_store\"},\"enabled\":true,\"module\":{\"employee_management/employee\":\"employee_management/employee\",\"finance\":\"finance\",\"finance/payouts\":\"finance\",\"finance/payouts/csv\":\"finance\",\"finance/reports\":\"finance\",\"finance/transaction/all_store/csv\":\"finance\",\"finance/transaction/detail\":\"finance\",\"finance/transaction/store/csv\":\"finance\",\"finance/transactions\":\"finance\",\"finance/transactions/all_stores\":\"finance\",\"homepage\":\"homepage\",\"homepage/finance_summary\":\"finance\",\"homepage/insights_trends\":\"insight\",\"homepage/marketing_banner\":\"homepage/basic\",\"homepage/mrc_feeds\":\"homepage/basic\",\"insights\":\"insight\",\"insights/customers\":\"insight\",\"insights/customers/map\":\"insight\",\"insights/customers/overview\":\"insight\",\"insights/item_fill_rate\":\"insight\",\"insights/item_fill_rate/csv\":\"insight\",\"insights/item_performance\":\"insight\",\"insights/item_performance/csv\":\"insight\",\"insights/menu\":\"insight\",\"insights/offers\":\"insight\",\"insights/offers/csv\":\"insight\",\"insights/offers/overview\":\"insight\",\"insights/offers/top_offers\":\"insight\",\"insights/operations\":\"insight\",\"insights/operations/cancellation_rate\":\"insight\",\"insights/operations/cancellation_rate/csv\":\"insight\",\"insights/operations/driver_waiting_time\":\"insight\",\"insights/operations/driver_waiting_time/csv\":\"insight\",\"insights/operations/offline_rate\":\"insight\",\"insights/operations/offline_rate/csv\":\"insight\",\"insights/operations/peak_hours\":\"insight\",\"insights/operations/peak_hours/csv\":\"insight\",\"insights/sales\":\"insight\",\"insights/sales_customer_summary\":\"insight\",\"insights/sales_overview\":\"insight\",\"insights/store_performance\":\"insight\",\"insights/store_performance/csv\":\"insight\",\"insights/suggested_combo\":\"insight\",\"insights/suggested_combo/csv\":\"insight\",\"menu\":\"menu/mme\"}},\"mexFinanceApiMigration\":{\"AsyncSettlementDownload\":true,\"AsyncTransactionDownload\":true,\"DownloadReport\":true,\"DownloadSingleDetailSettlement\":true,\"GeneratedReportDetail\":true,\"GeneratedReportList\":true,\"GetInvoiceList\":true,\"GetMerchants\":true,\"GetStores\":true,\"ListSingleSettlementV2\":true,\"SettlementReport\":true,\"SettlementReportGwm\":true},\"mexPortalVirtualEntitySystem\":{\"enabled\":true,\"enabledTabs\":{\"admin\":true,\"crm\":true,\"dashboard\":false,\"feedback\":false,\"finances\":false,\"insights\":true,\"inventory\":false,\"menu\":false,\"order\":false,\"paynow\":false,\"ump\":false},\"initialTabPath\":\"/userprofile/admin\"},\"enableDeprecateMoca\":false,\"hideVNViewPayoutTab\":false,\"mexPortalGXSPageConfig\":{},\"fedFinanceReportingDatePickerConfig\":{\"duration\":179,\"maxRange\":179},\"mexPortalMsrDeprecationConfig\":false,\"enableMexPortalRangePickerPreset\":true,\"enableDefaultStoreSelection\":true,\"MSREnabled\":false,\"enableMexPortalMSRDeprecation\":true,\"enableDriverWaitTimeInsights\":false,\"enableCRM\":false,\"enableSmartLink\":false,\"enableMarketingForObserver\":true,\"enableEmplStoreListV2\":true,\"mexPortalEnableRatingsWithoutReview\":true,\"enableWebviewFinancePage\":true,\"enableMexPortalFeeBreakdownGrabpay\":false,\"mexPortalEnableAddExistingUserShellBiz\":false,\"hasBannerUpsell\":false,\"hasBannerFreeCredit\":false,\"hasBannerFreeAmount\":{\"IDR\":{\"amount\":{\"1\":\"100,000\"},\"currency\":\"Rp\",\"endDate\":{\"1\":\"2023-07-12\"}},\"MYR\":{\"amount\":{\"1\":\"150\"},\"currency\":\"RM\",\"endDate\":{\"1\":\"2023-07-12\"}},\"PHP\":{\"amount\":{\"1\":\"2,500\"},\"currency\":\"₱\",\"endDate\":{\"1\":\"2023-07-12\"}},\"SGD\":{\"amount\":{\"1\":\"190\"},\"currency\":\"S$\",\"endDate\":{\"1\":\"2023-07-12\"}},\"THB\":{\"amount\":{\"1\":\"310\"},\"currency\":\"฿\",\"endDate\":{\"1\":\"2023-07-12\"}},\"VND\":{\"amount\":{\"1\":\"520,000\"},\"currency\":\"₫\",\"endDate\":{\"1\":\"2023-07-29\"}}},\"hasAccessInventory\":true,\"hasHiddenGKTaxCommission\":false,\"hasAccessOrderManager\":true,\"hasAccessFeedback\":true,\"hasFinanceDineInVoucherTrxEnabled\":true,\"disableNameUniquenessOnCategory\":true,\"enableDDMonitoring\":{\"enable\":true,\"env\":\"prd\",\"ignoreErrors\":[\"code 401\",\"loading chunk\",\"zaloJSV2\",\"ResizeObserver\",\"geo-layer\",\"can't find variable: gmo\"],\"logPercentage\":100,\"rumPercentage\":10},\"enableFeedbackDownloadReviews\":{\"enabled\":true,\"range\":90},\"enableInsightsLoyalty\":{\"enabled\":false,\"googleFormLink\":\"https://docs.google.com/forms/d/e/1FAIpQLSc7zsGieo00MeIaDPaK_SRt_rhVVxTxW4KgIqPBcl2ZFEDXrA/viewform?usp=pp_url&entry.1229627717={id}&entry.1932292169={email}\"},\"enableInsightsLoyaltyBanner\":false,\"mexPortalMFE\":false,\"mexFinancesAPIMigration\":true,\"mexFinancesAPIWhitelist\":[\"^mex/finances/v1/transactions/summary$\",\"^mex/finances/v1/transactions$\",\"^mex/finances/v1/transactions/summary/download$\",\"^mex/finances/v1/store/[a-zA-Z0-9\\\\-]{36}/transactions-summary$\",\"^mex/finances/v1/stores/settlements$\",\"^mex/finances/v1/stores/[a-zA-Z0-9\\\\-]{36}/settlements$\",\"^mex/finances/v1/stores/[a-zA-Z0-9\\\\-]{36}/settlement-summary$\",\"^mex/finances/v1/stores/mex/settlement-report$\",\"^mex/finances/v1/stores/gwm/settlement-report$\",\"^mex/finances/v1/stores/settlement-report/[a-zA-Z0-9\\\\-]{36}$\",\"^mex/finances/v1/store/[a-zA-Z0-9\\\\-]{36}/transactions$\",\"^mex/finances/v2/stores/[a-zA-Z0-9\\\\-]{36}/transactions/[a-zA-Z0-9]*$\",\"^mex/finances/v2/stores/[a-zA-Z0-9\\\\-]{36}/transactions/orders/[a-zA-Z0-9\\\\-]*$\",\"^mex/finances/v2/transactions$\",\"^mex/finances/v1/stores/[a-zA-Z0-9\\\\-]{36}/transactions/orders/[a-zA-Z0-9\\\\-]*/invoice$\",\"^mex/finances/v1/stores/settlements-summary/download$\",\"^mex/finances/v1/stores/settlement-summary$\"],\"enableMexClawbackTooltip\":false,\"enableMexPortalObserverMode\":true,\"enableNonTxnReviewMexPortal\":false,\"enableNonTxnReviewMexPortalForDeliveryOnly\":false,\"enableNudgesInMexPortal\":false,\"hasAccessInstapay\":false}"
+        },
+        {
+          "name": "UP_ANALYTICS_ID",
+          "value": ""
+        },
+        {
+          "name": "userPermissionData",
+          "value": "{\"permissionKeysSet\":[\"edit:employee_management/employee/default_manager\",\"create:employee_management/employee/default_manager\",\"create:employee_management/employee/default_cashier\",\"edit:employee_management/employee/default_cashier\",\"edit:employee_management/employee\",\"create:employee_management/employee\",\"get:employee_management/employee\",\"get:store_management/store_profile\",\"get:store_management/store_profile/advanced\",\"edit:store_management/store_profile\",\"edit:store_management/hour\",\"get:finance\",\"get:homepage/basic\",\"get:homepage\",\"get:insight\",\"edit:setting/contact\",\"get:insight/basic\",\"get:finance/basic\",\"get:menu/mme\",\"edit:menu/mme\",\"edit:menu/mme_available\",\"get:marketing/account\",\"create:marketing/account\",\"create:marketing/ad\",\"get:marketing/ad\",\"edit:marketing/ad\",\"edit:order/basic\",\"edit:campaign/advance\",\"edit:menu/basic\",\"edit:review/advance\",\"edit:campaign/basic\",\"get:campaign/advance\",\"get:campaign/basic\",\"get:order/basic\",\"get:review/basic\",\"edit:review/basic\",\"get:menu/advanced\",\"get:default\",\"get:gxs/bank_account\",\"edit:gxs/bank_account\",\"get:gxs/basic\",\"edit:store_management/store_profile/basic\",\"get:supplies/webview\",\"edit:supplies/webview\",\"edit:default\",\"edit:finance\"],\"resourcePermissionsMap\":[[\"zeus_store:5-C7XTNBEUGLKHHA\",[\"edit:employee_management/employee/default_manager\",\"create:employee_management/employee/default_manager\",\"create:employee_management/employee/default_cashier\",\"edit:employee_management/employee/default_cashier\",\"edit:employee_management/employee\",\"create:employee_management/employee\",\"get:employee_management/employee\",\"get:store_management/store_profile\",\"get:store_management/store_profile/advanced\",\"edit:store_management/store_profile\",\"edit:store_management/hour\",\"get:finance\",\"get:homepage/basic\",\"get:homepage\",\"get:insight\",\"edit:setting/contact\",\"get:insight/basic\",\"get:finance/basic\",\"get:menu/mme\",\"edit:menu/mme\",\"edit:menu/mme_available\",\"get:marketing/account\",\"create:marketing/account\",\"create:marketing/ad\",\"get:marketing/ad\",\"edit:marketing/ad\",\"edit:order/basic\",\"edit:campaign/advance\",\"edit:menu/basic\",\"edit:review/advance\",\"edit:campaign/basic\",\"get:campaign/advance\",\"get:campaign/basic\",\"get:order/basic\",\"get:review/basic\",\"edit:review/basic\",\"get:menu/advanced\",\"get:default\",\"get:gxs/bank_account\",\"edit:gxs/bank_account\",\"get:gxs/basic\",\"edit:store_management/store_profile/basic\",\"get:supplies/webview\",\"edit:supplies/webview\",\"edit:default\",\"edit:finance\"]]],\"parentResourceMap\":[],\"resourceKeysSet\":[\"zeus_store:5-C7XTNBEUGLKHHA\"],\"permissionsResponse\":{\"statements\":[{\"userID\":\"85333bb5-33a3-4293-9de5-64de586a34b5\",\"userType\":\"MEXUSERS\",\"role\":{\"roleName\":\"default_manager\",\"displayName\":\"Store Manager\",\"permissions\":[{\"action\":\"edit\",\"module\":\"employee_management/employee/default_manager\"},{\"action\":\"create\",\"module\":\"employee_management/employee/default_manager\"},{\"action\":\"create\",\"module\":\"employee_management/employee/default_cashier\"},{\"action\":\"edit\",\"module\":\"employee_management/employee/default_cashier\"},{\"action\":\"edit\",\"module\":\"employee_management/employee\"},{\"action\":\"create\",\"module\":\"employee_management/employee\"},{\"action\":\"get\",\"module\":\"employee_management/employee\"},{\"action\":\"get\",\"module\":\"store_management/store_profile\"},{\"action\":\"get\",\"module\":\"store_management/store_profile/advanced\"},{\"action\":\"edit\",\"module\":\"store_management/store_profile\"},{\"action\":\"edit\",\"module\":\"store_management/hour\"},{\"action\":\"get\",\"module\":\"finance\"},{\"action\":\"get\",\"module\":\"homepage/basic\"},{\"action\":\"get\",\"module\":\"homepage\"},{\"action\":\"get\",\"module\":\"insight\"},{\"action\":\"edit\",\"module\":\"setting/contact\"},{\"action\":\"get\",\"module\":\"insight/basic\"},{\"action\":\"get\",\"module\":\"finance/basic\"},{\"action\":\"get\",\"module\":\"menu/mme\"},{\"action\":\"edit\",\"module\":\"menu/mme\"},{\"action\":\"edit\",\"module\":\"menu/mme_available\"},{\"action\":\"get\",\"module\":\"marketing/account\"},{\"action\":\"create\",\"module\":\"marketing/account\"},{\"action\":\"create\",\"module\":\"marketing/ad\"},{\"action\":\"get\",\"module\":\"marketing/ad\"},{\"action\":\"edit\",\"module\":\"marketing/ad\"},{\"action\":\"edit\",\"module\":\"order/basic\"},{\"action\":\"edit\",\"module\":\"campaign/advance\"},{\"action\":\"edit\",\"module\":\"menu/basic\"},{\"action\":\"edit\",\"module\":\"review/advance\"},{\"action\":\"edit\",\"module\":\"campaign/basic\"},{\"action\":\"get\",\"module\":\"campaign/advance\"},{\"action\":\"get\",\"module\":\"campaign/basic\"},{\"action\":\"get\",\"module\":\"order/basic\"},{\"action\":\"get\",\"module\":\"review/basic\"},{\"action\":\"edit\",\"module\":\"review/basic\"},{\"action\":\"get\",\"module\":\"menu/advanced\"},{\"action\":\"get\",\"module\":\"default\"},{\"action\":\"get\",\"module\":\"gxs/bank_account\"},{\"action\":\"edit\",\"module\":\"gxs/bank_account\"},{\"action\":\"get\",\"module\":\"gxs/basic\"},{\"action\":\"edit\",\"module\":\"store_management/store_profile/basic\"},{\"action\":\"get\",\"module\":\"supplies/webview\"},{\"action\":\"edit\",\"module\":\"supplies/webview\"},{\"action\":\"edit\",\"module\":\"default\"},{\"action\":\"edit\",\"module\":\"finance\"}]},\"resources\":[{\"externalID\":\"5-C7XTNBEUGLKHHA\",\"resourceType\":\"zeus_store\"}]}]}}"
+        },
+        {
+          "name": "DEVICE",
+          "value": "WEB"
+        },
+        {
+          "name": "userSessionId",
+          "value": "12ad24a0d1e84f41b650bc30ceb8667b"
+        },
+        {
+          "name": "orderManagerNotificationConfig",
+          "value": "{\"activeTabID\":\"7631d6c7d095db2ef0947a5ef46ecf4f\",\"enableHermes\":false,\"enableFallback\":true,\"lastUpdate\":1771981772,\"openedTabs\":{\"7631d6c7d095db2ef0947a5ef46ecf4f\":1771981772}}"
+        },
+        {
+          "name": "storeListMaxPageSize",
+          "value": "8000"
+        },
+        {
+          "name": "merchantPortalFeatureFlag",
+          "value": "{\"enableMenuBulkUpload\":true,\"enableMexItemAttributes\":true,\"fedEnableFreeTextItemAttribute\":true,\"fedEnableDecimalItemAttribute\":true,\"enableBrandListingTroyPortal\":false,\"IsAttributeLocalizationEnabled\":false,\"portalRetryTimeout\":0,\"portalFeedbackOverviewBatchSize\":400,\"enableChangeStoreStatusOnPortal\":true,\"fedMerchantReviewThrottleRevampPortal\":true,\"portalCallFetchStoreStatusInterval\":60000,\"linkStoreMaxLimit\":50,\"enablePortalWebp\":true,\"portalEnableSelectMenuGroupSearch\":false,\"enablePortalTrackError\":false,\"mexPortalEnableIncidents\":true,\"enableOPTForReceiptPickupTime\":true,\"enableNewHermesDomainFoodMerchantPortal\":true,\"enableShowItemAndModifierIncidentDetail\":true,\"enableAppealIncidentInDrawer\":true,\"portalEnableImageResizeOnUpload\":true,\"portalEnableBulkUploadEditRestriction\":true,\"portalEnableImageFetchRetry\":true,\"portalEnableHideItem\":false}"
+        },
+        {
+          "name": "USER_TYPE",
+          "value": "7"
+        },
+        {
+          "name": "merchantSelector",
+          "value": "[{\"id\":\"VNMG20260122054131019643\",\"display_name\":\"Rôm Rả Cà phê\",\"type\":\"MLM\",\"has_no_linked_store\":false}]"
+        },
+        {
+          "name": "profileInfo",
+          "value": "{\"name\":\"Rôm Rả Cà phê\",\"currency\":\"\",\"mobileNumber\":\"84905543896\",\"email\":\"betafpt@gmail.com\",\"correspondence_email\":\"betafpt@gmail.com\",\"balance\":0,\"nmid\":\"\",\"balanceLimit\":0,\"analytics_id\":\"\",\"address\":{\"AddressLine1\":\"391/26 Nguyễn Văn Linh, phường Thanh Khê\",\"AddressLine2\":\"\",\"PostalCode\":\"00000\",\"City\":\"Da Nang\",\"GeoLocation\":{\"Latitude\":\"16.0579335\",\"Longitude\":\"108.2069412\"}},\"bank_details\":{\"bank_name\":\"Techcombank\",\"account_name\":\"Nguyễn Hồng Minh Giang\",\"account_number\":\"....8888\"},\"qrType\":\"\",\"qrTypeImage\":\"\",\"qrBackgroundImage\":\"\",\"qrProviderImage\":\"\",\"qrFrameImage\":\"\"}"
+        },
+        {
+          "name": "enableHelpCenterSafariFix",
+          "value": "true"
+        },
+        {
+          "name": "mexApiMigrations",
+          "value": "{\"ChangePassword\":true,\"ChangePasswordV2\":true,\"ForgotPassword\":true,\"ForgotPasswordV1\":true,\"ForgotUsername\":true,\"GetUserProfile\":true,\"Login\":true,\"Logout\":true,\"OTPLogin\":true,\"SetMexLanguage\":true,\"VerifyOTPLogin\":true}"
+        },
+        {
+          "name": "userManagementRole",
+          "value": "v2"
+        },
+        {
+          "name": "orderManagerConfig",
+          "value": "{\"defaultView\":\"Table\"}"
+        },
+        {
+          "name": "currency",
+          "value": "VND"
+        },
+        {
+          "name": "userprofileInfo",
+          "value": "{\"enable_tc\":false,\"user_type\":7,\"user_profile\":{\"service_id\":992420285894961200,\"grab_id\":\"85333bb5-33a3-4293-9de5-64de586a34b5\",\"username\":\"betafpt.nhanvien\",\"mobile_number\":\"\",\"correspondence_email\":\"betafpt.nhanvien@gmail.com\",\"verification_status\":true,\"profile_status\":\"ACTIVE\",\"platform\":\"TROY\",\"agent\":\"TROY_APP\",\"role\":\"Store Manager\",\"country\":704,\"mcc\":0,\"links\":[{\"id\":46272697,\"user_profile_service_id\":992420285894961200,\"user_profile_grab_id\":\"85333bb5-33a3-4293-9de5-64de586a34b5\",\"link_entity_business_line\":\"GF\",\"link_entity_id\":\"5-C7XTNBEUGLKHHA\",\"link_entity_type\":\"STORE\",\"created_at\":\"2026-02-22T08:36:02Z\",\"updated_at\":\"2026-02-22T08:36:02Z\",\"deleted_at\":null},{\"id\":46272698,\"user_profile_service_id\":992420285894961200,\"user_profile_grab_id\":\"85333bb5-33a3-4293-9de5-64de586a34b5\",\"link_entity_business_line\":\"GP\",\"link_entity_id\":\"72cd993b-5fc3-43cf-96c0-e0bbc2c75b6e\",\"link_entity_type\":\"7\",\"created_at\":\"2026-02-22T08:36:02Z\",\"updated_at\":\"2026-02-22T08:36:02Z\",\"deleted_at\":null},{\"id\":46272699,\"user_profile_service_id\":992420285894961200,\"user_profile_grab_id\":\"85333bb5-33a3-4293-9de5-64de586a34b5\",\"link_entity_business_line\":\"GP_MERCHANT\",\"link_entity_id\":\"ddc2f1a1-a50c-4f0d-9bb6-ca995a88ab3f\",\"link_entity_type\":\"6\",\"created_at\":\"2026-02-22T08:36:02Z\",\"updated_at\":\"2026-02-22T08:36:02Z\",\"deleted_at\":null}],\"user_profile_details\":{\"service_id\":992420285894961200,\"grab_id\":\"85333bb5-33a3-4293-9de5-64de586a34b5\",\"first_name\":\"Thuy Vy\",\"last_name\":\"\",\"employee_id\":\"\",\"date_of_birth\":\"\",\"job_title\":\"\",\"physical_store\":false,\"created_at\":\"2026-02-22T08:36:02Z\",\"updated_at\":\"2026-02-22T08:36:02Z\"},\"last_login_at\":\"2026-02-25T01:09:23Z\",\"last_password_change_at\":null,\"first_name\":\"Thuy Vy\",\"last_name\":\"\",\"employee_id\":\"\",\"date_of_birth\":\"\",\"grab_food_entity_id\":\"5-C7XTNBEUGLKHHA\",\"parent_entity_id\":\"72cd993b-5fc3-43cf-96c0-e0bbc2c75b6e\",\"parent_entity_type\":7,\"parent_entity_country\":\"VN\",\"switch_store_at\":null,\"created_at\":\"2026-02-22T08:36:02Z\",\"updated_at\":\"2026-02-25T01:09:23Z\",\"previous_version\":null,\"merchant_grab_id\":\"\",\"user_permission\":1,\"is_observer\":false,\"is_on_mex_level\":false,\"display_role\":\"\",\"is_mlm_merchant_level\":false},\"business_line_ids\":[\"GF\"],\"regd_country_id\":704,\"country\":\"VN\",\"consent\":{\"id\":0,\"grab_id\":\"\",\"consent\":false,\"consent_accepted_by\":\"\",\"device\":\"\",\"created_at\":null,\"updated_at\":null,\"deleted_at\":null,\"ovo_consent\":false,\"ovo_consent_accepted_by\":\"\",\"otp_count\":0,\"otp_threshold_exceed\":false,\"verify_otp_count\":0,\"verify_otp_threshold_exceed\":false,\"block_minutes\":0,\"block_time\":null},\"analytics_id\":\"\",\"config\":null,\"user_profile_id\":\"992420285894961164\",\"merchant_grab_id\":\"ddc2f1a1-a50c-4f0d-9bb6-ca995a88ab3f\",\"city_id\":24,\"is_observer\":false,\"business_flags\":{\"has_ecommerce_store\":false}}"
+        },
+        {
+          "name": "DEVICE_ID",
+          "value": "9adc5169-e0e8-45f8-a1e7-2f6ec71af00f"
+        },
+        {
+          "name": "__BUILD_TAG__",
+          "value": "15996-651e45daad0caf68f62911561f9eaecb7b56a52a"
+        },
+        {
+          "name": "selectedResource",
+          "value": "\"zeus_merchant:VNMG20260122054131019643\""
+        },
+        {
+          "name": "hwuuidtime",
+          "value": "1771952428"
+        },
+        {
+          "name": "_expiredTime",
+          "value": "1771982720684"
+        },
+        {
+          "name": "__TOGGLE_FEATURE__",
+          "value": "{\"enableDeprecateMoca\":true,\"enableDownloadBackground\":true,\"enableFilterConfigV2\":true,\"enableFinanceDownloadInstrumentation\":false,\"enableHelpCenterTokenHandover\":true,\"enableInsightsDelayedBanner\":false,\"enableMarketingFee\":true,\"enableNewSearchbox\":true,\"enablePartnerTxID\":true,\"enablePromoHashID\":true,\"enableSidebarV2\":true,\"enableUpdatedAtInTrxListTroyPortalV2\":true,\"noOfStoreToRemoveAllOptionInsights\":8000}"
+        },
+        {
+          "name": "isDashboardOnboarded",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "origin": "https://weblogin.grab.com",
+      "localStorage": [
+        {
+          "name": "hwuuidtime",
+          "value": "1771952358"
+        },
+        {
+          "name": "loginAccountIdentifierState",
+          "value": "{\"accountIdentifier\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6Il9kZWZhdWx0IiwidHlwIjoiSldUIn0.eyJhdWQiOiJNRVhVU0VSUyIsImV4cCI6MTc3NDU0NDQyMiwiaWF0IjoxNzcxOTUyNDIyLCJpZHR5cGUiOiIxIiwianRpIjoiYWFmZDA1NjMxMDY2NGI0ODhhMmQyZjkyN2U5ZjE2OTgiLCJuYW1lIjoiYmV0YWZwdC5uaGFudmllbiIsIm5iZiI6MTc3MTk1MjM5Mn0.TThqKQCBEJghOpU965u4iDD0X22Jke0-ENivtCE3zyuykZh9oU-NmF8YJUckMrAEPtNO72rD0CL1R2DfzNlcM3vRI-_A0a2zSr4hEfe5WYMY7np2LdYXYeXHm1fKwga3WDTLm1HzSaYHjTe4Y4xr-LYQeXhjeGTIJfgjGCe36Op6mv4ii5H3gEGMCXOlG7I9cdnATn_eAHhMQSzXB-EYmHOoGi42yuPZ94bgG2X_mHABHCYYs82So4RcjW7HGw6ha0Gd1CgMSogBbM_OToi_3dA463g1yH2rz3aNJ5P19jhCvhlhcawP53NgwfS7x48oqP96qGT2c8N2FXtub9jfhg\",\"accountIdentifierType\":\"IDTOKEN\"}"
+        },
+        {
+          "name": "hwuuid",
+          "value": "704404f6-97ba-49dc-8de1-e624cb9cc601"
+        },
+        {
+          "name": "mexusers_merchant.grab.com_saved_accounts",
+          "value": "{\"betafpt.nhanvien\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6Il9kZWZhdWx0IiwidHlwIjoiSldUIn0.eyJhdWQiOiJNRVhVU0VSUyIsImV4cCI6MTc3NDU3Mzc2MywiaWF0IjoxNzcxOTgxNzYzLCJpZHR5cGUiOiIxIiwianRpIjoiYTczMjA4NmQzOTdiNGQzN2E4YjI1MDlkOTIxOThlYzkiLCJuYW1lIjoiYmV0YWZwdC5uaGFudmllbiIsIm5iZiI6MTc3MTk4MTczM30.tRy9P3sUfRTBilxv8aySW7HauS89IOH7Tqpmi9lFjmxrgB_Be8zPXP_KT7fuGHOhdAQ7Ec1lPBuGpJAE7n8i8Z65v0sV2eTsh9mEPDKasJ8hZsNfk2XgzsI0D9tVWqBNCO7Xhw-5qleeY3HFqmVix4qkapsGO7no3jrj7vLslr2uLssI5M5z2RExsxpmXjTDEUqXTco3LyE69JkL_7swgPzbOaeysS_uCtpgeb4UZ_KLXmKrkEWNSxoZpGPkjzJ1yeuQ_SR1qsRH_Nqz2Wckq2G_EQQlG5SziUc6lSZp8FUeOlYOYewFG7s_Low4kSIv9_pc4AApX8MPUQS4LuK7sA\"}"
+        }
+      ]
+    }
+  ]
+}

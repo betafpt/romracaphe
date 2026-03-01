@@ -69,13 +69,15 @@ async function runGrabScraper() {
             // Đảm bảo trang đã tải xong
             await page.reload({ waitUntil: 'networkidle' });
 
-            // Lấy danh sách tất cả các thẻ đơn hàng đang hiển thị (Cần cập nhật selector thực tế của Grab)
-            // Giả sử thẻ đơn hàng có class là '.order-card' hoặc tìm các thẻ chứa chữ "Sẵn sàng trong"
-            const orderCards = page.locator('text="Sẵn sàng trong"').locator('..').locator('..');
+            // Tạm thời thử tìm bất kỳ thẻ nào có text "Đã làm xong" hoặc "Chuẩn bị đơn"
+            const orderCards = page.locator('text="Đã làm xong"').locator('..').locator('..');
             const count = await orderCards.count();
 
             if (count === 0) {
-                console.log('Không có đơn hàng mới nào đang chuẩn bị.');
+                console.log('Không nhận diện được đơn hàng dựa theo Text. Đang phân tích HTML...');
+                // In ra 1000 ký tự đầu tiên trên Body để xem Grab dùng chữ gì thật sự
+                const bodyText = await page.locator('body').innerText();
+                console.log('TÓM TẮT TEXT TRÊN TRANG:\n', bodyText.substring(0, 1000));
                 return;
             }
 

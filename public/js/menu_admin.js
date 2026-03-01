@@ -21,13 +21,14 @@ window.renderAdminMenu = async function () {
                     <tr>
                         <th class="w-20">Ảnh</th>
                         <th>Tên Món</th>
-                        <th>Giá Bán</th>
+                        <th class="w-20 text-center">Size</th>
+                        <th class="text-right">Giá Bán</th>
                         <th>Trạng Thái</th>
                         <th class="w-32 text-center">Thao Tác</th>
                     </tr>
                 </thead>
                 <tbody id="admin-menu-list">
-                    <tr><td colspan="5" class="text-center italic">Đang tải dữ liệu...</td></tr>
+                    <tr><td colspan="6" class="text-center italic">Đang tải dữ liệu...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -43,22 +44,33 @@ window.renderAdminMenu = async function () {
                 <form id="form-edit-menu" onsubmit="window.saveAdminMenu(event)" class="flex flex-col gap-4 mt-2">
                     <input type="hidden" id="menu-id">
                     
-                    <div class="flex gap-4">
-                        <div class="flex-1">
-                            <label class="font-bold text-sm block mb-1 uppercase">Tên Món</label>
-                            <input type="text" id="menu-name" required class="brutal-input py-2" placeholder="Ví dụ: Cà phê sữa đá">
+                    <div class="flex flex-col gap-4">
+                        <div class="w-full">
+                            <label class="font-bold text-sm block mb-1 uppercase">Tên Món (Dùng chung cho các Size)</label>
+                            <input type="text" id="menu-name" required class="brutal-input py-2" placeholder="Ví dụ: Cà phê sữa đá" oninput="document.getElementById('menu-original-name').value = this.value">
+                            <input type="hidden" id="menu-original-name">
                         </div>
-                        <div class="w-1/4">
-                            <label class="font-bold text-sm block mb-1 uppercase">Size</label>
-                            <select id="menu-size" class="brutal-input py-2 bg-white">
-                                <option value="S">S</option>
-                                <option value="M" selected>M</option>
-                                <option value="L">L</option>
-                            </select>
-                        </div>
-                        <div class="w-1/3">
-                            <label class="font-bold text-sm block mb-1 uppercase">Giá Bán</label>
-                            <input type="number" id="menu-price" required class="brutal-input py-2" placeholder="0">
+                        
+                        <div class="flex flex-col gap-2 p-3 border-4 border-black bg-gray-50 shadow-[4px_4px_0_0_#000]">
+                            <label class="font-black text-sm uppercase text-secondary">Cấu hình Size & Giá</label>
+                            <div class="flex items-center gap-2">
+                                <label class="font-bold flex items-center gap-1 w-20 cursor-pointer">
+                                    <input type="checkbox" id="menu-has-s" class="w-5 h-5 border-2 border-black rounded-none outline-none accent-black"> Size S
+                                </label>
+                                <input type="text" id="menu-price-s" class="brutal-input py-1 flex-1 font-black text-right" placeholder="0" oninput="formatCurrencyInput(this)"> <span class="font-bold">đ</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="font-bold flex items-center gap-1 w-20 cursor-pointer">
+                                    <input type="checkbox" id="menu-has-m" class="w-5 h-5 border-2 border-black rounded-none outline-none accent-black"> Size M
+                                </label>
+                                <input type="text" id="menu-price-m" class="brutal-input py-1 flex-1 font-black text-right" placeholder="0" oninput="formatCurrencyInput(this)"> <span class="font-bold">đ</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="font-bold flex items-center gap-1 w-20 cursor-pointer">
+                                    <input type="checkbox" id="menu-has-l" class="w-5 h-5 border-2 border-black rounded-none outline-none accent-black"> Size L
+                                </label>
+                                <input type="text" id="menu-price-l" class="brutal-input py-1 flex-1 font-black text-right" placeholder="0" oninput="formatCurrencyInput(this)"> <span class="font-bold">đ</span>
+                            </div>
                         </div>
                     </div>
 
@@ -118,7 +130,7 @@ window.loadAdminMenuData = async function () {
         window.adminMenuData = json.data;
         window.renderAdminMenuList();
     } catch (e) {
-        document.getElementById('admin-menu-list').innerHTML = `<tr><td colspan="5" class="text-center text-red-600 font-bold">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
+        document.getElementById('admin-menu-list').innerHTML = `<tr><td colspan="6" class="text-center text-red-600 font-bold">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
         if (typeof showToast === 'function') showToast(e.message, 'error');
     }
 };
@@ -126,19 +138,36 @@ window.loadAdminMenuData = async function () {
 window.renderAdminMenuList = function () {
     const tbody = document.getElementById('admin-menu-list');
     if (!window.adminMenuData || window.adminMenuData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center font-bold">Chưa có món nào. Vui lòng thêm từ mục Công thức.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center font-bold">Chưa có món nào. Vui lòng thêm từ mục Công thức.</td></tr>`;
         return;
     }
 
-    let html = '';
+    // Grouping by Name
+    const grouped = {};
     window.adminMenuData.forEach(item => {
+        const nameKey = item.name.trim().toLowerCase();
+        if (!grouped[nameKey]) {
+            grouped[nameKey] = {
+                name: item.name.trim(),
+                description: item.description,
+                image: item.image,
+                is_best_seller: item.is_best_seller,
+                is_sold_out: item.is_sold_out,
+                variants: []
+            };
+        }
+        grouped[nameKey].variants.push(item);
+    });
+
+    let html = '';
+    Object.values(grouped).forEach(g => {
         let statuses = [];
-        if (item.is_best_seller) statuses.push(`<span class="bg-orange-100 text-orange-700 px-2 py-1 border-2 border-black text-xs font-black uppercase flex items-center gap-1 w-max"><span class="material-symbols-outlined text-[14px]">local_fire_department</span> Best Seller</span>`);
-        if (item.is_sold_out) statuses.push(`<span class="bg-slate-200 text-slate-700 px-2 py-1 border-2 border-black text-xs font-black uppercase flex items-center gap-1 w-max"><span class="material-symbols-outlined text-[14px]">block</span> Hết Hàng</span>`);
+        if (g.is_best_seller) statuses.push(`<span class="bg-orange-100 text-orange-700 px-2 py-1 border-2 border-black text-xs font-black uppercase flex items-center gap-1 w-max"><span class="material-symbols-outlined text-[14px]">local_fire_department</span> Best Seller</span>`);
+        if (g.is_sold_out) statuses.push(`<span class="bg-slate-200 text-slate-700 px-2 py-1 border-2 border-black text-xs font-black uppercase flex items-center gap-1 w-max"><span class="material-symbols-outlined text-[14px]">block</span> Hết Hàng</span>`);
 
         let statusHtml = statuses.length > 0 ? `<div class="flex flex-col gap-1">${statuses.join('')}</div>` : `<span class="text-green-600 font-bold text-sm">Đang bán</span>`;
 
-        let displayImg = item.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+        let displayImg = g.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
         let imgOffsetY = 50;
         if (displayImg && displayImg.includes('|')) {
             const parts = displayImg.split('|');
@@ -146,19 +175,34 @@ window.renderAdminMenuList = function () {
             imgOffsetY = parseFloat(parts[1]) || 50;
         }
 
+        const sizeOrder = { 'S': 1, 'M': 2, 'L': 3 };
+        g.variants.sort((a, b) => (sizeOrder[a.size] || 99) - (sizeOrder[b.size] || 99));
+
+        const pricesHtml = g.variants.map(v => `<div class="text-sm font-bold flex justify-between gap-4 border-b border-gray-200 last:border-0 py-1"><span>Size ${v.size}</span><span class="text-primary font-black drop-shadow-[1px_1px_0_#000]">${Number(v.price).toLocaleString('vi-VN')}đ</span></div>`).join('');
+
+        // Use the ID of the first variant (usually M) to edit the group
+        const baseVariantId = g.variants.find(v => v.size === 'M')?.id || g.variants[0].id;
+
         html += `
             <tr>
                 <td class="w-20"><img src="${displayImg}" style="object-position: center ${imgOffsetY}%" class="w-12 h-12 object-cover border-2 border-black bg-white"></td>
                 <td>
-                    <div class="font-bold text-lg">${item.name}</div>
-                    <div class="text-xs text-gray-500 max-w-[200px] truncate">${item.description || 'Chưa có mô tả'}</div>
+                    <div class="font-bold text-lg">${g.name}</div>
+                    <div class="text-xs text-gray-500 max-w-[200px] truncate">${g.description || 'Chưa có mô tả'}</div>
                 </td>
-                <td class="font-black text-lg">${Number(item.price).toLocaleString('vi-VN')}đ</td>
+                <td class="text-center font-black text-base" colspan="2">
+                    <div class="flex flex-col items-end shrink-0 w-32 ml-auto">${pricesHtml}</div>
+                </td>
                 <td>${statusHtml}</td>
                 <td class="text-center">
-                    <button class="brutal-btn brutal-btn-primary px-3 py-1 text-sm bg-yellow-300" onclick="window.openEditMenuModal(${item.id})" title="Sửa thông tin Menu">
-                        <span class="material-symbols-outlined text-base">edit</span> Sửa
-                    </button>
+                    <div class="flex gap-1 justify-center">
+                        <button class="brutal-btn brutal-btn-primary px-3 py-1 text-xs bg-yellow-300 flex items-center gap-1 active:scale-90" onclick="window.openEditMenuModalGroup('${encodeURIComponent(g.name)}')" title="Quản lý món">
+                            <span class="material-symbols-outlined text-sm font-bold">edit</span> Quản lý món
+                        </button>
+                        <button class="brutal-btn px-3 py-1 text-xs bg-red-500 text-white flex items-center gap-1 active:scale-90" onclick="window.deleteMenuGroup('${encodeURIComponent(g.name)}')" title="Xóa món">
+                            <span class="material-symbols-outlined text-sm font-bold text-white">delete</span> Xóa
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -169,46 +213,90 @@ window.renderAdminMenuList = function () {
 window.openAddMenuModal = function () {
     document.getElementById('form-edit-menu').reset();
     document.getElementById('menu-id').value = '';
-    document.getElementById('menu-size').value = 'M';
+    document.getElementById('menu-original-name').value = '';
+
+    // Default config
+    document.getElementById('menu-has-s').checked = false;
+    document.getElementById('menu-price-s').value = '';
+    document.getElementById('menu-has-m').checked = true;
+    document.getElementById('menu-price-m').value = '';
+    document.getElementById('menu-has-l').checked = false;
+    document.getElementById('menu-price-l').value = '';
+
     document.getElementById('menu-modal-title').innerText = 'Thêm Món Mới';
-    window.removeMenuImage(); // Reset image preview
     document.getElementById('modal-edit-menu').style.display = 'flex';
+
+    // Cài ảnh mặc định
+    const previewImg = document.getElementById('menu-preview-img');
+    const previewIcon = document.getElementById('menu-preview-icon');
+    previewImg.src = '';
+    previewImg.classList.add('hidden');
+    previewIcon.classList.remove('hidden');
+    window.currentMenuImageBase64 = null;
+    window.currentMenuImageOffsetY = 50;
 };
 
-window.openEditMenuModal = function (id) {
-    const item = window.adminMenuData.find(x => x.id == id);
-    if (!item) return;
+window.openEditMenuModalGroup = function (encodedName) {
+    const rawName = decodeURIComponent(encodedName).trim().toLowerCase();
 
-    document.getElementById('menu-id').value = item.id;
-    document.getElementById('menu-modal-title').innerText = `Sửa Món: ${item.name}`;
-    document.getElementById('menu-name').value = item.name || '';
-    document.getElementById('menu-size').value = item.size || 'M';
-    document.getElementById('menu-price').value = item.price || 0;
-    document.getElementById('menu-description').value = item.description || '';
-    document.getElementById('menu-is-best-seller').checked = item.is_best_seller || false;
-    document.getElementById('menu-is-sold-out').checked = item.is_sold_out || false;
+    // Find all variants for this name
+    const variants = window.adminMenuData.filter(i => i.name.trim().toLowerCase() === rawName);
+    if (!variants || variants.length === 0) return;
 
-    window.currentMenuImageBase64 = item.image || null;
+    // We will use the M size (or the first available) as the base for shared properties (image, description, etc)
+    const baseItem = variants.find(v => v.size === 'M') || variants[0];
+
+    document.getElementById('menu-id').value = baseItem.id;
+    document.getElementById('menu-name').value = baseItem.name;
+    document.getElementById('menu-original-name').value = baseItem.name;
+    document.getElementById('menu-description').value = baseItem.description || '';
+    document.getElementById('menu-is-best-seller').checked = baseItem.is_best_seller || false;
+    document.getElementById('menu-is-sold-out').checked = baseItem.is_sold_out || false;
+
+    // Reset size settings
+    document.getElementById('menu-has-s').checked = false;
+    document.getElementById('menu-price-s').value = '';
+    document.getElementById('menu-has-m').checked = true; // M is the anchor, we assume it's always there, but if not we still show it as checked to allow creating one.
+    document.getElementById('menu-price-m').value = '';
+    document.getElementById('menu-has-l').checked = false;
+    document.getElementById('menu-price-l').value = '';
+
+    // Fill existing variants
+    variants.forEach(v => {
+        if (v.size === 'S') {
+            document.getElementById('menu-has-s').checked = true;
+            document.getElementById('menu-price-s').value = Number(v.price).toLocaleString('vi-VN');
+        } else if (v.size === 'M') {
+            document.getElementById('menu-price-m').value = Number(v.price).toLocaleString('vi-VN');
+        } else if (v.size === 'L') {
+            document.getElementById('menu-has-l').checked = true;
+            document.getElementById('menu-price-l').value = Number(v.price).toLocaleString('vi-VN');
+        }
+    });
+
+    document.getElementById('menu-modal-title').innerText = 'Quản Lý & Group Size';
+
+    // Image logic
+    window.currentMenuImageBase64 = baseItem.image || null;
     window.currentMenuImageOffsetY = 50;
     const previewImg = document.getElementById('menu-preview-img');
     const previewIcon = document.getElementById('menu-preview-icon');
-    if (previewImg) {
-        if (item.image) {
-            let imgUrl = item.image;
-            if (imgUrl.includes('|')) {
-                const parts = imgUrl.split('|');
-                imgUrl = parts[0];
-                window.currentMenuImageOffsetY = parseFloat(parts[1]) || 50;
-            }
-            previewImg.src = imgUrl;
-            previewImg.style.objectPosition = `center ${window.currentMenuImageOffsetY}%`;
-            previewImg.classList.remove('hidden');
-            if (previewIcon) previewIcon.classList.add('hidden');
-        } else {
-            previewImg.src = '';
-            previewImg.classList.add('hidden');
-            if (previewIcon) previewIcon.classList.remove('hidden');
+
+    if (baseItem.image) {
+        let imgUrl = baseItem.image;
+        if (imgUrl.includes('|')) {
+            const parts = imgUrl.split('|');
+            imgUrl = parts[0];
+            window.currentMenuImageOffsetY = parseFloat(parts[1]) || 50;
         }
+        previewImg.src = imgUrl;
+        previewImg.style.objectPosition = `center ${window.currentMenuImageOffsetY}%`;
+        previewImg.classList.remove('hidden');
+        previewIcon.classList.add('hidden');
+    } else {
+        previewImg.src = '';
+        previewImg.classList.add('hidden');
+        previewIcon.classList.remove('hidden');
     }
 
     document.getElementById('modal-edit-menu').style.display = 'flex';
@@ -217,19 +305,22 @@ window.openEditMenuModal = function (id) {
 window.saveAdminMenu = async function (event) {
     event.preventDefault();
 
-    // Check role, must be admin to edit
     if (window.currentUserRole !== 'admin') {
         showToast("Chỉ Admin mới có quyền lưu thông tin Menu!", "error");
         return;
     }
 
-    const id = document.getElementById('menu-id').value;
-    const name = document.getElementById('menu-name').value.trim();
-    const size = document.getElementById('menu-size').value || 'M';
-    const price = Number(document.getElementById('menu-price').value) || 0;
+    const originalName = document.getElementById('menu-original-name').value.trim().toLowerCase();
+    const newName = document.getElementById('menu-name').value.trim();
     const description = document.getElementById('menu-description').value;
     const is_best_seller = document.getElementById('menu-is-best-seller').checked;
     const is_sold_out = document.getElementById('menu-is-sold-out').checked;
+
+    const sizesConfig = [
+        { size: 'S', active: document.getElementById('menu-has-s').checked, price: Number(document.getElementById('menu-price-s').value.replace(/\D/g, '')) || 0 },
+        { size: 'M', active: document.getElementById('menu-has-m').checked, price: Number(document.getElementById('menu-price-m').value.replace(/\D/g, '')) || 0 },
+        { size: 'L', active: document.getElementById('menu-has-l').checked, price: Number(document.getElementById('menu-price-l').value.replace(/\D/g, '')) || 0 }
+    ];
 
     let finalImgString = window.currentMenuImageBase64;
     if (finalImgString) {
@@ -240,60 +331,92 @@ window.saveAdminMenu = async function (event) {
         }
     }
 
-    let payload = {};
-    let url = `${API_URL}/recipes`;
-    let method = 'POST';
+    // Get all existing variants for this original name
+    const existingVariants = window.adminMenuData.filter(i => i.name.trim().toLowerCase() === originalName);
 
-    if (id) { // Cập nhật
-        const existing = window.adminMenuData.find(x => x.id == id);
-        if (!existing) return;
-        payload = {
-            ...existing,
-            name,
-            size,
-            price,
-            description,
-            is_best_seller,
-            is_sold_out,
-            image: finalImgString
-        };
-        url = `${API_URL}/recipes/${id}`;
-        method = 'PUT';
-    } else { // Thêm mới
-        payload = {
-            name,
-            price,
-            size,
-            steps: 0,
-            cogs: 0,
-            description,
-            is_best_seller,
-            is_sold_out,
-            image: finalImgString,
-            ingredients: [],
-            steps_detail: []
-        };
+    // We need a base variant to copy ingredients/steps from if creating new sizes.
+    const baseVariant = existingVariants.find(v => v.size === 'M') || existingVariants[0] || null;
+
+    let defaultIngredients = baseVariant ? baseVariant.ingredients : '[]';
+    let defaultSteps = baseVariant ? baseVariant.steps_detail : '[]';
+    let defaultStepCount = baseVariant ? baseVariant.steps : 0;
+    let defaultCogs = baseVariant ? baseVariant.cogs : 0;
+
+    try {
+        const btnSubmit = event.target.querySelector('button[type="submit"]');
+        const oldText = btnSubmit.innerHTML;
+        btnSubmit.innerHTML = "ĐANG TẢI...";
+        btnSubmit.disabled = true;
+
+        for (const config of sizesConfig) {
+            const existing = existingVariants.find(v => v.size === config.size);
+
+            if (config.active) {
+                const payload = {
+                    name: newName,
+                    size: config.size,
+                    price: config.price,
+                    description,
+                    is_best_seller,
+                    is_sold_out,
+                    image: finalImgString,
+                    ingredients: existing ? existing.ingredients : defaultIngredients,
+                    steps_detail: existing ? existing.steps_detail : defaultSteps,
+                    steps: existing ? existing.steps : defaultStepCount,
+                    cogs: existing ? existing.cogs : defaultCogs
+                };
+
+                if (existing) {
+                    await fetch(`${API_URL}/recipes/${existing.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...existing, ...payload })
+                    });
+                } else {
+                    await fetch(`${API_URL}/recipes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                }
+            } else {
+                if (existing) {
+                    await fetch(`${API_URL}/recipes/${existing.id}`, { method: 'DELETE' });
+                }
+            }
+        }
+
+        btnSubmit.innerHTML = oldText;
+        btnSubmit.disabled = false;
+
+        showToast("Lưu thông tin Menu thành công!");
+        document.getElementById('modal-edit-menu').style.display = 'none';
+        window.loadAdminMenuData();
+
+    } catch (e) {
+        showToast("Lỗi khi lưu dữ liệu!", "error");
+    }
+};
+
+window.deleteMenuGroup = async function (encodedName) {
+    const rawName = decodeURIComponent(encodedName).trim().toLowerCase();
+    const variants = window.adminMenuData.filter(i => i.name.trim().toLowerCase() === rawName);
+
+    if (variants.length === 0) return;
+
+    if (!confirm('Bạn có chắc chắn muốn xóa món: ' + variants[0].name + '? Cả các size của món này sẽ bị xóa.')) {
+        return;
     }
 
     try {
-        const res = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const j = await res.json();
-        if (j.success) {
-            if (typeof showToast === 'function') showToast("Đã lưu thông tin Menu thành công!");
-            document.getElementById('modal-edit-menu').style.display = 'none';
-            await window.loadAdminMenuData(); // Reload list
-            if (typeof window.loadRecipes === 'function') {
-                window.loadRecipes(); // also reload for recipes tab sync
-            }
-        } else {
-            throw new Error(j.error);
+        for (const v of variants) {
+            await fetch(`${API_URL}/recipes/${v.id}`, { method: 'DELETE' });
         }
+        showToast("Đã xóa món thành công!");
+        window.loadAdminMenuData();
     } catch (e) {
-        if (typeof showToast === 'function') showToast(e.message, "error");
+        console.error("Delete menu error:", e);
+        showToast("Lỗi kết nối khi xóa món!", "error");
     }
 };
 
