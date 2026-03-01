@@ -647,29 +647,57 @@ window.renderManageCategoryList = function () {
     }
 
     list.innerHTML = window.categoriesData.map(c => `
-        <li class="p-3 border-b-2 border-black flex justify-between items-center bg-white hover:bg-gray-100 group">
-            <span class="font-bold uppercase flex-1 truncate mr-2">${c.name}</span>
-            <div class="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                <button type="button" class="text-yellow-600 hover:text-yellow-800" onclick="window.editCategory('${c.id}', '${c.name.replace(/'/g, "\\'")}')" title="Sửa tên">
-                    <span class="material-symbols-outlined font-bold">edit</span>
+        <li class="p-3 border-b-2 border-black flex flex-col justify-center bg-white hover:bg-gray-100 group">
+            <div id="cat-view-${c.id}" class="flex justify-between items-center w-full">
+                <span class="font-bold uppercase flex-1 truncate mr-2">${c.name}</span>
+                <div class="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button type="button" class="text-yellow-600 hover:text-yellow-800" onclick="window.startEditCategory('${c.id}')" title="Sửa tên">
+                        <span class="material-symbols-outlined font-bold">edit</span>
+                    </button>
+                    <button type="button" class="text-red-600 hover:text-red-800" onclick="window.deleteCategory('${c.id}')" title="Xóa">
+                        <span class="material-symbols-outlined font-bold">delete</span>
+                    </button>
+                </div>
+            </div>
+            <div id="cat-edit-${c.id}" class="hidden w-full flex gap-2 items-center mt-2">
+                <input type="text" id="cat-input-${c.id}" value="${c.name.replace(/"/g, '&quot;')}" class="flex-1 p-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                <button type="button" class="bg-yellow-400 p-2 font-bold border-2 border-black hover:bg-yellow-500" onclick="window.saveCategoryEdit('${c.id}', '${c.name.replace(/'/g, "\\'")}')" title="Lưu">
+                    <span class="material-symbols-outlined">check</span>
                 </button>
-                <button type="button" class="text-red-600 hover:text-red-800" onclick="window.deleteCategory('${c.id}')" title="Xóa">
-                    <span class="material-symbols-outlined font-bold">delete</span>
+                <button type="button" class="bg-gray-300 p-2 font-bold border-2 border-black hover:bg-gray-400" onclick="window.cancelCategoryEdit('${c.id}')" title="Hủy">
+                    <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
         </li>
     `).join('');
 };
 
-window.editCategory = async function (id, currentName) {
-    const newName = prompt("Nhập tên mới cho danh mục:", currentName);
-    if (newName === null || newName.trim() === "" || newName.trim() === currentName) return;
+window.startEditCategory = function (id) {
+    document.getElementById(`cat-view-${id}`).classList.add('hidden');
+    document.getElementById(`cat-edit-${id}`).classList.remove('hidden');
+    document.getElementById(`cat-input-${id}`).focus();
+};
+
+window.cancelCategoryEdit = function (id) {
+    document.getElementById(`cat-view-${id}`).classList.remove('hidden');
+    document.getElementById(`cat-edit-${id}`).classList.add('hidden');
+};
+
+window.saveCategoryEdit = async function (id, currentName) {
+    const input = document.getElementById(`cat-input-${id}`);
+    const newName = input.value.trim();
+    if (newName === "" || newName === currentName) {
+        window.cancelCategoryEdit(id);
+        return;
+    }
+
+    input.disabled = true;
 
     try {
         const res = await fetch(`${API_URL}/categories/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: newName.trim() })
+            body: JSON.stringify({ name: newName })
         });
         const json = await res.json();
         if (json.success) {
@@ -677,9 +705,11 @@ window.editCategory = async function (id, currentName) {
             window.renderManageCategoryList();
         } else {
             alert(json.error);
+            input.disabled = false;
         }
     } catch (e) {
         alert("Lỗi khi sửa danh mục: " + e.message);
+        input.disabled = false;
     }
 };
 
