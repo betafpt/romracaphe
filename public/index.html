@@ -2612,7 +2612,15 @@
                         emptyVisMsg.classList.add('hidden');
                         visitorsWrapper.innerHTML = json.data.recentVisitors.map(v => {
                             const timeStr = new Date(v.visited_at).toLocaleString('vi-VN');
-                            const sourceStr = v.referrer ? v.referrer : '<span class="px-2 py-1 bg-purple-200 text-purple-900 border-2 border-black font-bold uppercase text-xs">Direct/QR</span>';
+                            let sourceStr = v.referrer;
+                            if (!sourceStr) {
+                                if (v.screen_width && v.screen_width < 1024) {
+                                    sourceStr = '<span class="px-2 py-1 bg-purple-200 text-purple-900 border-2 border-black font-bold uppercase text-xs">Quét QR</span>';
+                                } else {
+                                    sourceStr = '<span class="px-2 py-1 bg-gray-200 text-gray-900 border-2 border-black font-bold uppercase text-xs">Truy cập trực tiếp</span>';
+                                }
+                            }
+
                             return `
                                 <tr class="hover:bg-yellow-50 border-b-2 border-black transition-colors">
                                     <td class="p-3 font-medium whitespace-nowrap">${timeStr}</td>
