@@ -123,6 +123,14 @@ app.post('/api/categories/reorder', async (req, res) => {
     }
 });
 
+// --- Tracking ---
+app.post('/api/track-visit', async (req, res) => {
+    const { referrer, user_agent, screen_width } = req.body;
+    const { data, error } = await supabase.from('visitor_logs').insert([{ referrer, user_agent, screen_width }]);
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true });
+});
+
 // --- Inventory ---
 app.get('/api/inventory', async (req, res) => {
     const { data: rows, error } = await supabase.from('inventory').select('*').order('name', { ascending: true });

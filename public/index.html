@@ -125,6 +125,30 @@
             opacity: 0.6;
         }
     </style>
+    <script>
+        // Track unique visitor session
+        (async function trackVisitor() {
+            try {
+                if (!sessionStorage.getItem('visit_tracked')) {
+                    const payload = {
+                        referrer: document.referrer || '',
+                        user_agent: navigator.userAgent || 'Unknown',
+                        screen_width: window.innerWidth || 0
+                    };
+
+                    await fetch('/api/track-visit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    sessionStorage.setItem('visit_tracked', 'true');
+                }
+            } catch (err) {
+                console.error("Tracking error:", err);
+            }
+        })();
+    </script>
 </head>
 
 <body class="bg-[#fdfdfb] text-black">
