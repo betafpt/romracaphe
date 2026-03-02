@@ -647,9 +647,20 @@ window.renderManageCategoryList = function () {
     }
 
     list.innerHTML = window.categoriesData.map(c => `
-        <li class="p-3 border-b-2 border-black flex flex-col justify-center bg-white hover:bg-gray-100 group">
+        <li class="p-3 border-b-2 border-black flex flex-col justify-center bg-white hover:bg-gray-100 group" 
+            draggable="true" 
+            data-id="${c.id}"
+            ondragstart="window.catDragStart(event)"
+            ondragover="window.catDragOver(event)"
+            ondrop="window.catDrop(event)"
+            ondragenter="window.catDragEnter(event)"
+            ondragleave="window.catDragLeave(event)">
+            
             <div id="cat-view-${c.id}" class="flex justify-between items-center w-full">
-                <span class="font-bold uppercase flex-1 truncate mr-2">${c.name}</span>
+                <div class="flex items-center gap-2 flex-1 overflow-hidden">
+                    <span class="material-symbols-outlined text-gray-400 cursor-grab hover:text-black">drag_indicator</span>
+                    <span class="font-bold uppercase truncate mr-2">${c.name}</span>
+                </div>
                 <div class="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button type="button" class="text-yellow-600 hover:text-yellow-800" onclick="window.startEditCategory('${c.id}')" title="Sửa tên">
                         <span class="material-symbols-outlined font-bold">edit</span>
@@ -670,6 +681,105 @@ window.renderManageCategoryList = function () {
             </div>
         </li>
     `).join('');
+};
+
+window.draggedCategoryElement = null;
+
+window.catDragStart = function (e) {
+    window.draggedCategoryElement = e.currentTarget;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.classList.add('opacity-50');
+};
+
+window.catDragOver = function (e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+};
+
+window.catDragEnter = function (e) {
+    const li = e.currentTarget;
+    if (li !== window.draggedCategoryElement) {
+        li.classList.add('border-t-4', 'border-yellow-400');
+    }
+};
+
+window.catDragLeave = function (e) {
+    e.currentTarget.classList.remove('border-t-4', 'border-yellow-400');
+};
+
+window.catDrop = function (e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    const targetLi = e.currentTarget;
+    targetLi.classList.remove('border-t-4', 'border-yellow-400');
+
+    if (window.draggedCategoryElement && window.draggedCategoryElement !== targetLi) {
+        const list = targetLi.parentNode;
+
+        // Find positions
+        const allItems = Array.from(list.children);
+        const draggedIndex = allItems.indexOf(window.draggedCategoryElement);
+        const targetIndex = allItems.indexOf(targetLi);
+
+        if (draggedIndex < targetIndex) {
+            list.insertBefore(window.draggedCategoryElement, targetLi.nextSibling);
+        } else {
+            list.insertBefore(window.draggedCategoryElement, targetLi);
+        }
+
+        window.saveCategoryOrder();
+    }
+
+    if (window.draggedCategoryElement) {
+        window.draggedCategoryElement.classList.remove('opacity-50');
+        window.draggedCategoryElement = null;
+    }
+    return false;
+};
+
+window.saveCategoryOrder = async function () {
+    const list = document.getElementById('admin-category-list');
+    if (!list) return;
+
+    const items = list.querySelectorAll('li[data-id]');
+    const orderData = [];
+
+    items.forEach((item, index) => {
+        orderData.push({
+            id: parseInt(item.getAttribute('data-id')),
+            sort_order: index
+        });
+    });
+
+    // Update local cache to reflect immediate changes without full JSON reload just for UI smooth
+    if (window.categoriesData) {
+        window.categoriesData.forEach(c => {
+            const newPos = orderData.find(o => o.id === c.id);
+            if (newPos) c.sort_order = newPos.sort_order;
+        });
+        window.categoriesData.sort((a, b) => a.sort_order - b.sort_order);
+        // Force refresh the dropdowns and DOM without losing focus necessarily
+        window.populateCategorySelects();
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/categories/reorder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: orderData })
+        });
+        const json = await res.json();
+        if (!json.success) {
+            console.error("Lỗi khi lưu thứ tự:", json.error);
+            showToast("Không thể lưu thứ tự danh mục!", "error");
+        }
+    } catch (e) {
+        console.error("Lỗi network khi lưu thứ tự:", e);
+    }
 };
 
 window.startEditCategory = function (id) {

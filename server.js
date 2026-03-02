@@ -74,7 +74,7 @@ app.post('/api/theme', (req, res) => {
 
 // --- Categories ---
 app.get('/api/categories', async (req, res) => {
-    const { data: rows, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+    const { data: rows, error } = await supabase.from('categories').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true });
     if (error) return res.status(500).json({ success: false, error: error.message });
     res.json({ success: true, data: rows });
 });
@@ -103,6 +103,24 @@ app.delete('/api/categories/:id', async (req, res) => {
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) return res.status(500).json({ success: false, error: error.message });
     res.json({ success: true });
+});
+
+app.post('/api/categories/reorder', async (req, res) => {
+    const { order } = req.body;
+    if (!Array.isArray(order)) return res.status(400).json({ success: false, error: 'Invalid order data' });
+
+    try {
+        // Bulk update is not natively a single function in supabase-js for many rows with different values,
+        // so we perform individual updates or an upsert. Upsert requires all columns if not using specific config,
+        // so individual updates is safer here since it's a small list.
+        const promises = order.map(item =>
+            supabase.from('categories').update({ sort_order: item.sort_order }).eq('id', item.id)
+        );
+        await Promise.all(promises);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 // --- Inventory ---

@@ -1072,11 +1072,21 @@
             });
 
             // Make sure 'Khác' always goes last
-            let categoriesToRender = Object.keys(itemsByCategory).sort();
-            if (categoriesToRender.includes('Khác')) {
-                categoriesToRender = categoriesToRender.filter(c => c !== 'Khác');
-                categoriesToRender.push('Khác');
-            }
+            // Make sure 'Khác' always goes last, but respect sorted publicCategoriesData for others
+            let dynamicCategories = window.publicCategoriesData ? window.publicCategoriesData.map(c => c.name) : [];
+            let categoriesToRender = Object.keys(itemsByCategory).sort((a, b) => {
+                if (a === 'Khác') return 1;
+                if (b === 'Khác') return -1;
+
+                let idxA = dynamicCategories.indexOf(a);
+                let idxB = dynamicCategories.indexOf(b);
+
+                // If not found in dynamic categories, put them at the end (before Khác)
+                if (idxA === -1) idxA = 999;
+                if (idxB === -1) idxB = 999;
+
+                return idxA - idxB;
+            });
 
             let fullHtml = '';
             let globalIndex = 0;
@@ -1405,7 +1415,29 @@
                 }
             };
 
+            const loadPublicCategories = async () => {
+                try {
+                    const res = await fetch(`${API_URL}/categories`);
+                    const json = await res.json();
+                    if (json.success) {
+                        window.publicCategoriesData = json.data;
+                        const catContainer = document.getElementById('public-category-buttons');
+                        if (catContainer) {
+                            let html = `<input type="hidden" id="public-category" value="">
+                                        <button onclick="setPublicCategoryFilter(''); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-primary text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Tất cả</button>`;
+                            json.data.forEach(c => {
+                                html += `<button onclick="setPublicCategoryFilter('${c.name.replace(/'/g, "\\'")}'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">${c.name}</button>`;
+                            });
+                            catContainer.innerHTML = html;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to load public categories", e);
+                }
+            };
+
             await loadData();
+            await loadPublicCategories();
 
             // Event hooks
             document.getElementById('btn-add-inv').onclick = () => {
