@@ -2509,8 +2509,8 @@
                 </div>
                 
                 <div id="report-wrapper" class="hidden">
-                    <!-- 3 STAT CARDS -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- 5 STAT CARDS -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
                         <div class="brutal-card bg-green-400 p-6 flex flex-col gap-2 animate-slide-up delay-100 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Doanh thu 7 ngày</span>
                             <h3 class="text-3xl xl:text-4xl font-black mt-2 tracking-tighter" id="rep-revenue">0đ</h3>
@@ -2522,9 +2522,19 @@
                             <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px] group-hover:scale-110 transition-transform">shopping_cart</span>
                         </div>
                         <div class="brutal-card bg-yellow-400 p-6 flex flex-col gap-2 animate-slide-up delay-300 relative overflow-hidden group hover:-translate-y-1 transition-transform">
-                            <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Tổng Đơn Giao Dịch</span>
+                            <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Đơn Giao Dịch</span>
                             <h3 class="text-3xl xl:text-4xl font-black mt-2 tracking-tighter" id="rep-orders">0</h3>
                             <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px] group-hover:scale-110 transition-transform">receipt_long</span>
+                        </div>
+                        <div class="brutal-card bg-blue-400 p-6 flex flex-col gap-2 animate-slide-up delay-400 relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                            <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Lượt Web (7 Ngày)</span>
+                            <h3 class="text-3xl xl:text-4xl font-black mt-2 tracking-tighter" id="rep-visits">0</h3>
+                            <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px] group-hover:scale-110 transition-transform">visibility</span>
+                        </div>
+                        <div class="brutal-card bg-purple-400 p-6 flex flex-col gap-2 animate-slide-up delay-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                            <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Quét QR (Dự Kiến)</span>
+                            <h3 class="text-3xl xl:text-4xl font-black mt-2 tracking-tighter" id="rep-qr-visits">0</h3>
+                            <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px] group-hover:scale-110 transition-transform">qr_code_scanner</span>
                         </div>
                     </div>
 
@@ -2558,6 +2568,8 @@
                     document.getElementById('rep-revenue').innerText = sum.totalRevenue.toLocaleString('vi-VN') + 'đ';
                     document.getElementById('rep-cost').innerText = sum.totalCost.toLocaleString('vi-VN') + 'đ';
                     document.getElementById('rep-orders').innerText = sum.totalOrders.toLocaleString('vi-VN');
+                    document.getElementById('rep-visits').innerText = (sum.totalVisits || 0).toLocaleString('vi-VN');
+                    document.getElementById('rep-qr-visits').innerText = (sum.qrVisits || 0).toLocaleString('vi-VN');
 
                     // Render top products
                     const topProductsHtml = json.data.topProducts.map((p, i) => `

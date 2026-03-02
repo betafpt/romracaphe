@@ -748,7 +748,20 @@ app.get('/api/reports/dashboard', async (req, res) => {
             });
         });
 
-        // 4. Format Output Map thành Mảng cho Chart
+        // 4. Fetch Visitor Logs in the last 7 days
+        const { data: visits } = await supabase.from('visitor_logs')
+            .select('*')
+            .gte('visited_at', startDate.toISOString());
+
+        let totalVisits = 0;
+        let qrVisits = 0;
+        if (visits) {
+            totalVisits = visits.length;
+            // QR scans logic: Empty referrer and a mobile screen size (or just rely on Empty Referrer for Direct Traffic)
+            qrVisits = visits.filter(v => v.referrer === '' && v.screen_width < 1024).length;
+        }
+
+        // 5. Format Output Map thành Mảng cho Chart
         const revenues = last7Days.map(day => dailyRevenues[day]);
         const costs = last7Days.map(day => dailyCosts[day]);
 
@@ -769,7 +782,9 @@ app.get('/api/reports/dashboard', async (req, res) => {
                 summary: {
                     totalRevenue: totalRev,
                     totalCost: totalCostAll,
-                    totalOrders: orders.length
+                    totalOrders: orders.length,
+                    totalVisits: totalVisits,
+                    qrVisits: qrVisits
                 }
             }
         });
