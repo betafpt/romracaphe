@@ -795,11 +795,7 @@
                     </div>
 
                     <div class="flex gap-2 w-full overflow-x-auto pb-2 snap-x" id="public-category-buttons">
-                        <input type="hidden" id="public-category" value="">
-                        <button onclick="setPublicCategoryFilter(''); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-primary text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Tất cả</button>
-                        <button onclick="setPublicCategoryFilter('Cà phê'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Cà phê</button>
-                        <button onclick="setPublicCategoryFilter('Cacao'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Cacao</button>
-                        <button onclick="setPublicCategoryFilter('Trái cây'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Trái cây</button>
+                        <!-- Danh mục sẽ được render bằng javascript loadPublicCategories() -->
                     </div>
 
 
@@ -886,6 +882,31 @@
                 </div>
             `;
             setTimeout(initBlueprintGrid, 50);
+
+            // Bổ sung hàm loadPublicCategories để nạp list category từ db thay vì HTML tĩnh
+            window.loadPublicCategories = async () => {
+                try {
+                    const res = await fetch(`${API_URL}/categories`);
+                    const json = await res.json();
+                    if (json.success) {
+                        window.publicCategoriesData = json.data;
+                        const catContainer = document.getElementById('public-category-buttons');
+                        if (catContainer) {
+                            let html = `<input type="hidden" id="public-category" value="">
+                                        <button onclick="setPublicCategoryFilter(''); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-primary text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Tất cả</button>`;
+                            json.data.forEach(c => {
+                                html += `<button onclick="setPublicCategoryFilter('${c.name.replace(/'/g, "\\'")}'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">${c.name}</button>`;
+                            });
+                            catContainer.innerHTML = html;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to load public categories", e);
+                }
+            };
+
+            // Chạy ngay khi mở web
+            await window.loadPublicCategories();
 
             try {
                 const res = await fetch(`${API_URL}/recipes`);
@@ -1066,17 +1087,36 @@
             // Group by category for rendering headers
             const itemsByCategory = {};
             groupedArray.forEach(g => {
-                const cat = g.category || 'Khác';
+                // Sửa lỗi lặp: Đưa tất cả về chữ in hoa để so sánh và group cho chuẩn xác
+                const cat = (g.category || 'Khác').toUpperCase();
                 if (!itemsByCategory[cat]) itemsByCategory[cat] = [];
+                // Lấy sort_order từ id (Recipes hiện tại được API return dựa trên order id hoặc name) 
+                // Ở backend API `/api/recipes` đã order by name, ta giữ nguyên array ban đầu đưa vào group
                 itemsByCategory[cat].push(g);
+            });
+
+            // Re-order các món ăn bên trong mỗi danh mục
+            // Logic mới: Ưu tiên món Best Seller lên đầu, sau đó ưu tiên món Còn Hàng hiển thị trước
+            Object.keys(itemsByCategory).forEach(cat => {
+                itemsByCategory[cat].sort((a, b) => {
+                    // Ưu tiên 1: Best Seller lên đầu
+                    if (a.is_best_seller && !b.is_best_seller) return -1;
+                    if (!a.is_best_seller && b.is_best_seller) return 1;
+
+                    // Ưu tiên 2: Còn hàng hiển thị trước hết hàng
+                    if (!a.is_sold_out && b.is_sold_out) return -1;
+                    if (a.is_sold_out && !b.is_sold_out) return 1;
+
+                    return 0; // Giúp giữ thứ tự order theo Name mặc định (sau 2 tiêu chí trên)
+                });
             });
 
             // Make sure 'Khác' always goes last
             // Make sure 'Khác' always goes last, but respect sorted publicCategoriesData for others
-            let dynamicCategories = window.publicCategoriesData ? window.publicCategoriesData.map(c => c.name) : [];
+            let dynamicCategories = window.publicCategoriesData ? window.publicCategoriesData.map(c => c.name.toUpperCase()) : [];
             let categoriesToRender = Object.keys(itemsByCategory).sort((a, b) => {
-                if (a === 'Khác') return 1;
-                if (b === 'Khác') return -1;
+                if (a === 'KHÁC') return 1;
+                if (b === 'KHÁC') return -1;
 
                 let idxA = dynamicCategories.indexOf(a);
                 let idxB = dynamicCategories.indexOf(b);
@@ -1415,29 +1455,8 @@
                 }
             };
 
-            const loadPublicCategories = async () => {
-                try {
-                    const res = await fetch(`${API_URL}/categories`);
-                    const json = await res.json();
-                    if (json.success) {
-                        window.publicCategoriesData = json.data;
-                        const catContainer = document.getElementById('public-category-buttons');
-                        if (catContainer) {
-                            let html = `<input type="hidden" id="public-category" value="">
-                                        <button onclick="setPublicCategoryFilter(''); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-primary text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">Tất cả</button>`;
-                            json.data.forEach(c => {
-                                html += `<button onclick="setPublicCategoryFilter('${c.name.replace(/'/g, "\\'")}'); this.blur();" class="cat-btn shrink-0 px-6 h-12 bg-white text-black border-4 border-black font-black text-lg shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all uppercase snap-start">${c.name}</button>`;
-                            });
-                            catContainer.innerHTML = html;
-                        }
-                    }
-                } catch (e) {
-                    console.error("Failed to load public categories", e);
-                }
-            };
-
             await loadData();
-            await loadPublicCategories();
+
 
             // Event hooks
             document.getElementById('btn-add-inv').onclick = () => {

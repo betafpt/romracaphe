@@ -763,7 +763,7 @@ window.saveCategoryOrder = async function () {
         });
         window.categoriesData.sort((a, b) => a.sort_order - b.sort_order);
         // Force refresh the dropdowns and DOM without losing focus necessarily
-        window.populateCategorySelects();
+        window.renderCategorySelects();
     }
 
     try {
