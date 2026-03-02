@@ -20,6 +20,7 @@
     "multer": "^2.0.2",
     "pdfkit": "^0.17.2",
     "pdfkit-table": "^0.1.99",
-    "playwright": "^1.58.2"
+    "playwright": "^1.58.2",
+    "ua-parser-js": "^2.0.9"
   }
 }

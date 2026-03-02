@@ -7,6 +7,7 @@ const PDFDocument = require('pdfkit');
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
+const UAParser = require('ua-parser-js');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -125,10 +126,53 @@ app.post('/api/categories/reorder', async (req, res) => {
 
 // --- Tracking ---
 app.post('/api/track-visit', async (req, res) => {
-    const { referrer, user_agent, screen_width } = req.body;
-    const { data, error } = await supabase.from('visitor_logs').insert([{ referrer, user_agent, screen_width }]);
-    if (error) return res.status(500).json({ success: false, error: error.message });
-    res.json({ success: true });
+    try {
+        const { referrer, user_agent, screen_width } = req.body;
+
+        // 1. Get IP Address
+        let ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        if (ip_address) ip_address = ip_address.split(',')[0].trim();
+
+        // 2. Parse User Agent
+        let device_model = 'Unknown Device';
+        if (user_agent) {
+            const parser = new UAParser(user_agent);
+            const rDevice = parser.getDevice();
+            const rOS = parser.getOS();
+            const rBrowser = parser.getBrowser();
+
+            if (rDevice.vendor && rDevice.model) {
+                device_model = `${rDevice.vendor} ${rDevice.model}`;
+            } else if (rOS.name) {
+                device_model = `${rOS.name} (${rBrowser.name || 'Unknown Browser'})`;
+            }
+            if (screen_width && screen_width < 1024 && device_model === 'Unknown Device') {
+                device_model = 'Mobile Device';
+            }
+        }
+
+        // 3. Get Location from IP (if public IP)
+        let location = 'Local/Unknown';
+        if (ip_address && ip_address !== '::1' && ip_address !== '127.0.0.1' && !ip_address.startsWith('192.168.')) {
+            try {
+                // Free, rate-limited to 45/min but sufficient for this scale
+                const geoRes = await fetch(`http://ip-api.com/json/${ip_address}?fields=city,country`);
+                const geo = await geoRes.json();
+                if (geo.status === 'success') {
+                    location = `${geo.city}, ${geo.country}`;
+                }
+            } catch (err) { }
+        }
+
+        const { data, error } = await supabase.from('visitor_logs').insert([{
+            referrer, user_agent, screen_width, ip_address, location, device_model
+        }]);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 // --- Inventory ---
@@ -748,17 +792,20 @@ app.get('/api/reports/dashboard', async (req, res) => {
             });
         });
 
-        // 4. Fetch Visitor Logs in the last 7 days
+        // 4. Fetch Visitor Logs in the last 7 days + Get top 50 recent visitors for table
         const { data: visits } = await supabase.from('visitor_logs')
             .select('*')
-            .gte('visited_at', startDate.toISOString());
+            .gte('visited_at', startDate.toISOString())
+            .order('visited_at', { ascending: false });
 
         let totalVisits = 0;
         let qrVisits = 0;
+        let recentVisitors = [];
+
         if (visits) {
             totalVisits = visits.length;
-            // QR scans logic: Empty referrer and a mobile screen size (or just rely on Empty Referrer for Direct Traffic)
             qrVisits = visits.filter(v => v.referrer === '' && v.screen_width < 1024).length;
+            recentVisitors = visits.slice(0, 50); // Send the most recent 50 logs for the grid
         }
 
         // 5. Format Output Map thành Mảng cho Chart
@@ -779,6 +826,7 @@ app.get('/api/reports/dashboard', async (req, res) => {
             data: {
                 revenueData: { labels: last7Days, revenues, costs },
                 topProducts: topProducts,
+                recentVisitors: recentVisitors,
                 summary: {
                     totalRevenue: totalRev,
                     totalCost: totalCostAll,
