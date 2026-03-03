@@ -867,6 +867,10 @@
                                     <option value="transfer">Chuyển khoản (VietQR)</option>
                                 </select>
                             </div>
+                            <div class="mb-4">
+                                <label class="font-black text-sm uppercase block mb-2">Ghi chú (Tùy chọn):</label>
+                                <textarea id="cart-note" rows="2" placeholder="VD: ít đá, không đường, thêm trân châu..." class="w-full p-3 border-4 border-black font-bold focus:outline-none focus:translate-y-1 shadow-[4px_4px_0_0_#000] focus:shadow-[0_0_0_0_#000] transition-all resize-none"></textarea>
+                            </div>
                             <div class="flex justify-between items-center mb-4 text-xl font-black">
                                 <span>TỔNG TIỀN:</span>
                                 <span class="text-primary drop-shadow-[1px_1px_0_#000] text-3xl" id="cart-modal-total">0đ</span>
@@ -2734,23 +2738,29 @@
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[75vh]">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[75vh] overflow-x-auto min-w-[1200px] pr-4 pb-4">
                 <!-- Column 1: Chờ xử lý -->
-                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000]">
+                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
                     <div class="bg-yellow-300 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Chờ Xử Lý (Pending)</div>
                     <div id="pos-col-pending" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50"></div>
                 </div>
                 
                 <!-- Column 2: Đang làm -->
-                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000]">
+                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
                     <div class="bg-[#85C1E9] border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Đang Pha Chế</div>
                     <div id="pos-col-processing" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50"></div>
                 </div>
 
                 <!-- Column 3: Đã Xong -->
-                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000]">
+                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
                     <div class="bg-green-400 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Hoàn Thành (Xong)</div>
                     <div id="pos-col-completed" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50 bg-opacity-80"></div>
+                </div>
+
+                <!-- Column 4: Đã Hủy -->
+                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
+                    <div class="bg-gray-300 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0 text-gray-600">Đã Hủy (Cancelled)</div>
+                    <div id="pos-col-cancelled" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-100 bg-opacity-80"></div>
                 </div>
             </div>
             `;
@@ -2783,15 +2793,45 @@
                     const colPending = document.getElementById('pos-col-pending');
                     const colProcessing = document.getElementById('pos-col-processing');
                     const colCompleted = document.getElementById('pos-col-completed');
+                    const colCancelled = document.getElementById('pos-col-cancelled');
 
-                    if (!colPending || !colProcessing || !colCompleted) return;
+                    if (!colPending || !colProcessing || !colCompleted || !colCancelled) return;
 
                     colPending.innerHTML = '';
                     colProcessing.innerHTML = '';
                     colCompleted.innerHTML = '';
+                    colCancelled.innerHTML = '';
 
-                    let orders = j.data;
-                    window.currentOrders = orders;
+                    let allOrders = j.data;
+                    window.currentOrders = allOrders;
+
+                    // KIỂM TRA ĐƠN MỚI
+                    const currentPendingIds = new Set(allOrders.filter(o => o.status === 'pending').map(o => o.id));
+
+                    if (!window.knownPendingOrderIds) {
+                        window.knownPendingOrderIds = currentPendingIds;
+                    } else {
+                        let hasNew = false;
+                        currentPendingIds.forEach(id => {
+                            if (!window.knownPendingOrderIds.has(id)) {
+                                hasNew = true;
+                            }
+                        });
+
+                        if (hasNew) {
+                            if (window.playNotificationSound) window.playNotificationSound();
+                            const pendingColWrapper = colPending.parentElement;
+                            if (pendingColWrapper) {
+                                pendingColWrapper.classList.add('ring-8', 'ring-red-500', 'animate-pulse');
+                                setTimeout(() => {
+                                    pendingColWrapper.classList.remove('ring-8', 'ring-red-500', 'animate-pulse');
+                                }, 3000);
+                            }
+                        }
+                        window.knownPendingOrderIds = currentPendingIds;
+                    }
+
+                    let orders = allOrders;
 
                     // Filter based on selected tab
                     if (window.posCurrentTab === 'local') {
@@ -2833,13 +2873,24 @@
                         } else {
                             // Giao diện cho Đơn Tại Quán
                             if (order.status === 'pending') {
-                                actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'processing')" class="w-full bg-blue-500 text-white font-black font-heading py-3 text-lg border-2 border-black hover:bg-blue-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">NHẬN ĐƠN (PHA CHẾ)</button>`;
+                                actionBtn = `
+                                <div class="flex gap-2 mt-3">
+                                    <button onclick="updateOrderStatus(${order.id}, 'processing')" class="flex-1 bg-blue-500 text-white font-black font-heading py-3 text-lg border-2 border-black hover:bg-blue-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all">NHẬN ĐƠN</button>
+                                    <button onclick="updateOrderStatus(${order.id}, 'cancelled')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Hủy đơn">HỦY</button>
+                                </div>`;
                             } else if (order.status === 'processing') {
                                 bgColor = 'bg-blue-50';
-                                actionBtn = `<button onclick="updateOrderStatus(${order.id}, 'completed')" class="w-full bg-green-500 text-black font-black font-heading py-3 text-lg border-2 border-black hover:bg-green-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all mt-3">✅ XONG, GIAO KHÁCH</button>`;
+                                actionBtn = `
+                                <div class="flex gap-2 mt-3">
+                                    <button onclick="updateOrderStatus(${order.id}, 'completed')" class="flex-1 bg-green-500 text-black font-black font-heading py-3 text-lg border-2 border-black hover:bg-green-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all">✅ XONG, GIAO</button>
+                                    <button onclick="updateOrderStatus(${order.id}, 'cancelled')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Hủy đơn">HỦY</button>
+                                </div>`;
                             } else if (order.status === 'completed') {
                                 bgColor = 'bg-gray-200';
                                 actionBtn = `<div class="text-center text-xs font-bold text-gray-400 mt-2 uppercase">Giao dịch Hoàn tất</div>`;
+                            } else if (order.status === 'cancelled') {
+                                bgColor = 'bg-red-50 opacity-60 grayscale';
+                                actionBtn = `<div class="text-center text-xs font-bold text-red-500 mt-2 uppercase border-2 border-red-500 p-1">Đã Hủy</div>`;
                             }
 
                             // Hiển thị nút "Xác nhận tiền" đối với Chuyển khoản
@@ -2867,6 +2918,8 @@
                                 ${itemsHtml}
                             </div>
                             
+                            ${order.note ? `<div class="mb-3 px-1 text-sm font-bold text-red-600 border-l-4 border-red-600 pl-2">Ghi chú: ${order.note}</div>` : ''}
+
                             <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-black border-dashed">
                                 <div class="flex flex-col">
                                     <span class="text-[10px] font-bold uppercase text-gray-500">Hình thức</span>
@@ -2882,11 +2935,40 @@
 
                         if (order.status === 'pending') colPending.innerHTML += cardHtml;
                         else if (order.status === 'processing') colProcessing.innerHTML += cardHtml;
-                        else colCompleted.innerHTML += cardHtml;
+                        else if (order.status === 'completed') colCompleted.innerHTML += cardHtml;
+                        else if (order.status === 'cancelled') colCancelled.innerHTML += cardHtml;
                     });
                 }
             } catch (e) { console.error("Poll POS Error:", e) }
         }
+
+        window.playNotificationSound = function () {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+
+                function playBeep(freq, time, duration) {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0, ctx.currentTime + time);
+                    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + time + 0.05);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime + time + duration - 0.05);
+                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + time + duration);
+                    osc.start(ctx.currentTime + time);
+                    osc.stop(ctx.currentTime + time + duration);
+                }
+
+                playBeep(880, 0, 0.15); // A5
+                playBeep(1046.50, 0.2, 0.2); // C6
+            } catch (e) {
+                console.log("Audio play blocked by browser:", e);
+            }
+        };
 
         window.updateOrderStatus = async function (id, newStatus) {
             try {
@@ -3286,6 +3368,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
             const isHidden = modal.classList.contains('hidden');
             if (isHidden) {
                 // Mở
+                document.getElementById('cart-note').value = '';
                 modal.classList.remove('hidden');
                 // Allow reflow
                 void modal.offsetWidth;
@@ -3311,6 +3394,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
 
             const totalPrice = window.currentCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const paymentMethod = document.getElementById('cart-payment-method').value;
+            const note = document.getElementById('cart-note').value;
             const itemsToOrder = [...window.currentCart];
 
             // Ẩn modal và show toast đang xử lý (optimistic UI)
@@ -3322,7 +3406,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                 const res = await fetch('/api/orders', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: itemsToOrder, paymentMethod, clientTotal: totalPrice })
+                    body: JSON.stringify({ items: itemsToOrder, paymentMethod, note, clientTotal: totalPrice })
                 });
 
                 const data = await res.json();
