@@ -672,11 +672,31 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
+// Dọn dẹp tự động (Lazy Cleanup) dữ liệu cũ hơn 30 ngày
+async function cleanupOldData() {
+    try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        thirtyDaysAgo.setHours(0, 0, 0, 0);
+        const cutoffISO = thirtyDaysAgo.toISOString();
+
+        // Xóa order cũ, cascade delete items cũng sẽ xóa nếu CSDL đã setup, hoặc chờ cron job.
+        // Ở đây xoá cứng order và visitor log cũ hơn 30 ngày.
+        await supabase.from('orders').delete().lt('created_at', cutoffISO);
+        await supabase.from('visitor_logs').delete().lt('visited_at', cutoffISO);
+    } catch (e) {
+        console.error("Cleanup error", e);
+    }
+}
+
 // Lấy danh sách Order (live POS)
 app.get('/api/orders', async (req, res) => {
     try {
-        // Lấy danh sách 50 đơn mới nhất
-        const { data, error } = await supabase
+        // Kích hoạt dọn dẹp background
+        cleanupOldData();
+
+        const range = req.query.range || 'today';
+        let query = supabase
             .from('orders')
             .select(`
                 *,
@@ -684,9 +704,25 @@ app.get('/api/orders', async (req, res) => {
                     id, quantity, price,
                     recipes (name, size)
                 )
-            `)
-            .order('created_at', { ascending: false })
-            .limit(50);
+            `);
+
+        // Setup Date Bounds based on Local TZ
+        const now = new Date();
+        const startOfDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (range === 'today') {
+            query = query.gte('created_at', startOfDate.toISOString());
+        } else if (range === '7d') {
+            const startDate = new Date(startOfDate);
+            startDate.setDate(startDate.getDate() - 6);
+            query = query.gte('created_at', startDate.toISOString());
+        } else if (range === '30d') {
+            const startDate = new Date(startOfDate);
+            startDate.setDate(startDate.getDate() - 29);
+            query = query.gte('created_at', startDate.toISOString());
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false }).limit(200);
 
         if (error) throw error;
         res.json({ success: true, data });
@@ -721,25 +757,34 @@ app.put('/api/orders/:id/status', async (req, res) => {
 // --- Reports ---
 app.get('/api/reports/dashboard', async (req, res) => {
     try {
-        // 1. Khởi tạo mảng 7 ngày gần nhất (định dạng DD/MM)
-        const last7Days = [];
+        cleanupOldData();
+        const range = req.query.range || 'today';
+        let daysToFetch = 1;
+
+        if (range === '7d') daysToFetch = 7;
+        else if (range === '30d') daysToFetch = 30;
+
+        // 1. Khởi tạo mảng X ngày gần nhất
+        const dateLabels = [];
         const dateKeyMap = {}; // Map DD/MM -> YYYY-MM-DD
 
-        for (let i = 6; i >= 0; i--) {
+        for (let i = daysToFetch - 1; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
             // Cắt ra YYYY-MM-DD theo múi giờ local
             const dStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
-            last7Days.push(label);
+            dateLabels.push(label);
             dateKeyMap[dStr] = label;
         }
 
-        // 2. Fetch toàn bộ order trong 7 ngày
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 6);
-        startDate.setHours(0, 0, 0, 0);
+        // 2. Fetch toàn bộ order
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (daysToFetch > 1) {
+            startDate.setDate(startDate.getDate() - (daysToFetch - 1));
+        }
 
         const { data: orders, error } = await supabase
             .from('orders')
@@ -762,7 +807,7 @@ app.get('/api/reports/dashboard', async (req, res) => {
         let totalRev = 0;
         let totalCostAll = 0;
 
-        last7Days.forEach(day => {
+        dateLabels.forEach(day => {
             dailyRevenues[day] = 0;
             dailyCosts[day] = 0;
         });
@@ -793,7 +838,7 @@ app.get('/api/reports/dashboard', async (req, res) => {
             });
         });
 
-        // 4. Fetch Visitor Logs in the last 7 days + Get top 50 recent visitors for table
+        // 4. Fetch Visitor Logs in range
         const { data: visits } = await supabase.from('visitor_logs')
             .select('*')
             .gte('visited_at', startDate.toISOString())
@@ -810,8 +855,8 @@ app.get('/api/reports/dashboard', async (req, res) => {
         }
 
         // 5. Format Output Map thành Mảng cho Chart
-        const revenues = last7Days.map(day => dailyRevenues[day]);
-        const costs = last7Days.map(day => dailyCosts[day]);
+        const revenues = dateLabels.map(day => dailyRevenues[day]);
+        const costs = dateLabels.map(day => dailyCosts[day]);
 
         let topProducts = Object.keys(productStats).map(name => ({
             name: name,
@@ -825,7 +870,7 @@ app.get('/api/reports/dashboard', async (req, res) => {
         res.json({
             success: true,
             data: {
-                revenueData: { labels: last7Days, revenues, costs },
+                revenueData: { labels: dateLabels, revenues, costs },
                 topProducts: topProducts,
                 recentVisitors: recentVisitors,
                 summary: {

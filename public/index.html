@@ -14,6 +14,7 @@
     <!-- PWA Configuration -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0821D2">
+    <link rel="icon" type="image/png" href="/img/favicon.png">
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -180,7 +181,7 @@
                 <span class="material-symbols-outlined">restaurant_menu</span> Thực đơn
             </a>
             <a href="#" data-route="pos"
-                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent text-[#FFD600] animate-pulse">
+                class="nav-item flex items-center gap-3 p-3 font-bold text-black bg-[#FEC6E9] hover:bg-black/10 transition-colors border-4 border-transparent animate-pulse my-1">
                 <span class="material-symbols-outlined">point_of_sale</span> Đơn Hàng LIVE
             </a>
             <a href="#" data-route="inventory"
@@ -2502,14 +2503,26 @@
             }
         };
 
+        window.changeReportRange = function (range) {
+            window.reportRange = range;
+            renderReports();
+        };
+
         // --- 5. REPORTS ---
         async function renderReports() {
             appContent.innerHTML = `
-                <div class="flex justify-between items-center mb-6 animate-slide-up">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 animate-slide-up">
                     <h2 class="text-3xl font-heading uppercase">Báo cáo Tổng Quan</h2>
-                    <button class="brutal-btn brutal-btn-secondary px-4 py-3 flex items-center gap-2" onclick="renderReports()">
-                        <span class="material-symbols-outlined">refresh</span> LÀM MỚI
-                    </button>
+                    <div class="flex items-center gap-4 w-full sm:w-auto">
+                        <select id="report-date-filter" class="brutal-input flex-1 sm:flex-none py-3 cursor-pointer bg-white" onchange="window.changeReportRange(this.value)">
+                            <option value="today">Hôm nay</option>
+                            <option value="7d">7 Ngày qua</option>
+                            <option value="30d">30 Ngày qua</option>
+                        </select>
+                        <button class="brutal-btn brutal-btn-secondary px-4 py-3 flex items-center justify-center gap-2" onclick="renderReports()">
+                            <span class="material-symbols-outlined">refresh</span> <span class="hidden sm:inline">LÀM MỚI</span>
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="report-wrapper" class="hidden">
@@ -2582,7 +2595,14 @@
             `;
 
             try {
-                const res = await fetch(`${API_URL}/reports/dashboard`);
+                // Handle sticky UI Dropdown
+                setTimeout(() => {
+                    const sel = document.getElementById('report-date-filter');
+                    if (sel) sel.value = window.reportRange || 'today';
+                }, 10);
+
+                const range = window.reportRange || 'today';
+                const res = await fetch(`${API_URL}/reports/dashboard?range=${range}`);
                 const json = await res.json();
 
                 document.getElementById('report-loading').classList.add('hidden');
@@ -2720,47 +2740,71 @@
 
 
 
+        window.changePOSRange = function (range) {
+            window.posRange = range;
+            loadPOSData();
+        };
+
         // --- 6. LIVE POS ---
         function renderPOS() {
             appContent.innerHTML = `
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 class="text-3xl font-heading uppercase tracking-tight flex items-center gap-2">Màn hình Bếp & POS <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-bounce">LIVE</span></h2>
-                <div class="flex items-center gap-2 w-full md:w-auto">
+                <h2 class="text-3xl font-heading uppercase tracking-tight flex items-center gap-2 shrink-0">Bếp & POS <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-bounce">LIVE</span></h2>
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+                    <!-- Date Filter -->
+                    <select id="pos-date-filter" class="brutal-input py-2 px-2 flex-1 md:flex-none md:w-auto min-w-[100px] cursor-pointer bg-white font-bold" onchange="window.changePOSRange(this.value)">
+                        <option value="today">Hôm nay</option>
+                        <option value="7d">7 Ngày</option>
+                        <option value="30d">30 Ngày</option>
+                    </select>
+
                     <!-- Tab Switcher -->
-                    <div class="flex border-4 border-black brutal-shadow-sm bg-white overflow-hidden text-sm md:text-base font-bold uppercase w-full md:w-auto">
+                    <div class="flex border-4 border-black brutal-shadow-sm bg-white overflow-hidden text-sm md:text-base font-bold uppercase w-full sm:w-auto flex-1 md:flex-none">
                         <button id="pos-tab-local" class="flex-1 md:flex-none px-4 py-2 hover:bg-yellow-200 transition-colors bg-yellow-400" onclick="window.switchPOSTab('local')">Đơn Tại Quán</button>
                         <button id="pos-tab-app" class="flex-1 md:flex-none px-4 py-2 border-l-4 border-black hover:bg-green-200 transition-colors text-gray-400 bg-gray-100" onclick="window.switchPOSTab('app')">Đơn Online (App)</button>
                     </div>
                     
-                    <button class="bg-black text-white px-3 py-2 text-sm font-bold border-2 border-transparent hover:bg-gray-800 ml-auto md:ml-2 brutal-shadow-sm active:translate-y-1 active:shadow-none" onclick="loadPOSData()">
+                    <button class="bg-black text-white px-3 py-2 text-sm font-bold border-2 border-transparent hover:bg-gray-800 brutal-shadow-sm active:translate-y-1 active:shadow-none shrink-0" onclick="loadPOSData()">
                         <span class="material-symbols-outlined text-sm align-middle">refresh</span>
                     </button>
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[75vh] overflow-x-auto min-w-[1200px] pr-4 pb-4">
+            <div class="flex flex-wrap gap-6 pb-4 pr-2">
                 <!-- Column 1: Chờ xử lý -->
-                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
-                    <div class="bg-yellow-300 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Chờ Xử Lý (Pending)</div>
-                    <div id="pos-col-pending" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50"></div>
+                <div class="border-[3px] border-black bg-yellow-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                    <div class="bg-yellow-400 border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">pending_actions</span> CHỜ XỬ LÝ</span>
+                        <span class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">1</span>
+                    </div>
+                    <div id="pos-col-pending" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
                 </div>
                 
                 <!-- Column 2: Đang làm -->
-                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
-                    <div class="bg-[#85C1E9] border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Đang Pha Chế</div>
-                    <div id="pos-col-processing" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50"></div>
+                <div class="border-[3px] border-black bg-blue-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                    <div class="bg-[#85C1E9] border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">local_cafe</span> ĐANG PHA CHẾ</span>
+                        <span class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">2</span>
+                    </div>
+                    <div id="pos-col-processing" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3 max-h-[75vh]"></div>
                 </div>
 
                 <!-- Column 3: Đã Xong -->
-                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
-                    <div class="bg-green-400 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0">Hoàn Thành (Xong)</div>
-                    <div id="pos-col-completed" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50 bg-opacity-80"></div>
+                <div class="border-[3px] border-black bg-green-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                    <div class="bg-[#58D68D] border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">check_circle</span> HOÀN THÀNH</span>
+                        <span class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">3</span>
+                    </div>
+                    <div id="pos-col-completed" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3 max-h-[75vh]"></div>
                 </div>
 
                 <!-- Column 4: Đã Hủy -->
-                <div class="border-4 border-black bg-white flex flex-col h-full shadow-[8px_8px_0_0_#000] min-w-[300px]">
-                    <div class="bg-gray-300 border-b-4 border-black p-4 font-heading text-xl font-black uppercase text-center shrink-0 text-gray-600">Đã Hủy (Cancelled)</div>
-                    <div id="pos-col-cancelled" class="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-100 bg-opacity-80"></div>
+                <div class="border-[3px] border-black bg-gray-100 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] opacity-80 min-h-[400px]">
+                    <div class="bg-gray-300 border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0 text-gray-700">
+                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">cancel</span> ĐÃ HỦY</span>
+                        <span class="w-8 h-8 rounded-full bg-gray-500 text-white flex items-center justify-center font-bold text-sm">X</span>
+                    </div>
+                    <div id="pos-col-cancelled" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3"></div>
                 </div>
             </div>
             `;
@@ -2787,7 +2831,14 @@
 
         async function loadPOSData() {
             try {
-                const res = await fetch('/api/orders');
+                // Restore UI select
+                setTimeout(() => {
+                    const sel = document.getElementById('pos-date-filter');
+                    if (sel) sel.value = window.posRange || 'today';
+                }, 10);
+
+                const range = window.posRange || 'today';
+                const res = await fetch(`/api/orders?range=${range}`);
                 const j = await res.json();
                 if (j.success) {
                     const colPending = document.getElementById('pos-col-pending');
@@ -2944,29 +2995,10 @@
 
         window.playNotificationSound = function () {
             try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) return;
-                const ctx = new AudioContext();
-
-                function playBeep(freq, time, duration) {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.type = 'sine';
-                    osc.frequency.value = freq;
-                    gain.gain.setValueAtTime(0, ctx.currentTime + time);
-                    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + time + 0.05);
-                    gain.gain.setValueAtTime(0.3, ctx.currentTime + time + duration - 0.05);
-                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + time + duration);
-                    osc.start(ctx.currentTime + time);
-                    osc.stop(ctx.currentTime + time + duration);
-                }
-
-                playBeep(880, 0, 0.15); // A5
-                playBeep(1046.50, 0.2, 0.2); // C6
+                const audio = new Audio('/audio/romraringtone.ogg');
+                audio.play().catch(e => console.log("Audio play blocked by browser:", e));
             } catch (e) {
-                console.log("Audio play blocked by browser:", e);
+                console.log("Audio play error:", e);
             }
         };
 
