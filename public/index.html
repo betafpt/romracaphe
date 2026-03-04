@@ -196,6 +196,10 @@
                 class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
                 <span class="material-symbols-outlined">admin_panel_settings</span> Phân quyền
             </a>
+            <a href="#" data-route="settings"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">print</span> In ấn & Mẫu
+            </a>
         </nav>
     </aside>
 
@@ -361,6 +365,7 @@
 
     <!-- Load Menu Admin script -->
     <script src="/js/menu_admin.js"></script>
+    <script src="/js/settings.js"></script>
 
     <script>
         // Global State
@@ -549,6 +554,10 @@
                 title: 'Phân quyền',
                 render: () => window.renderRoles ? window.renderRoles() : (typeof renderRoles === 'function' ? renderRoles() : null)
             },
+            settings: {
+                title: 'In ấn & Mẫu',
+                render: () => typeof renderSettings === 'function' ? renderSettings() : null
+            },
             recipes: {
                 title: 'Công thức pha chế',
                 render: () => window.renderRecipes ? window.renderRecipes() : (typeof renderRecipes === 'function' ? renderRecipes() : null)
@@ -582,7 +591,7 @@
             const role = window.currentUserRole;
 
             // Chặn Guest vào các trang nội bộ
-            const adminRoutes = ['dashboard', 'pos', 'inventory', 'roles', 'recipes', 'reports', 'menu_admin'];
+            const adminRoutes = ['dashboard', 'pos', 'inventory', 'roles', 'recipes', 'reports', 'menu_admin', 'settings'];
             if ((!role || role === 'guest') && adminRoutes.includes(route)) {
                 route = 'welcome';
             }
@@ -2749,7 +2758,7 @@
         function renderPOS() {
             appContent.innerHTML = `
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 class="text-3xl font-heading uppercase tracking-tight flex items-center gap-2 shrink-0">Bếp & POS <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-bounce">LIVE</span></h2>
+                <h2 class="text-3xl font-heading uppercase tracking-tight flex items-center gap-2 shrink-0">POS <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-bounce">LIVE</span></h2>
                 <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
                     <!-- Date Filter -->
                     <select id="pos-date-filter" class="brutal-input py-2 px-2 flex-1 md:flex-none md:w-auto min-w-[100px] cursor-pointer bg-white font-bold" onchange="window.changePOSRange(this.value)">
@@ -2927,6 +2936,8 @@
                                 actionBtn = `
                                 <div class="flex gap-2 mt-3">
                                     <button onclick="updateOrderStatus(${order.id}, 'processing')" class="flex-1 bg-blue-500 text-white font-black font-heading py-3 text-lg border-2 border-black hover:bg-blue-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all">NHẬN ĐƠN</button>
+                                    <button onclick="printOrderLabel(${order.id})" class="bg-white text-black font-black font-heading px-2 text-sm border-2 border-black hover:bg-gray-200 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center" title="In Tem">IN TEM</button>
+                                    <button onclick="printReceipt(${order.id})" class="bg-[#D1F2EB] text-[#0E6251] font-black font-heading px-2 text-sm border-2 border-black hover:bg-[#A3E4D7] active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center" title="Hóa Đơn">HÓA ĐƠN</button>
                                     <button onclick="updateOrderStatus(${order.id}, 'cancelled')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Hủy đơn">HỦY</button>
                                 </div>`;
                             } else if (order.status === 'processing') {
@@ -2934,6 +2945,8 @@
                                 actionBtn = `
                                 <div class="flex gap-2 mt-3">
                                     <button onclick="updateOrderStatus(${order.id}, 'completed')" class="flex-1 bg-green-500 text-black font-black font-heading py-3 text-lg border-2 border-black hover:bg-green-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all">✅ XONG, GIAO</button>
+                                    <button onclick="printOrderLabel(${order.id})" class="bg-white text-black font-black font-heading px-2 text-sm border-2 border-black hover:bg-gray-200 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center" title="In Tem">IN TEM</button>
+                                    <button onclick="printReceipt(${order.id})" class="bg-[#D1F2EB] text-[#0E6251] font-black font-heading px-2 text-sm border-2 border-black hover:bg-[#A3E4D7] active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center" title="Hóa Đơn">HÓA ĐƠN</button>
                                     <button onclick="updateOrderStatus(${order.id}, 'cancelled')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Hủy đơn">HỦY</button>
                                 </div>`;
                             } else if (order.status === 'completed') {
@@ -2946,7 +2959,7 @@
 
                             // Hiển thị nút "Xác nhận tiền" đối với Chuyển khoản
                             if (order.payment_method === 'transfer' && order.status !== 'completed') {
-                                verifyBtn = `<button class="w-full bg-purple-600 text-white text-xs font-bold py-2 border-2 border-black mt-2 hover:bg-purple-700 active:scale-95 transition-transform blink-btn" onclick="this.innerHTML='✓ ĐÃ NHẬN TIỀN CK'; this.classList.replace('bg-purple-600','bg-green-600'); this.classList.replace('text-white','text-white'); this.classList.remove('blink-btn');">? CHƯA THẤY TIỀN (BẤM ĐỂ DUYỆT)</button>`;
+                                verifyBtn = `<button class="w-full bg-purple-600 text-white text-xs font-bold py-2 border-2 border-black mt-2 hover:bg-purple-700 active:scale-95 transition-transform blink-btn" onclick="this.innerHTML='✓ ĐÃ NHẬN TIỀN CK'; this.classList.replace('bg-purple-600','bg-green-600'); this.classList.replace('text-white','text-white'); this.classList.remove('blink-btn');">CHƯA THẤY TIỀN? (BẤM ĐỂ DUYỆT)</button>`;
                             } else if (order.payment_method === 'transfer' && order.status === 'completed') {
                                 verifyBtn = `<div class="w-full bg-green-600 text-white text-xs font-bold py-1 text-center border-2 border-black mt-2 opacity-50">✓ ĐÃ THU TIỀN</div>`;
                             }
@@ -3025,7 +3038,15 @@
             const order = window.currentOrders?.find(o => o.id === orderId);
             if (!order) return showToast("Không tìm thấy đơn hàng", "error");
 
+            const conf = typeof getPrintConfig === 'function' ? getPrintConfig() : null;
             const platformName = (order.platform || 'LOCAL').toUpperCase();
+            let storeDisplay = '';
+            if (conf && conf.labelShowStoreInfo) {
+                storeDisplay = `<span class="app-name">${conf.storeName} - ${platformName}</span>`;
+            } else {
+                storeDisplay = `<span class="app-name">${platformName}</span>`;
+            }
+
             const timeStr = new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
             let labelsHtml = '';
@@ -3036,16 +3057,16 @@
                     labelsHtml += `
                     <div class="label-page">
                         <div class="header">
-                            <span class="app-name">${platformName}</span>
+                            ${storeDisplay}
                             <span class="order-id">#${order.id}</span>
                         </div>
                         <div class="item-name">${oi.recipes?.name || 'Món'}</div>
                         <div class="details">
                             <span>Size: ${oi.recipes?.size || '-'}</span>
-                            <span style="float: right;">${i}/${oi.quantity}</span>
+                            <span style="float: right;">${i}<sub>/${oi.quantity}</sub></span>
                         </div>
-                        <div class="note">Ghi chú: ${oi.note || ''}</div>
-                        <div class="footer">${timeStr}</div>
+                        <div class="note">${oi.note ? 'Ghi chú: ' + oi.note : ''}</div>
+                        ${(!conf || conf.labelShowTime) ? `<div class="footer">${timeStr}</div>` : ''}
                     </div>
                     `;
                 }
@@ -3059,7 +3080,7 @@
                         /* 50x30mm: 1mm ~ 3.78px -> ~189x113px */
                         @page { size: 50mm 30mm; margin: 0; }
                         body { 
-                            font-family: sans-serif; 
+                            font-family: ${conf && conf.labelFontFamily ? conf.labelFontFamily : 'sans-serif'}; 
                             margin: 0; 
                             padding: 0;
                             color: #000;
@@ -3077,13 +3098,13 @@
                             overflow: hidden;
                         }
                         .label-page:last-child { page-break-after: auto; }
-                        .header { font-weight: bold; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
+                        .header { font-weight: bold; font-size: ${conf ? (Number(conf.labelBaseFontSize) || 9) + 1 : 10}px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
                         .app-name { float: left; }
                         .order-id { float: right; }
-                        .item-name { font-weight: 900; font-size: 12px; line-height: 1.1; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                        .details { font-size: 9px; font-weight: bold; margin-bottom: 1px; }
-                        .note { font-size: 8px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-height: 10px; }
-                        .footer { font-size: 7px; position: absolute; bottom: 2px; right: 3px; }
+                        .item-name { font-weight: 900; font-size: ${conf ? conf.labelFontSize : 12}px; line-height: 1.1; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                        .details { font-size: ${conf ? (Number(conf.labelSizeFontSize) || 11) : 11}px; font-weight: bold; margin-bottom: 1px; }
+                        .note { font-size: ${conf ? (Number(conf.labelBaseFontSize) || 9) - 1 : 8}px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-height: 10px; }
+                        .footer { font-size: ${conf ? (Number(conf.labelBaseFontSize) || 9) - 2 : 7}px; position: absolute; bottom: 2px; right: 3px; }
                     </style>
                 </head>
                 <body>
@@ -3105,6 +3126,9 @@
             const order = window.currentOrders?.find(o => o.id === orderId);
             if (!order) return showToast("Không tìm thấy đơn hàng", "error");
 
+            const conf = typeof getPrintConfig === 'function' ? getPrintConfig() : null;
+            let logoHtml = (conf && conf.showLogo) ? `<div style="text-align: center; margin-bottom: 10px;"><img style="max-width: 80%; display: block; margin: 0 auto; filter: grayscale(100%) contrast(1.2);" src="${conf.logoUrl || '/img/logo.png'}" alt="Logo" onerror="this.style.display='none'"></div>` : '';
+
             const itemsHtml = order.order_items.map(oi => `
                 <div style="margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 8px;">
                     <div style="font-size: 16px; font-weight: bold;">${oi.quantity} x ${oi.recipes?.name || 'Món'}</div>
@@ -3121,17 +3145,20 @@
                 <head>
                     <title>Hóa Đơn #${order.id}</title>
                     <style>
-                        body { font-family: monospace; width: 58mm; margin: 0 auto; padding: 10px; color: #000; }
-                        h2 { text-align: center; margin: 0 0 10px 0; font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                        body { font-family: monospace; width: 58mm; margin: 0 auto; padding: 10px; color: #000; font-size: ${conf ? conf.receiptFontSize : 12}px; }
+                        h2 { text-align: center; margin: 0 0 10px 0; font-size: ${conf ? Number(conf.receiptFontSize) + 6 : 18}px; border-bottom: 2px solid #000; padding-bottom: 5px; }
                         .center { text-align: center; }
                         .mb { margin-bottom: 10px; }
-                        .text-sm { font-size: 12px; }
-                        .text-lg { font-size: 16px; font-weight: bold; }
+                        .text-sm { font-size: ${conf ? Number(conf.receiptFontSize) - 2 : 10}px; }
+                        .text-lg { font-size: ${conf ? Number(conf.receiptFontSize) + 2 : 14}px; font-weight: bold; }
                     </style>
                 </head>
                 <body>
-                    <h2>RÔM RẢ CÀ PHÊ</h2>
-                    <div class="center mb">
+                    ${logoHtml}
+                    <h2>${conf ? (conf.storeName || 'RÔM RẢ CÀ PHÊ') : 'RÔM RẢ CÀ PHÊ'}</h2>
+                    ${conf && conf.address ? `<div class="center mb text-sm">${conf.address}</div>` : ''}
+                    ${conf && conf.phone ? `<div class="center mb text-sm">${conf.phone}</div>` : ''}
+                    <div class="center mb" style="border-top: 1px dashed #000; padding-top: 5px;">
                         <strong>ĐƠN ${platformName} #${order.id}</strong><br/>
                         <span class="text-sm">${timeStr}</span>
                     </div>
@@ -3141,9 +3168,7 @@
                     <div class="center text-lg" style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px;">
                         TỔNG CỘNG:<br/>${Number(order.total_amount).toLocaleString('vi-VN')}đ
                     </div>
-                    <div class="center text-sm" style="margin-top:20px;">
-                        -- Cảm ơn Quý Khách --
-                    </div>
+                    <div class="center text-sm" style="margin-top:20px; white-space: pre-wrap;">${conf ? conf.footerMsg : '-- Cảm ơn Quý Khách --'}</div>
                     <script>
                         window.onload = function() { window.print(); window.close(); }
                     <\/script>
