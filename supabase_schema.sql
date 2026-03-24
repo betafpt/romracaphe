@@ -34,7 +34,8 @@ CREATE TABLE public.recipes (
     image TEXT,
     description TEXT,
     is_best_seller BOOLEAN DEFAULT false,
-    is_sold_out BOOLEAN DEFAULT false
+    is_sold_out BOOLEAN DEFAULT false,
+    is_new BOOLEAN DEFAULT false
 );
 
 -- 4. Create Inventory History Table

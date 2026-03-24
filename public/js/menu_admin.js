@@ -120,6 +120,13 @@ window.renderAdminMenu = async function () {
                         </label>
                     </div>
 
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-2 font-bold cursor-pointer select-none">
+                            <input type="checkbox" id="menu-is-new" class="w-6 h-6 border-4 border-black rounded-none outline-none accent-black">
+                            <span class="material-symbols-outlined text-green-500">new_releases</span> Món Mới
+                        </label>
+                    </div>
+
                     <div class="flex gap-2 mt-4">
                         <button type="button" class="brutal-btn py-3 flex-1 bg-gray-200 hover:bg-gray-300" onclick="document.getElementById('modal-edit-menu').style.display='none'">HỦY</button>
                         <button type="submit" class="brutal-btn brutal-btn-primary py-3 flex-1">LƯU LẠI</button>
@@ -187,6 +194,7 @@ window.renderAdminMenuList = function () {
                 image: item.image,
                 is_best_seller: item.is_best_seller,
                 is_sold_out: item.is_sold_out,
+                is_new: item.is_new,
                 variants: []
             };
         }
@@ -197,6 +205,7 @@ window.renderAdminMenuList = function () {
     Object.values(grouped).forEach(g => {
         let statuses = [];
         if (g.is_best_seller) statuses.push(`<span class="bg-orange-100 text-orange-700 px-2 py-1 border-2 border-black text-xs font-black uppercase flex items-center gap-1 w-max"><span class="material-symbols-outlined text-[14px]">local_fire_department</span> Best Seller</span>`);
+        if (g.is_new) statuses.push(`<span class="bg-green-100 text-green-800 px-2 py-1 border-2 border-black text-xs font-black uppercase flex items-center gap-1 w-max"><span class="material-symbols-outlined text-[14px]">new_releases</span> Món Mới</span>`);
         if (g.is_sold_out) statuses.push(`<span class="bg-slate-200 text-slate-700 px-2 py-1 border-2 border-black text-xs font-black uppercase flex items-center gap-1 w-max"><span class="material-symbols-outlined text-[14px]">block</span> Hết Hàng</span>`);
 
         let statusHtml = statuses.length > 0 ? `<div class="flex flex-col gap-1">${statuses.join('')}</div>` : `<span class="text-green-600 font-bold text-sm">Đang bán</span>`;
@@ -288,6 +297,7 @@ window.openEditMenuModalGroup = function (encodedName) {
     document.getElementById('menu-description').value = baseItem.description || '';
     document.getElementById('menu-is-best-seller').checked = baseItem.is_best_seller || false;
     document.getElementById('menu-is-sold-out').checked = baseItem.is_sold_out || false;
+    document.getElementById('menu-is-new').checked = baseItem.is_new || false;
 
     // Reset size settings
     document.getElementById('menu-has-s').checked = false;
@@ -352,6 +362,7 @@ window.saveAdminMenu = async function (event) {
     const description = document.getElementById('menu-description').value;
     const is_best_seller = document.getElementById('menu-is-best-seller').checked;
     const is_sold_out = document.getElementById('menu-is-sold-out').checked;
+    const is_new = document.getElementById('menu-is-new').checked;
 
     const sizesConfig = [
         { size: 'S', active: document.getElementById('menu-has-s').checked, price: Number(document.getElementById('menu-price-s').value.replace(/\D/g, '')) || 0 },
@@ -397,6 +408,7 @@ window.saveAdminMenu = async function (event) {
                     description,
                     is_best_seller,
                     is_sold_out,
+                    is_new,
                     image: finalImgString,
                     ingredients: existing ? existing.ingredients : defaultIngredients,
                     steps_detail: existing ? existing.steps_detail : defaultSteps,
