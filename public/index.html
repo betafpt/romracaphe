@@ -874,8 +874,8 @@
                                 <label class="font-black text-sm uppercase block mb-2">Hình thức thanh toán:</label>
                                 <select id="cart-payment-method" class="w-full h-12 px-3 border-4 border-black font-bold focus:outline-none focus:translate-y-1 shadow-[4px_4px_0_0_#000] focus:shadow-[0_0_0_0_#000] transition-all cursor-pointer bg-white">
                                     <option value="cash">Tiền mặt tại quầy</option>
-                                    <option value="transfer">Chuyển khoản (Xác nhận thủ công)</option>
-                                    <option value="payos">Chuyển khoản tự động (PayOS - Nhanh chóng)</option>
+                                    <option value="transfer">Chuyển khoản / Quét QR (Thủ công)</option>
+                                    <option value="payos" style="display: none;" disabled>Chuyển khoản tự động (Tạm bảo trì)</option>
                                 </select>
                             </div>
                             <div class="mb-4">
@@ -907,6 +907,10 @@
                         <div id="cart-qr-container" class="hidden flex-col items-center w-full mb-4">
                             <p id="qr-title" class="font-bold text-sm mb-2 text-gray-800 uppercase bg-yellow-300 w-full p-2 border-4 border-black text-center">Quét mã VietQR để thanh toán</p>
                             <img id="cart-qr-img" src="" alt="Mã VietQR" class="w-48 h-48 object-contain border-4 border-black shadow-[4px_4px_0_0_#000] bg-white p-2 mb-2" />
+                            <button id="download-qr-btn" onclick="window.downloadQR()" class="w-48 bg-black text-white px-4 py-2 font-bold text-xs border-2 border-black hover:bg-white hover:text-black hover:shadow-[2px_2px_0_0_#000] transition-all flex items-center justify-center gap-2 mb-2 hidden">
+                                <span class="material-symbols-outlined text-[16px]">download</span>
+                                TẢI MÃ QR
+                            </button>
                             
                             <div id="payos-checkout-btn-container" class="w-full hidden flex-col mb-2">
                                 <p class="font-bold text-xs text-center w-full mt-2 text-gray-800 bg-yellow-200 border-2 border-black p-1 uppercase">MỞ NHANH APP NGÂN HÀNG (DEEP LINK)</p>
@@ -3475,6 +3479,25 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
             }
         };
 
+        window.downloadQR = async function() {
+            const imgEl = document.getElementById('cart-qr-img');
+            if(!imgEl || !imgEl.src) return;
+            try {
+                const response = await fetch(imgEl.src);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `RomraCafe_QR_${new Date().getTime()}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch(err) {
+                showToast("Không thể tải ảnh: " + err.message, "error");
+            }
+        };
+
         window.submitCartOrder = async function () {
             if (window.currentCart.length === 0) {
                 showToast("Giỏ hàng rỗng!", "warning");
@@ -3514,10 +3537,13 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                 const btnContainer = document.getElementById('payos-checkout-btn-container');
                 const instruction = document.getElementById('payment-instruction');
                 const qrTitle = document.getElementById('qr-title');
+                const downloadBtn = document.getElementById('download-qr-btn');
                 const orderId = data.orderId;
 
                 qrImg.classList.remove('hidden');
                 btnContainer.classList.add('hidden');
+                btnContainer.classList.remove('flex');
+                if (downloadBtn) { downloadBtn.classList.add('hidden'); downloadBtn.classList.remove('flex'); }
                 qrTitle.innerHTML = "Quét mã VietQR để thanh toán";
 
                 if (paymentMethod === 'transfer') {
@@ -3534,6 +3560,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                     qrImg.src = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}&t=${timestamp}`;
                     instruction.innerHTML = `Techcombank: ${bankInfo.accountNo}<br>${bankInfo.accountName}`;
                     
+                    if (downloadBtn) { downloadBtn.classList.remove('hidden'); downloadBtn.classList.add('flex'); }
                     qrContainer.classList.remove('hidden');
                     qrContainer.classList.add('flex');
                     successMsg.innerHTML = "Nhân viên sẽ chuẩn bị món ngay khi bạn hoàn tất thanh toán.";
