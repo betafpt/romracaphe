@@ -8,6 +8,14 @@ const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
 const UAParser = require('ua-parser-js');
+const PayOSModule = require('@payos/node');
+const PayOS = PayOSModule.PayOS || PayOSModule.default || PayOSModule;
+
+const payos = new PayOS({
+  clientId: process.env.PAYOS_CLIENT_ID || '7dadb264-b04a-49d5-924f-3ef465b0e394',
+  apiKey: process.env.PAYOS_API_KEY || 'cd36b13d-d269-4e77-98bb-6546042d4028',
+  checksumKey: process.env.PAYOS_CHECKSUM_KEY || 'b9bc139250a3f68030eb9438a248e267335e70f9dcd7c58506db8ecaeecc0cbc'
+});
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -670,6 +678,75 @@ app.post('/api/orders', async (req, res) => {
         res.json({ success: true, orderId: orderData.id });
     } catch (e) {
         console.error('Order Error:', e);
+    }
+});
+
+// --- PAYOS INTEGRATION ---
+
+// Tạo link thanh toán
+app.post('/api/payos/create-payment-link', async (req, res) => {
+    try {
+        const { orderId, amount, description, returnUrl, cancelUrl } = req.body;
+        if (!orderId || !amount) {
+            return res.status(400).json({ success: false, error: "Thiếu orderId hoặc amount" });
+        }
+
+        const domain = req.protocol + '://' + req.get('host');
+        const safeDescription = (description || `Thanh toan don ${orderId}`).substring(0, 25).replace(/[^a-zA-Z0-9 ]/g, '');
+
+        const body = {
+            orderCode: Number(orderId),
+            amount: Number(amount),
+            description: safeDescription,
+            cancelUrl: cancelUrl || domain,
+            returnUrl: returnUrl || domain
+        };
+
+        const paymentLinkResponse = await payos.paymentRequests.create(body);
+        
+        res.json({
+            success: true,
+            checkoutUrl: paymentLinkResponse.checkoutUrl,
+            paymentLinkId: paymentLinkResponse.paymentLinkId,
+            qrInfo: {
+                bin: paymentLinkResponse.bin,
+                accountNumber: paymentLinkResponse.accountNumber,
+                accountName: paymentLinkResponse.accountName,
+                amount: paymentLinkResponse.amount,
+                description: paymentLinkResponse.description
+            }
+        });
+    } catch (error) {
+        console.error("PayOS Create Payment Link Error:", error.message || error);
+        res.status(500).json({ success: false, error: "Lỗi tạo link thanh toán PayOS: " + (error.message || "") });
+    }
+});
+
+// Webhook xử lý cập nhật trạng thái đơn hàng khi PayOS gọi về
+app.post('/api/payos/webhook', async (req, res) => {
+    try {
+        const webhookData = payos.webhooks.verify(req.body);
+
+        if (webhookData && webhookData.code === '00') {
+            const orderId = webhookData.orderCode;
+            
+            // Cập nhật trạng thái đơn trên Supabase thành completed (hoặc paid tùy thiết lập của bạn)
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: 'completed' })
+                .eq('id', orderId);
+
+            if (error) {
+                console.error("Supabase Error Update Order:", error);
+            } else {
+                console.log(`Đã cập nhật đơn hàng ${orderId} thành completed qua PayOS webhook.`);
+            }
+        }
+
+        res.json({ success: true, message: "Webhook processed" });
+    } catch (error) {
+        console.error("PayOS Webhook Error:", error);
+        res.status(400).json({ success: false, error: "Webhook verification failed" });
     }
 });
 

@@ -874,7 +874,8 @@
                                 <label class="font-black text-sm uppercase block mb-2">Hình thức thanh toán:</label>
                                 <select id="cart-payment-method" class="w-full h-12 px-3 border-4 border-black font-bold focus:outline-none focus:translate-y-1 shadow-[4px_4px_0_0_#000] focus:shadow-[0_0_0_0_#000] transition-all cursor-pointer bg-white">
                                     <option value="cash">Tiền mặt tại quầy</option>
-                                    <option value="transfer">Chuyển khoản (VietQR)</option>
+                                    <option value="transfer">Chuyển khoản (Xác nhận thủ công)</option>
+                                    <option value="payos">Chuyển khoản tự động (PayOS - Nhanh chóng)</option>
                                 </select>
                             </div>
                             <div class="mb-4">
@@ -904,14 +905,23 @@
                         
                         <!-- QR Code Container -->
                         <div id="cart-qr-container" class="hidden flex-col items-center w-full mb-4">
-                            <p class="font-bold text-sm mb-2 text-gray-800 uppercase bg-yellow-300 w-full p-2 border-4 border-black">Quét mã VietQR để thanh toán</p>
-                            <img id="cart-qr-img" src="" alt="Mã VietQR Thanh Toán" class="w-48 h-48 object-contain border-4 border-black shadow-[4px_4px_0_0_#000] bg-white p-2 mb-2" />
-                            <p class="font-bold text-xs text-center border-2 border-dashed border-gray-400 p-2 italic w-full">Techcombank: 870788888888<br>Nguyen Hong Minh Giang</p>
+                            <p id="qr-title" class="font-bold text-sm mb-2 text-gray-800 uppercase bg-yellow-300 w-full p-2 border-4 border-black text-center">Quét mã VietQR để thanh toán</p>
+                            <img id="cart-qr-img" src="" alt="Mã VietQR" class="w-48 h-48 object-contain border-4 border-black shadow-[4px_4px_0_0_#000] bg-white p-2 mb-2" />
+                            
+                            <div id="payos-checkout-btn-container" class="w-full hidden mb-2">
+                                <a id="payos-checkout-btn" href="#" target="_blank" class="w-full bg-[#0821D2] text-white border-4 border-black font-heading font-black text-lg py-3 hover:bg-yellow-300 hover:text-black hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined">account_balance_wallet</span>
+                                    MỞ APP NGÂN HÀNG
+                                </a>
+                                <p class="font-bold text-[11px] text-center w-full mt-2 text-gray-600">Hỗ trợ tự động điền sẵn số tiền và mã hóa đơn để thanh toán an toàn.</p>
+                            </div>
+
+                            <p id="payment-instruction" class="font-bold text-xs text-center border-2 border-dashed border-gray-400 p-2 italic w-full mt-2"></p>
                         </div>
 
-                        <p id="cart-success-msg" class="font-bold text-lg mb-6 text-gray-800">Cảm ơn bạn đã đặt món.<br>Vui lòng chờ trong giây lát nhé!</p>
+                        <p id="cart-success-msg" class="font-bold text-lg mb-6 text-gray-800 text-center">Cảm ơn bạn đã đặt món.<br>Vui lòng chờ trong giây lát nhé!</p>
                         
-                        <button onclick="window.closeSuccessModal()" class="w-full bg-black text-white border-4 border-black font-heading font-black text-xl py-4 hover:bg-primary hover:text-black hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all mt-auto shrink-0">
+                        <button onclick="window.closeSuccessModal()" class="w-full bg-black text-white border-4 border-black font-heading font-black text-xl py-4 hover:bg-primary hover:text-black hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all mt-auto shrink-0 uppercase">
                             TUYỆT VỜI
                         </button>
                     </div>
@@ -2914,8 +2924,15 @@
                         let bgColor = 'bg-white';
                         let actionBtn = '';
                         let verifyBtn = '';
-                        let paymentBadgeBorder = order.payment_method === 'transfer' ? 'border-[#4A235A] bg-[#E8DAEF] text-[#4A235A]' : 'border-green-800 bg-green-100 text-green-800';
-                        let paymentText = order.payment_method === 'transfer' ? 'CK VIETQR' : 'TIỀN MẶT';
+                        let paymentBadgeBorder = 'border-green-800 bg-green-100 text-green-800';
+                        let paymentText = 'TIỀN MẶT';
+                        if (order.payment_method === 'transfer') {
+                            paymentBadgeBorder = 'border-[#4A235A] bg-[#E8DAEF] text-[#4A235A]';
+                            paymentText = 'CK VIETQR';
+                        } else if (order.payment_method === 'payos') {
+                            paymentBadgeBorder = 'border-[#0821D2] bg-blue-100 text-[#0821D2]';
+                            paymentText = 'CK PAYOS';
+                        }
 
                         // Cấu hình Nút bấm dựa trên trạng thái hóa đơn
                         const isApp = order.platform && order.platform !== 'local';
@@ -2966,6 +2983,10 @@
                                 verifyBtn = `<button class="w-full bg-purple-600 text-white text-xs font-bold py-2 border-2 border-black mt-2 hover:bg-purple-700 active:scale-95 transition-transform blink-btn" onclick="this.innerHTML='✓ ĐÃ NHẬN TIỀN CK'; this.classList.replace('bg-purple-600','bg-green-600'); this.classList.replace('text-white','text-white'); this.classList.remove('blink-btn');">CHƯA THẤY TIỀN? (BẤM ĐỂ DUYỆT)</button>`;
                             } else if (order.payment_method === 'transfer' && order.status === 'completed') {
                                 verifyBtn = `<div class="w-full bg-green-600 text-white text-xs font-bold py-1 text-center border-2 border-black mt-2 opacity-50">✓ ĐÃ THU TIỀN</div>`;
+                            } else if (order.payment_method === 'payos' && order.status !== 'completed') {
+                                verifyBtn = `<div class="w-full bg-[#0821D2] text-white text-xs font-bold py-2 text-center border-2 border-black mt-2 blink-btn">⏳ ĐANG CHỜ PAYOS BÁO...</div>`;
+                            } else if (order.payment_method === 'payos' && order.status === 'completed') {
+                                verifyBtn = `<div class="w-full bg-green-600 text-white text-xs font-bold py-1 text-center border-2 border-black mt-2 font-black shadow-[4px_4px_0_0_#000]">✓ ĐÃ THU TỰ ĐỘNG</div>`;
                             }
                         }
 
@@ -3481,27 +3502,73 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
 
                 // 3. Chuẩn bị Modal Thành công
                 const qrContainer = document.getElementById('cart-qr-container');
-                const qrImg = document.getElementById('cart-qr-img');
                 const successMsg = document.getElementById('cart-success-msg');
+                const qrImg = document.getElementById('cart-qr-img');
+                const btnContainer = document.getElementById('payos-checkout-btn-container');
+                const instruction = document.getElementById('payment-instruction');
+                const qrTitle = document.getElementById('qr-title');
+                const orderId = data.orderId;
+
+                qrImg.classList.remove('hidden');
+                btnContainer.classList.add('hidden');
+                qrTitle.innerHTML = "Quét mã VietQR để thanh toán";
 
                 if (paymentMethod === 'transfer') {
-                    // Generate VietQR Link
+                    // Generate VietQR Link (Static)
                     const bankInfo = {
                         bin: 'techcombank',
                         accountNo: '870788888888',
                         accountName: 'Nguyen Hong Minh Giang'
                     };
-                    const addInfo = encodeURIComponent('Thanh toan RRC');
-                    const qrUrl = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
-
-                    qrImg.src = qrUrl;
+                    const addInfo = encodeURIComponent('Thanh toan don ' + orderId);
+                    
+                    // Thêm tham số timestamp để báo trình duyệt chống lưu cache ảnh cũ
+                    const timestamp = new Date().getTime();
+                    qrImg.src = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}&t=${timestamp}`;
+                    instruction.innerHTML = `Techcombank: ${bankInfo.accountNo}<br>${bankInfo.accountName}`;
+                    
                     qrContainer.classList.remove('hidden');
                     qrContainer.classList.add('flex');
-                    successMsg.innerHTML = "Nhân viên sẽ chuẩn bị món ngay khi nhận được thanh toán.";
+                    successMsg.innerHTML = "Nhân viên sẽ chuẩn bị món ngay khi bạn hoàn tất thanh toán.";
+                } else if (paymentMethod === 'payos') {
+                    // Create PayOS Link
+                    const linkRes = await fetch('/api/payos/create-payment-link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            orderId: orderId,
+                            amount: totalPrice,
+                            description: `Thanh toan don ${orderId}`
+                        })
+                    });
+                    
+                    const payosData = await linkRes.json();
+                    
+                    qrContainer.classList.remove('hidden');
+                    qrContainer.classList.add('flex');
+                    qrTitle.innerHTML = "Thanh toán tự động trực tuyến";
+                    
+                    if (payosData.success && payosData.checkoutUrl) {
+                        qrImg.classList.remove('hidden');
+                        btnContainer.classList.remove('hidden');
+                        
+                        const info = payosData.qrInfo;
+                        const addInfo = encodeURIComponent(info.description);
+                        const accountName = encodeURIComponent(info.accountName);
+                        const timestamp = new Date().getTime();
+                        qrImg.src = `https://img.vietqr.io/image/${info.bin}-${info.accountNumber}-compact.jpg?amount=${info.amount}&addInfo=${addInfo}&accountName=${accountName}&t=${timestamp}`;
+                        
+                        document.getElementById('payos-checkout-btn').href = payosData.checkoutUrl;
+                        instruction.innerHTML = `Ngân hàng: ${info.bin}<br>STK: ${info.accountNumber}<br>Tên: ${info.accountName}`;
+                        successMsg.innerHTML = "Hệ thống sẽ tự động xác nhận đơn sau khi bạn thanh toán.";
+                    } else {
+                        successMsg.innerHTML = "Không thể tạo mã thanh toán tự động, vui lòng liên hệ nhân viên.";
+                        instruction.innerHTML = "Lỗi tạo Payment Link";
+                    }
                 } else {
                     qrContainer.classList.add('hidden');
                     qrContainer.classList.remove('flex');
-                    successMsg.innerHTML = "Cảm ơn bạn đã đặt món.<br>Vui lòng thanh toán tiền mặt tại quầy bằng mã QR này hoặc mã bill (sẽ làm sau).";
+                    successMsg.innerHTML = "Cảm ơn bạn đã đặt món.<br>Vui lòng thanh toán tiền mặt tại quầy bằng mã bill.";
                 }
 
                 // Hiện Modal Thành Công với hiệu ứng tĩnh
