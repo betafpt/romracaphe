@@ -708,6 +708,7 @@ app.post('/api/payos/create-payment-link', async (req, res) => {
             success: true,
             checkoutUrl: paymentLinkResponse.checkoutUrl,
             paymentLinkId: paymentLinkResponse.paymentLinkId,
+            qrCode: paymentLinkResponse.qrCode, // Added qrCode
             qrInfo: {
                 bin: paymentLinkResponse.bin,
                 accountNumber: paymentLinkResponse.accountNumber,

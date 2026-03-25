@@ -908,12 +908,19 @@
                             <p id="qr-title" class="font-bold text-sm mb-2 text-gray-800 uppercase bg-yellow-300 w-full p-2 border-4 border-black text-center">Quét mã VietQR để thanh toán</p>
                             <img id="cart-qr-img" src="" alt="Mã VietQR" class="w-48 h-48 object-contain border-4 border-black shadow-[4px_4px_0_0_#000] bg-white p-2 mb-2" />
                             
-                            <div id="payos-checkout-btn-container" class="w-full hidden mb-2">
-                                <a id="payos-checkout-btn" href="#" target="_blank" class="w-full bg-[#0821D2] text-white border-4 border-black font-heading font-black text-lg py-3 hover:bg-yellow-300 hover:text-black hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all flex items-center justify-center gap-2">
-                                    <span class="material-symbols-outlined">account_balance_wallet</span>
-                                    MỞ APP NGÂN HÀNG
+                            <div id="payos-checkout-btn-container" class="w-full hidden flex-col mb-2">
+                                <p class="font-bold text-xs text-center w-full mt-2 text-gray-800 bg-yellow-200 border-2 border-black p-1 uppercase">MỞ NHANH APP NGÂN HÀNG (DEEP LINK)</p>
+                                <div class="grid grid-cols-2 gap-2 mt-2 w-full" id="bank-deeplinks">
+                                    <a id="dl-vcb" href="#" target="_blank" class="bg-[#74B72E] text-white border-2 border-black font-black text-xs py-3 shadow-[2px_2px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-center">Vietcombank</a>
+                                    <a id="dl-mb" href="#" target="_blank" class="bg-[#121EAB] text-white border-2 border-black font-black text-xs py-3 shadow-[2px_2px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-center">MBBank</a>
+                                    <a id="dl-tcb" href="#" target="_blank" class="bg-[#E41920] text-white border-2 border-black font-black text-xs py-3 shadow-[2px_2px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-center">Techcombank</a>
+                                    <a id="dl-acb" href="#" target="_blank" class="bg-[#005B9F] text-white border-2 border-black font-black text-xs py-3 shadow-[2px_2px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-center">ACB</a>
+                                </div>
+                                <a id="payos-checkout-btn" href="#" target="_blank" class="w-full bg-gray-200 mt-2 text-black border-2 border-dashed border-black font-heading font-black text-sm py-2 hover:bg-gray-300 hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                                    MỞ QUA CỔNG PAYOS
                                 </a>
-                                <p class="font-bold text-[11px] text-center w-full mt-2 text-gray-600">Hỗ trợ tự động điền sẵn số tiền và mã hóa đơn để thanh toán an toàn.</p>
+                                <p class="font-bold text-[11px] text-center w-full mt-2 text-gray-600">Chọn ngân hàng của bạn ở trên để điện thoại tự động mở app và điền giá tiền.</p>
                             </div>
 
                             <p id="payment-instruction" class="font-bold text-xs text-center border-2 border-dashed border-gray-400 p-2 italic w-full mt-2"></p>
@@ -3551,6 +3558,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                     if (payosData.success && payosData.checkoutUrl) {
                         qrImg.classList.remove('hidden');
                         btnContainer.classList.remove('hidden');
+                        btnContainer.classList.add('flex');
                         
                         const info = payosData.qrInfo;
                         const addInfo = encodeURIComponent(info.description);
@@ -3559,8 +3567,16 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                         qrImg.src = `https://img.vietqr.io/image/${info.bin}-${info.accountNumber}-compact.jpg?amount=${info.amount}&addInfo=${addInfo}&accountName=${accountName}&t=${timestamp}`;
                         
                         document.getElementById('payos-checkout-btn').href = payosData.checkoutUrl;
+                        
+                        // Khởi tạo link Deeplink cho bộ nút App-to-App
+                        const dlParams = `ba=${info.accountNumber}@${info.bin}&am=${info.amount}&tn=${addInfo}`;
+                        document.getElementById('dl-vcb').href = `https://dl.vietqr.io/pay?app=vcb&${dlParams}`;
+                        document.getElementById('dl-mb').href = `https://dl.vietqr.io/pay?app=mb&${dlParams}`;
+                        document.getElementById('dl-tcb').href = `https://dl.vietqr.io/pay?app=tcb&${dlParams}`;
+                        document.getElementById('dl-acb').href = `https://dl.vietqr.io/pay?app=acb&${dlParams}`;
+
                         instruction.innerHTML = `Ngân hàng: ${info.bin}<br>STK: ${info.accountNumber}<br>Tên: ${info.accountName}`;
-                        successMsg.innerHTML = "Hệ thống sẽ tự động xác nhận đơn sau khi bạn thanh toán.";
+                        successMsg.innerHTML = "Hệ thống sẽ tự động ghi nhận đơn sau khi thanh toán thành công.";
                     } else {
                         successMsg.innerHTML = "Không thể tạo mã thanh toán tự động, vui lòng liên hệ nhân viên.";
                         instruction.innerHTML = "Lỗi tạo Payment Link";
