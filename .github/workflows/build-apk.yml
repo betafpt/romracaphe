@@ -19,11 +19,13 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: 8.5
-          cache-disabled: true
+      - name: Install Gradle 8.5 from GitHub Mirror
+        run: |
+          mkdir -p opt/gradle
+          curl -L -o gradle.zip https://github.com/gradle/gradle/releases/download/v8.5.0/gradle-8.5-bin.zip
+          unzip -d opt/gradle gradle.zip
+          echo "$GITHUB_WORKSPACE/opt/gradle/gradle-8.5/bin" >> $GITHUB_PATH
+          rm gradle.zip
 
       - name: Build Debug APK
         run: |

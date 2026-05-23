@@ -3966,8 +3966,56 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
             }
         }
 
+        // ================= ANDROID VERSION CHECKER =================
+        function showUpdateNotification(versionName, apkUrl, releaseNotes) {
+            if (document.getElementById('android-update-modal')) return;
+
+            const modal = document.createElement('div');
+            modal.id = 'android-update-modal';
+            modal.className = 'fixed inset-0 flex items-center justify-center p-4 bg-black/60 z-[99999]';
+            modal.innerHTML = `
+                <div class="brutal-card w-full max-w-md p-6 flex flex-col gap-4 bg-[#fffbeb] brutal-border shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-black" style="z-index: 100000;">
+                    <div class="flex items-center gap-3 border-b-4 border-black pb-3">
+                        <span class="material-symbols-outlined text-4xl text-amber-500 animate-bounce">system_update</span>
+                        <h3 class="text-2xl font-black font-heading uppercase tracking-tight">CẬP NHẬT ỨNG DỤNG!</h3>
+                    </div>
+                    <p class="text-slate-800 font-bold text-lg">Đã có phiên bản ứng dụng Android mới: <span class="bg-black text-white px-2 py-0.5 rounded font-mono">${versionName}</span></p>
+                    ${releaseNotes ? `
+                    <div class="border-4 border-black p-3 bg-white text-sm font-semibold max-h-32 overflow-y-auto">
+                        <p class="font-bold uppercase text-slate-500 mb-1">Nội dung cập nhật:</p>
+                        <p class="whitespace-pre-line text-slate-700">${releaseNotes}</p>
+                    </div>
+                    ` : ''}
+                    <p class="text-xs text-slate-600 font-semibold italic">* Lưu ý: Vui lòng cài đặt bản cập nhật mới nhất để kích hoạt logo chính thức, thay đổi tên ứng dụng ngắn gọn và tăng độ ổn định in ấn.</p>
+                    <div class="flex gap-3 mt-2">
+                        <button onclick="document.getElementById('android-update-modal').remove()" class="brutal-btn brutal-btn-secondary py-3 flex-1 font-bold text-center border-4 border-black active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">ĐỂ SAU</button>
+                        <a href="${apkUrl}" onclick="document.getElementById('android-update-modal').remove()" class="brutal-btn brutal-btn-primary py-3 flex-1 font-bold text-center border-4 border-black block bg-[#ffd600] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[0px_0px_0px_0px_rgba(0,0,0,1)] transition-all text-center leading-normal">CẬP NHẬT NGAY</a>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function checkAndroidAppUpdate() {
+            if (window.AndroidPrint && typeof window.AndroidPrint.getAppVersionCode === 'function') {
+                try {
+                    const currentVersionCode = window.AndroidPrint.getAppVersionCode();
+                    const res = await fetch('/apk-version.json');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.latestVersionCode > currentVersionCode) {
+                            showUpdateNotification(data.latestVersionName, data.apkUrl || '/RomRaPOS.apk', data.releaseNotes);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Lỗi kiểm tra cập nhật ứng dụng Android:", e);
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             window.loadGlobalTheme();
+            checkAndroidAppUpdate();
         });
 
         // Simple Mobile Drawer Logic

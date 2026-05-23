@@ -140,6 +140,72 @@ $EscapedSdkDir = $SdkDir -replace '\\', '\\\\'
 # Cho phep chay tiep neu gradle co xuat thong tin ra luong stderr
 $ErrorActionPreference = "Continue"
 
+# 4.5. Dong bo va thiet lap Logo ung dung tu public/img/logo.png
+Write-Host "[4.5] Dang dong bo va thiet lap Logo ung dung..." -ForegroundColor Yellow
+$LogoSource = Join-Path $PSScriptRoot "public\img\logo.png"
+$ResDir = Join-Path $PSScriptRoot "android-app\app\src\main\res"
+
+if (Test-Path $LogoSource) {
+    # Dinh nghia ham resize anh an toan bang .NET
+    $ResizeScript = {
+        param (
+            [string]$SourcePath,
+            [string]$TargetPath,
+            [int]$Width,
+            [int]$Height
+        )
+        try {
+            Add-Type -AssemblyName System.Drawing
+            $srcBmp = [System.Drawing.Image]::FromFile($SourcePath)
+            $destBmp = New-Object System.Drawing.Bitmap($Width, $Height)
+            $g = [System.Drawing.Graphics]::FromImage($destBmp)
+            
+            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+            $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+            
+            $g.DrawImage($srcBmp, 0, 0, $Width, $Height)
+            $destBmp.Save($TargetPath, [System.Drawing.Imaging.ImageFormat]::Png)
+            
+            $g.Dispose()
+            $destBmp.Dispose()
+            $srcBmp.Dispose()
+        } catch {
+            # Fallback neu co loi .NET
+            Copy-Item -Path $SourcePath -Destination $TargetPath -Force
+        }
+    }
+
+    # Cac kich thuoc mipmap cua Android
+    $Mipmaps = @(
+        @{ Dir = "mipmap-mdpi"; Size = 48 },
+        @{ Dir = "mipmap-hdpi"; Size = 72 },
+        @{ Dir = "mipmap-xhdpi"; Size = 96 },
+        @{ Dir = "mipmap-xxhdpi"; Size = 144 },
+        @{ Dir = "mipmap-xxxhdpi"; Size = 192 }
+    )
+
+    foreach ($mip in $Mipmaps) {
+        $TargetDir = Join-Path $ResDir $mip.Dir
+        if (!(Test-Path $TargetDir)) {
+            New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+        }
+        $TargetFile = Join-Path $TargetDir "ic_launcher.png"
+        & $ResizeScript -SourcePath $LogoSource -TargetPath $TargetFile -Width $mip.Size -Height $mip.Size
+    }
+    
+    # Tao thu muc drawable va copy logo goc vao do
+    $DrawableDir = Join-Path $ResDir "drawable"
+    if (!(Test-Path $DrawableDir)) {
+        New-Item -ItemType Directory -Force -Path $DrawableDir | Out-Null
+    }
+    Copy-Item -Path $LogoSource -Destination (Join-Path $DrawableDir "logo.png") -Force
+
+    Write-Host "Dong bo logo va tao cac thu muc mipmap thanh cong!" -ForegroundColor Green
+} else {
+    Write-Host "Canh bao: Khong tim thay logo nguon tai $LogoSource. Bo qua buoc thiet lap logo." -ForegroundColor Yellow
+}
+
 # 5. Tien hanh build APK tu thu muc android-app
 Write-Host ""
 Write-Host "=== DANG BAT DAU BIEN DICH FILE APK (ASSEMBLE DEBUG) ===" -ForegroundColor Cyan
@@ -166,11 +232,18 @@ try {
     
     if (Test-Path $ApkPath) {
         Copy-Item -Path $ApkPath -Destination $DestApk -Force
+        
+        # Copy file APK vao thu muc public de ho tro tai online
+        $WebApk = Join-Path $PSScriptRoot "public\RomRaPOS.apk"
+        Copy-Item -Path $ApkPath -Destination $WebApk -Force
+        
         Write-Host ""
         Write-Host "==========================================================" -ForegroundColor Green
         Write-Host "   BUILD APK THANH CONG RUC RO!" -ForegroundColor Green
         Write-Host "   File cai dat cua ban da duoc tao ra tai:" -ForegroundColor Green
         Write-Host "   $DestApk" -ForegroundColor White
+        Write-Host "   Va thu muc Web tinh tai:" -ForegroundColor Green
+        Write-Host "   $WebApk" -ForegroundColor White
         Write-Host "==========================================================" -ForegroundColor Green
     } else {
         Write-Host "Loi: Khong tim thay file APK sau khi build." -ForegroundColor Red

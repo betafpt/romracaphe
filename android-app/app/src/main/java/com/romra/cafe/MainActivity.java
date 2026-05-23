@@ -89,5 +89,23 @@ public class MainActivity extends AppCompatActivity {
                 }
             }).start();
         }
+
+        @JavascriptInterface
+        public int getAppVersionCode() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            } catch (Exception e) {
+                return 1;
+            }
+        }
+
+        @JavascriptInterface
+        public String getAppVersionName() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+                return "1.0";
+            }
+        }
     }
 }
