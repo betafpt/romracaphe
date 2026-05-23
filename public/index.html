@@ -3526,8 +3526,200 @@
             }
         };
 
+        window.printLabelAndroidApp = async function (orderId, singleItemIndex) {
+            try {
+                const order = window.currentOrders?.find(o => o.id === orderId);
+                if (!order) {
+                    if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
+                    return;
+                }
+
+                const isApp = order.platform && order.platform !== 'local';
+                let printItems = [];
+                if (isApp && order.note && order.note.startsWith('{')) {
+                    try {
+                        let appData = JSON.parse(order.note);
+                        if (appData.items) {
+                            printItems = appData.items.map(i => {
+                                let notesArray = [];
+                                if (i.toppings && i.toppings.length > 0) {
+                                    i.toppings.forEach(t => notesArray.push(t));
+                                }
+                                if (i.note) {
+                                    notesArray.push("Ghi chú: " + i.note);
+                                }
+                                return {
+                                    name: i.name,
+                                    quantity: i.quantity,
+                                    size: i.size || '-',
+                                    note: notesArray.join('|')
+                                };
+                            });
+                        }
+                    } catch(e) {
+                        console.error("Lỗi parse order.note in Android App Print:", e);
+                    }
+                } else {
+                    printItems = (order.order_items || []).map(oi => ({
+                        name: oi.recipes?.name || 'Món',
+                        quantity: oi.quantity,
+                        size: oi.recipes?.size || '-',
+                        note: oi.note ? "Ghi chú: " + oi.note : ''
+                    }));
+                }
+
+                // Xây dựng danh sách toàn bộ các tem cốc được in ra của đơn hàng trước khi lọc in lẻ
+                let totalQuantity = printItems.reduce((acc, oi) => acc + (parseInt(oi.quantity) || 1), 0);
+                let tempIndex = 1;
+                const allLabelsToPrint = [];
+
+                printItems.forEach((oi, oiIdx) => {
+                    const qty = parseInt(oi.quantity) || 1;
+                    for (let i = 1; i <= qty; i++) {
+                        allLabelsToPrint.push({
+                            oi,
+                            itemIndex: tempIndex,
+                            totalQuantity: totalQuantity,
+                            originalItemIndex: oiIdx
+                        });
+                        tempIndex++;
+                    }
+                });
+
+                // Lọc in lẻ nếu có singleItemIndex
+                let labelsToRender = allLabelsToPrint;
+                if (singleItemIndex !== undefined) {
+                    const idx = parseInt(singleItemIndex);
+                    labelsToRender = allLabelsToPrint.filter(label => label.originalItemIndex === idx);
+                }
+
+                if (labelsToRender.length === 0) {
+                    if (typeof showToast === 'function') showToast("Không có tem nào để in", "error");
+                    return;
+                }
+
+                // Lấy layout
+                const printConf = localStorage.getItem('romra_print_config_v4');
+                let layout = {
+                    fontFamily: "Arial",
+                    title: { x: 20, y: 20, fontSize: 24, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    divider: { x: 20, y: 48, width: 360, height: 3, style: 'solid', visible: true },
+                    itemName: { x: 20, y: 60, fontSize: 28, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    size: { x: 20, y: 125, fontSize: 20, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    note: { x: 20, y: 155, fontSize: 16, fontWeight: 'normal', fontStyle: 'normal', visible: true },
+                    timeStr: { x: 20, y: 200, fontSize: 18, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    indexStr: { x: 310, y: 200, fontSize: 18, fontWeight: 'bold', fontStyle: 'normal', visible: true }
+                };
+                if (printConf) {
+                    try {
+                        const parsed = JSON.parse(printConf);
+                        if (parsed.layout) layout = { ...layout, ...parsed.layout };
+                    } catch(e) {}
+                }
+                const fontName = layout.fontFamily || 'Arial';
+
+                // Chờ font ready
+                if (document.fonts) {
+                    await document.fonts.ready;
+                }
+
+                const encoder = new TextEncoder();
+                let allLabelsBuffers = [];
+
+                // Duyệt qua từng tem để vẽ và xuất dữ liệu bitmap monochrome TSPL thô riêng lẻ khổ 50x30mm
+                labelsToRender.forEach((labelInfo, idx) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 400; // 50mm tại 203 DPI (8 dots/mm)
+                    canvas.height = 240; // 30mm tại 203 DPI (8 dots/mm)
+                    const ctx = canvas.getContext('2d');
+
+                    // 1. Vẽ nền trắng
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, 400, 240);
+
+                    // 2. Vẽ tem lên canvas (tọa độOffsetY luôn là 0)
+                    window.drawLabelFrontend(order, labelInfo.oi, layout, labelInfo.itemIndex, labelInfo.totalQuantity, ctx, 0, fontName);
+
+                    // 3. Chuyển đổi dữ liệu Canvas sang mảng byte monochrome TSPL thô (1 bit/pixel)
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    const imgData = ctx.getImageData(0, 0, width, height).data;
+
+                    const bytesPerRow = 50; // 400 / 8
+                    const tsplData = new Uint8Array(bytesPerRow * height);
+                    tsplData.fill(255); // Mặc định ban đầu điền đầy 0xFF (màu trắng, không in mực)
+
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const pixelIdx = (y * width + x) * 4;
+                            const alpha = imgData[pixelIdx + 3];
+                            let luma = 255;
+                            if (alpha > 50) {
+                                luma = (imgData[pixelIdx] + imgData[pixelIdx + 1] + imgData[pixelIdx + 2]) / 3;
+                            }
+                            if (luma < 200) {
+                                const byteIdx = y * bytesPerRow + Math.floor(x / 8);
+                                const bitIdx = 7 - (x % 8);
+                                tsplData[byteIdx] &= ~(1 << bitIdx); // Xóa bit về 0 để in mực đen
+                            }
+                        }
+                    }
+
+                    // 4. Tạo lệnh in cho 1 tem này (Khổ 50x30mm, bật tự động xé SET TEAR ON, in xuôi DIRECTION 0,0)
+                    const headerText = `SIZE 50 mm,30 mm\r\n` +
+                                       `GAP 2 mm,0 mm\r\n` +
+                                       `SET TEAR ON\r\n` +
+                                       `DIRECTION 0,0\r\n` +
+                                       `CLS\r\n` +
+                                       `BITMAP 0,0,50,240,0,`;
+                    const footerText = `\r\nPRINT 1,1\r\n`;
+
+                    const headerBytes = encoder.encode(headerText);
+                    const footerBytes = encoder.encode(footerText);
+
+                    // Ghép thành buffer cho tem này
+                    const labelBuffer = new Uint8Array(headerBytes.length + tsplData.length + footerBytes.length);
+                    labelBuffer.set(headerBytes, 0);
+                    labelBuffer.set(tsplData, headerBytes.length);
+                    labelBuffer.set(footerBytes, headerBytes.length + tsplData.length);
+
+                    allLabelsBuffers.push(labelBuffer);
+                });
+
+                // Nối tất cả các tem lại thành 1 buffer duy nhất gửi đi
+                let totalLength = allLabelsBuffers.reduce((sum, buf) => sum + buf.length, 0);
+                const finalBuffer = new Uint8Array(totalLength);
+                let currentOffset = 0;
+                allLabelsBuffers.forEach(buf => {
+                    finalBuffer.set(buf, currentOffset);
+                    currentOffset += buf.length;
+                });
+
+                // Mã hóa Base64
+                let binary = '';
+                const len = finalBuffer.byteLength;
+                for (let i = 0; i < len; i++) {
+                    binary += String.fromCharCode(finalBuffer[i]);
+                }
+                const base64Data = window.btoa(binary);
+
+                const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
+                if (typeof showToast === 'function') showToast("Đang in trực tiếp qua App POS...", "success");
+
+                // Gọi cầu nối Java của ứng dụng Android WebView
+                window.AndroidPrint.printSocket(printerIP, 9100, base64Data);
+
+            } catch (e) {
+                console.error("Lỗi in trực tiếp qua App Android:", e);
+                if (typeof showToast === 'function') showToast("Lỗi in qua App: " + e.message, "error");
+            }
+        };
+
         window.printOrderLabel = async function (orderId) {
             try {
+                if (window.AndroidPrint) {
+                    return window.printLabelAndroidApp(orderId);
+                }
                 if (localStorage.getItem('romra_system_print_label') === 'true') {
                     return window.printLabelSystem(orderId);
                 }
@@ -3569,6 +3761,9 @@
 
         window.printSingleLabel = async function (orderId, itemIndex) {
             try {
+                if (window.AndroidPrint) {
+                    return window.printLabelAndroidApp(orderId, itemIndex);
+                }
                 if (localStorage.getItem('romra_system_print_label') === 'true') {
                     return window.printLabelSystem(orderId, itemIndex);
                 }
