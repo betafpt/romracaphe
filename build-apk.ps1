@@ -140,9 +140,9 @@ $EscapedSdkDir = $SdkDir -replace '\\', '\\\\'
 # Cho phep chay tiep neu gradle co xuat thong tin ra luong stderr
 $ErrorActionPreference = "Continue"
 
-# 4.5. Dong bo va thiet lap Logo ung dung tu public/img/logo.png
+# 4.5. Dong bo va thiet lap Logo ung dung tu public/icons/icon.png
 Write-Host "[4.5] Dang dong bo va thiet lap Logo ung dung..." -ForegroundColor Yellow
-$LogoSource = Join-Path $PSScriptRoot "public\img\logo.png"
+$LogoSource = Join-Path $PSScriptRoot "public\icons\icon.png"
 $ResDir = Join-Path $PSScriptRoot "android-app\app\src\main\res"
 
 if (Test-Path $LogoSource) {
