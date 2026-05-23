@@ -837,13 +837,13 @@
                 if (query && !nameKey.includes(query)) return;
                 
                 // Lọc theo category
-                if (cat && r.categories?.name !== cat) return;
+                if (cat && r.category !== cat) return;
 
                 if (!grouped[nameKey]) {
                     grouped[nameKey] = {
                         name: r.name,
                         image: r.image,
-                        category: r.categories?.name || 'Món uống',
+                        category: r.category || 'Món uống',
                         variants: []
                     };
                 }
@@ -862,7 +862,14 @@
                 const sizeOrder = { 'S': 1, 'M': 2, 'L': 3 };
                 item.variants.sort((a, b) => (sizeOrder[a.size] || 9) - (sizeOrder[b.size] || 9));
 
-                const imageSrc = item.image || '/img/logo.png';
+                // Parse anh mon và offset tuong tu menu khach hang
+                let displayImg = item.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+                let imgOffsetY = 50;
+                if (displayImg && displayImg.includes('|')) {
+                    const parts = displayImg.split('|');
+                    displayImg = parts[0];
+                    imgOffsetY = parseFloat(parts[1]) || 50;
+                }
 
                 // Tạo các nút chọn size
                 const sizeButtons = item.variants.map(v => {
@@ -873,8 +880,8 @@
 
                 return `
                     <div class="bg-white border-4 border-black shadow-[4px_4px_0_0_#000] flex flex-col p-3 relative hover:scale-[1.01] transition-transform">
-                        <div class="h-28 w-full border-2 border-black overflow-hidden mb-2 bg-slate-100">
-                            <img src="${imageSrc}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.src='/img/logo.png'">
+                        <div class="h-28 w-full border-2 border-black overflow-hidden mb-2 bg-slate-100 relative">
+                            <img src="${displayImg}" alt="${item.name}" style="object-position: center ${imgOffsetY}%" class="w-full h-full object-cover" onerror="this.src='/img/logo.png'">
                         </div>
                         <h4 class="font-extrabold text-sm line-clamp-1 uppercase leading-tight mb-1" title="${item.name}">${item.name}</h4>
                         <span class="text-[10px] font-bold text-gray-500 uppercase border border-gray-300 px-1 py-0.5 self-start mb-2">${item.category}</span>
