@@ -85,6 +85,15 @@ function renderSettings() {
                                 </div>
                             </label>
                         </div>
+                        <div class="border-t border-dashed border-red-300 pt-3">
+                            <label class="flex items-center gap-3 cursor-pointer select-none border-2 border-black p-3 bg-white hover:bg-blue-100 transition-colors">
+                                <input type="checkbox" id="cfg-systemPrintLabel" class="w-6 h-6 border-4 border-black bg-white accent-black" ${localStorage.getItem('romra_system_print_label') === 'true' ? 'checked' : ''}>
+                                <div>
+                                    <span class="font-bold text-sm block uppercase">Bật in tem qua Dịch vụ in Android (Thermal Printer Plugin / NokoPrint)</span>
+                                    <span class="text-xs text-gray-500 font-bold block normal-case mt-0.5">Bật tùy chọn này để in tem trực tiếp bằng hộp thoại in hệ thống của máy tính bảng thông qua Thermal Printer Plugin hoặc NokoPrint.</span>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -679,6 +688,9 @@ function saveVisualPrintConfig() {
     
     const isDirectLan = document.getElementById('cfg-directLanPrint') ? document.getElementById('cfg-directLanPrint').checked : false;
     localStorage.setItem('romra_direct_lan_print', isDirectLan ? 'true' : 'false');
+    
+    const isSystemPrint = document.getElementById('cfg-systemPrintLabel') ? document.getElementById('cfg-systemPrintLabel').checked : false;
+    localStorage.setItem('romra_system_print_label', isSystemPrint ? 'true' : 'false');
     
     if (typeof showToast === 'function') showToast("Đã lưu Cài đặt In ấn & Thiết kế Tem!");
     updateReceiptPreview();
