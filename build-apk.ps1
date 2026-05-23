@@ -98,8 +98,31 @@ if (!(Test-Path $SdkDir)) {
     }
     Remove-Item -Path $BuildToolsZip -Force
     
+    # C. Tu dong chap nhan cac dieu khoan ban quyen Android SDK (Accept Licenses)
+    Write-Host "Dang thiet lap cac dieu khoan ban quyen Android SDK (Accept Licenses)..." -ForegroundColor Yellow
+    $LicensesDir = Join-Path $SdkDir "licenses"
+    if (!(Test-Path $LicensesDir)) {
+        New-Item -ItemType Directory -Force -Path $LicensesDir | Out-Null
+    }
+    $SdkLicenseFile = Join-Path $LicensesDir "android-sdk-license"
+    "8933bad161ad5c72650d9001c28177e058b4f475`r`n24333f8a63b6825ea9c5514f83c2829b004d1fee`rd975f25078a87dd4db4022f16c08a5ae5ab050c9" | Out-File -FilePath $SdkLicenseFile -Encoding ascii -Force
+
+    $PreviewLicenseFile = Join-Path $LicensesDir "android-sdk-preview-license"
+    "84831b9409646a918e30573bab4c9c91346d8abd" | Out-File -FilePath $PreviewLicenseFile -Encoding ascii -Force
+    
     Write-Host "Thiet lap Android SDK thanh cong!" -ForegroundColor Green
 } else {
+    # Neu da co Android SDK san, van thiet lap lai licenses cho chac chan
+    $LicensesDir = Join-Path $SdkDir "licenses"
+    if (!(Test-Path $LicensesDir)) {
+        New-Item -ItemType Directory -Force -Path $LicensesDir | Out-Null
+    }
+    $SdkLicenseFile = Join-Path $LicensesDir "android-sdk-license"
+    "8933bad161ad5c72650d9001c28177e058b4f475`r`n24333f8a63b6825ea9c5514f83c2829b004d1fee`rd975f25078a87dd4db4022f16c08a5ae5ab050c9" | Out-File -FilePath $SdkLicenseFile -Encoding ascii -Force
+
+    $PreviewLicenseFile = Join-Path $LicensesDir "android-sdk-preview-license"
+    "84831b9409646a918e30573bab4c9c91346d8abd" | Out-File -FilePath $PreviewLicenseFile -Encoding ascii -Force
+
     Write-Host "[3/4] Da tim thay Android SDK san co." -ForegroundColor Green
 }
 
