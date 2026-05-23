@@ -179,6 +179,10 @@
                 class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
                 <span class="material-symbols-outlined">restaurant_menu</span> Thực đơn
             </a>
+            <a href="#" data-route="cashier"
+                class="nav-item flex items-center gap-3 p-3 font-bold text-black bg-[#FFD600] hover:bg-black/10 transition-colors border-4 border-transparent my-1">
+                <span class="material-symbols-outlined">shopping_cart</span> BÁN HÀNG
+            </a>
             <a href="#" data-route="pos"
                 class="nav-item flex items-center gap-3 p-3 font-bold text-black bg-[#FEC6E9] hover:bg-black/10 transition-colors border-4 border-transparent animate-pulse my-1">
                 <span class="material-symbols-outlined">point_of_sale</span> Đơn Hàng LIVE
@@ -535,6 +539,10 @@
                 title: 'Tổng quan',
                 render: () => renderDashboard()
             },
+            cashier: {
+                title: 'BÁN HÀNG',
+                render: () => renderCashierMenu()
+            },
             pos: {
                 title: 'Live POS - Quản lý Nhận Đơn',
                 render: () => typeof renderPOS === 'function' ? renderPOS() : null
@@ -584,7 +592,7 @@
             const role = window.currentUserRole;
 
             // Chặn Guest vào các trang nội bộ
-            const adminRoutes = ['dashboard', 'pos', 'inventory', 'roles', 'recipes', 'reports', 'menu_admin', 'settings'];
+            const adminRoutes = ['dashboard', 'pos', 'inventory', 'roles', 'recipes', 'reports', 'menu_admin', 'settings', 'cashier'];
             if ((!role || role === 'guest') && adminRoutes.includes(route)) {
                 route = 'welcome';
             }
@@ -659,6 +667,441 @@
         });
 
         // ================= VIEWS RENDERERS =================
+
+        // ================= CASHIER MODULE (BÁN HÀNG TẠI QUẦY) =================
+        window.cashierCart = [];
+
+        async function renderCashierMenu() {
+            // Load danh mục và các món nếu chưa có trong cache
+            if (!window.publicRecipesCache) {
+                try {
+                    const res = await fetch('/api/recipes');
+                    const json = await res.json();
+                    window.publicRecipesCache = json.data || [];
+                } catch(e) {
+                    window.publicRecipesCache = [];
+                }
+            }
+            if (!window.publicCategoriesCache) {
+                try {
+                    const res = await fetch('/api/categories');
+                    const json = await res.json();
+                    window.publicCategoriesCache = json.data || [];
+                } catch(e) {
+                    window.publicCategoriesCache = [];
+                }
+            }
+
+            appContent.innerHTML = `
+                <div class="flex flex-col lg:flex-row gap-6 p-4 md:p-6 min-h-[calc(100vh-80px)] bg-slate-100 text-black">
+                    <!-- Bên trái: Danh sách các món -->
+                    <div class="flex-1 flex flex-col gap-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border-4 border-black p-4 shadow-[4px_4px_0_0_#000]">
+                            <h2 class="text-xl md:text-2xl font-black font-heading uppercase">Thực đơn bán hàng tại quầy</h2>
+                            <div class="relative w-full sm:w-72">
+                                <input type="text" id="cashier-search" placeholder="Tìm món nhanh..." oninput="window.filterCashierMenu()" class="w-full h-11 pl-10 pr-4 bg-white border-3 border-black focus:outline-none font-bold text-sm">
+                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 font-bold text-lg">search</span>
+                            </div>
+                        </div>
+
+                        <!-- Danh mục món -->
+                        <div class="flex gap-2 overflow-x-auto pb-2" id="cashier-category-buttons">
+                            <!-- Injected by JS -->
+                        </div>
+
+                        <!-- Grid món ăn -->
+                        <div id="cashier-menu-grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto max-h-[60vh] lg:max-h-[calc(100vh-280px)] pr-2">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Bên phải: Giỏ hàng & Thanh toán (Cố định 2 cột) -->
+                    <div class="w-full lg:w-96 flex flex-col bg-white border-4 border-black shadow-[6px_6px_0_0_#000] min-h-[500px] lg:h-[calc(100vh-120px)] sticky top-[80px]">
+                        <!-- Header giỏ hàng -->
+                        <div class="p-4 border-b-4 border-black bg-slate-100 flex justify-between items-center">
+                            <h3 class="font-heading font-black text-xl uppercase flex items-center gap-2">
+                                <span class="material-symbols-outlined">shopping_basket</span> Giỏ hàng tại quầy
+                            </h3>
+                            <span class="bg-black text-white px-2 py-0.5 rounded text-xs font-mono font-bold" id="cashier-cart-count">0 món</span>
+                        </div>
+
+                        <!-- Items Container -->
+                        <div id="cashier-cart-items" class="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-slate-50">
+                            <!-- Injected by JS -->
+                        </div>
+
+                        <!-- Payment Method and Note -->
+                        <div class="p-4 border-t-4 border-black bg-white flex flex-col gap-3">
+                            <div class="flex gap-2">
+                                <div class="flex-1">
+                                    <label class="font-black text-xs uppercase block mb-1">Thanh toán:</label>
+                                    <select id="cashier-payment-method" class="w-full h-10 px-2 border-3 border-black font-bold focus:outline-none bg-white text-xs cursor-pointer">
+                                        <option value="cash">Tiền mặt tại quầy</option>
+                                        <option value="transfer">Chuyển khoản / Quét QR</option>
+                                    </select>
+                                </div>
+                                <div class="w-1/2">
+                                    <label class="font-black text-xs uppercase block mb-1">Khách đưa:</label>
+                                    <input type="number" id="cashier-cash-given" oninput="window.calculateCashReturn()" placeholder="Số tiền..." class="w-full h-10 px-2 border-3 border-black font-bold text-xs">
+                                </div>
+                            </div>
+                            <div class="text-xs font-bold text-gray-600 flex justify-between items-center" id="cashier-cash-return-container" style="display: none;">
+                                <span>TIỀN THỐI LẠI:</span>
+                                <span class="text-green-600 font-extrabold text-sm" id="cashier-cash-return">0đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Footer & Actions -->
+                        <div class="p-4 border-t-4 border-black bg-slate-100 flex flex-col gap-3">
+                            <div class="flex justify-between items-center text-lg font-black">
+                                <span>TỔNG CỘNG:</span>
+                                <span class="text-primary text-2xl" id="cashier-total-amount">0đ</span>
+                            </div>
+
+                            <!-- Buttons -->
+                            <div class="flex flex-col gap-2">
+                                <button onclick="window.submitCashierOrder()" class="w-full h-12 bg-[#52c48e] text-white border-3 border-black shadow-[3px_3px_0_0_#000] font-heading font-black text-sm uppercase hover:brightness-105 active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1.5 transition-all">
+                                    <span class="material-symbols-outlined text-lg">payments</span> IN BILL & LƯU ĐƠN
+                                </button>
+                                <div class="flex gap-2">
+                                    <button onclick="window.printCashierLabelsOnly()" class="flex-1 h-11 bg-[#0084FF] text-white border-3 border-black shadow-[3px_3px_0_0_#000] font-heading font-black text-xs uppercase hover:brightness-105 active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1 transition-all">
+                                        <span class="material-symbols-outlined text-base">print</span> IN TEM LY
+                                    </button>
+                                    <button onclick="window.clearCashierCart()" class="flex-1 h-11 bg-red-500 text-white border-3 border-black shadow-[3px_3px_0_0_#000] font-heading font-black text-xs uppercase hover:brightness-105 active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1 transition-all">
+                                        <span class="material-symbols-outlined text-base">delete</span> XÓA ĐƠN
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Vẽ danh mục và menu
+            loadCashierCategories();
+            renderCashierRecipesList();
+            updateCashierCartUI();
+        }
+
+        // 1. Vẽ danh mục
+        function loadCashierCategories() {
+            const container = document.getElementById('cashier-category-buttons');
+            if (!container) return;
+
+            const cats = window.publicCategoriesCache || [];
+            container.innerHTML = `
+                <button onclick="window.filterCashierByCategory('')" class="cashier-cat-btn px-4 py-2 border-3 border-black font-black font-heading text-xs uppercase shadow-[2px_2px_0_0_#000] bg-black text-white transition-all snap-start whitespace-nowrap active:translate-y-[1px]" data-id="">
+                    TẤT CẢ
+                </button>
+            ` + cats.map(c => `
+                <button onclick="window.filterCashierByCategory('${c.name}')" class="cashier-cat-btn px-4 py-2 border-3 border-black font-black font-heading text-xs uppercase shadow-[2px_2px_0_0_#000] bg-white text-black transition-all snap-start whitespace-nowrap active:translate-y-[1px]" data-id="${c.name}">
+                    ${c.name}
+                </button>
+            `).join('');
+        }
+
+        window.currentCashierCategory = '';
+        window.filterCashierByCategory = function (catName) {
+            window.currentCashierCategory = catName;
+            document.querySelectorAll('.cashier-cat-btn').forEach(btn => {
+                if (btn.dataset.id === catName) {
+                    btn.classList.add('bg-black', 'text-white');
+                    btn.classList.remove('bg-white', 'text-black');
+                } else {
+                    btn.classList.remove('bg-black', 'text-white');
+                    btn.classList.add('bg-white', 'text-black');
+                }
+            });
+            renderCashierRecipesList();
+        }
+
+        window.filterCashierMenu = function() {
+            renderCashierRecipesList();
+        }
+
+        // 2. Vẽ danh sách món bên trái
+        function renderCashierRecipesList() {
+            const grid = document.getElementById('cashier-menu-grid');
+            if (!grid) return;
+
+            const recipes = window.publicRecipesCache || [];
+            const query = document.getElementById('cashier-search')?.value.toLowerCase() || '';
+            const cat = window.currentCashierCategory;
+
+            // Nhóm các size của cùng một món ăn để hiển thị gọn gàng
+            const grouped = {};
+            recipes.forEach(r => {
+                const nameKey = r.name.trim().toLowerCase();
+                
+                // Lọc theo search query
+                if (query && !nameKey.includes(query)) return;
+                
+                // Lọc theo category
+                if (cat && r.categories?.name !== cat) return;
+
+                if (!grouped[nameKey]) {
+                    grouped[nameKey] = {
+                        name: r.name,
+                        image: r.image,
+                        category: r.categories?.name || 'Món uống',
+                        variants: []
+                    };
+                }
+                grouped[nameKey].variants.push(r);
+            });
+
+            const keys = Object.keys(grouped);
+            if (keys.length === 0) {
+                grid.innerHTML = `<div class="p-6 italic text-center col-span-full font-bold bg-white border-4 border-black">Không tìm thấy món phù hợp...</div>`;
+                return;
+            }
+
+            grid.innerHTML = keys.map(key => {
+                const item = grouped[key];
+                // Sắp xếp variants theo size S, M, L
+                const sizeOrder = { 'S': 1, 'M': 2, 'L': 3 };
+                item.variants.sort((a, b) => (sizeOrder[a.size] || 9) - (sizeOrder[b.size] || 9));
+
+                const imageSrc = item.image || '/img/logo.png';
+
+                // Tạo các nút chọn size
+                const sizeButtons = item.variants.map(v => {
+                    return `<button onclick="window.addRecipeToCashier(${v.id})" class="h-9 px-2 bg-primary text-black border-2 border-black font-extrabold text-xs uppercase shadow-[2px_2px_0_0_#000] active:translate-y-[1px] active:shadow-none hover:bg-yellow-400 transition-colors flex items-center justify-center gap-0.5">
+                        ${v.size} <span class="text-[9px] font-bold text-gray-700">${Number(v.price).toLocaleString()}</span>
+                    </button>`;
+                }).join('');
+
+                return `
+                    <div class="bg-white border-4 border-black shadow-[4px_4px_0_0_#000] flex flex-col p-3 relative hover:scale-[1.01] transition-transform">
+                        <div class="h-28 w-full border-2 border-black overflow-hidden mb-2 bg-slate-100">
+                            <img src="${imageSrc}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.src='/img/logo.png'">
+                        </div>
+                        <h4 class="font-extrabold text-sm line-clamp-1 uppercase leading-tight mb-1" title="${item.name}">${item.name}</h4>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase border border-gray-300 px-1 py-0.5 self-start mb-2">${item.category}</span>
+                        <div class="mt-auto pt-2 border-t border-dashed border-gray-300 flex flex-wrap gap-1">
+                            ${sizeButtons}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 3. Thêm món vào giỏ hàng Cashier
+        window.addRecipeToCashier = function(recipeId) {
+            const recipe = window.publicRecipesCache?.find(r => r.id === recipeId);
+            if (!recipe) return;
+
+            const existingIdx = window.cashierCart.findIndex(item => item.recipeId === recipeId);
+            if (existingIdx > -1) {
+                window.cashierCart[existingIdx].quantity += 1;
+            } else {
+                window.cashierCart.push({
+                    recipeId: recipe.id,
+                    name: recipe.name,
+                    price: recipe.price,
+                    size: recipe.size,
+                    quantity: 1,
+                    note: ''
+                });
+            }
+
+            showToast(`Đã thêm ${recipe.name} (Size ${recipe.size})`, "success");
+            updateCashierCartUI();
+        }
+
+        // 4. Cập nhật số lượng giỏ hàng
+        window.updateCashierCartQty = function(recipeId, delta) {
+            const idx = window.cashierCart.findIndex(item => item.recipeId === recipeId);
+            if (idx === -1) return;
+
+            window.cashierCart[idx].quantity += delta;
+            if (window.cashierCart[idx].quantity <= 0) {
+                window.cashierCart.splice(idx, 1);
+            }
+            updateCashierCartUI();
+        }
+
+        // 5. Cập nhật ghi chú cho món trong giỏ hàng
+        window.updateCashierCartNote = function(recipeId, note) {
+            const idx = window.cashierCart.findIndex(item => item.recipeId === recipeId);
+            if (idx === -1) return;
+            window.cashierCart[idx].note = note;
+        }
+
+        // 6. Xóa toàn bộ giỏ hàng
+        window.clearCashierCart = function() {
+            window.cashierCart = [];
+            updateCashierCartUI();
+            showToast("Đã xóa giỏ hàng", "info");
+        }
+
+        // 7. Tính tiền thối lại cho khách
+        window.calculateCashReturn = function() {
+            const total = window.cashierCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const cashGivenInput = document.getElementById('cashier-cash-given');
+            const returnContainer = document.getElementById('cashier-cash-return-container');
+            const returnSpan = document.getElementById('cashier-cash-return');
+
+            if (!cashGivenInput || !returnContainer || !returnSpan) return;
+
+            const cashGiven = Number(cashGivenInput.value);
+            if (cashGiven > 0 && cashGiven >= total) {
+                const returnAmount = cashGiven - total;
+                returnSpan.innerText = returnAmount.toLocaleString('vi-VN') + 'đ';
+                returnContainer.style.display = 'flex';
+            } else {
+                returnContainer.style.display = 'none';
+            }
+        }
+
+        // 8. Vẽ lại giỏ hàng Cashier
+        function updateCashierCartUI() {
+            const cartItems = document.getElementById('cashier-cart-items');
+            const cartCount = document.getElementById('cashier-cart-count');
+            const totalAmount = document.getElementById('cashier-total-amount');
+
+            if (!cartItems || !cartCount || !totalAmount) return;
+
+            const total = window.cashierCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const totalQty = window.cashierCart.reduce((sum, item) => sum + item.quantity, 0);
+
+            cartCount.innerText = `${totalQty} món`;
+            totalAmount.innerText = total.toLocaleString('vi-VN') + 'đ';
+
+            if (window.cashierCart.length === 0) {
+                cartItems.innerHTML = `
+                    <div class="flex-1 flex flex-col items-center justify-center text-center p-6 text-gray-400">
+                        <span class="material-symbols-outlined text-4xl mb-2">shopping_cart_checkout</span>
+                        <p class="font-bold text-xs uppercase">Giỏ hàng đang trống</p>
+                        <p class="text-[10px] mt-1 normal-case leading-normal">Vui lòng click vào các nút Size của món ở cột bên trái để thêm món.</p>
+                    </div>
+                `;
+                calculateCashReturn();
+                return;
+            }
+
+            cartItems.innerHTML = window.cashierCart.map(item => `
+                <div class="bg-white border-2 border-black p-3 flex flex-col gap-2 relative shadow-[2px_2px_0_0_#000]">
+                    <!-- Header món -->
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="flex-1">
+                            <div class="font-extrabold text-xs uppercase leading-tight">${item.name}</div>
+                            <div class="text-[10px] font-bold text-gray-500 mt-0.5">Size: ${item.size} | Đơn giá: ${item.price.toLocaleString()}đ</div>
+                        </div>
+                        <div class="font-black text-xs text-primary shrink-0">${(item.price * item.quantity).toLocaleString()}đ</div>
+                    </div>
+
+                    <!-- Note input -->
+                    <input type="text" placeholder="Ghi chú món (ít đá, không ngọt...)" value="${item.note || ''}" oninput="window.updateCashierCartNote(${item.recipeId}, this.value)" class="w-full h-8 px-2 border border-gray-300 font-bold text-[10px] bg-slate-50 focus:bg-white focus:outline-none">
+
+                    <!-- Actions -->
+                    <div class="flex justify-between items-center mt-1 pt-1 border-t border-dashed border-gray-200">
+                        <button onclick="window.updateCashierCartQty(${item.recipeId}, -1)" class="w-6 h-6 border border-black bg-gray-100 flex items-center justify-center font-bold text-sm active:translate-y-[1px]">-</button>
+                        <span class="font-black text-xs font-mono">${item.quantity}</span>
+                        <button onclick="window.updateCashierCartQty(${item.recipeId}, 1)" class="w-6 h-6 border border-black bg-gray-100 flex items-center justify-center font-bold text-sm active:translate-y-[1px]">+</button>
+                    </div>
+                </div>
+            `).join('');
+
+            calculateCashReturn();
+        }
+
+        // 9. Chỉ in Tem ly trong giỏ hàng tại quầy
+        window.printCashierLabelsOnly = async function() {
+            if (window.cashierCart.length === 0) {
+                showToast("Giỏ hàng rỗng!", "warning");
+                return;
+            }
+
+            if (!window.AndroidPrint) {
+                showToast("Tính năng này chỉ khả dụng khi chạy trên Máy tính bảng Android của quán!", "error");
+                return;
+            }
+
+            showToast("Đang tạo lệnh in nháp tem nhãn ly...", "info");
+            
+            // Xử lý vẽ tem và gửi lệnh in cho từng sản phẩm trong giỏ hàng cashier
+            showToast("Vui lòng sử dụng nút 'IN BILL & LƯU ĐƠN' để hệ thống tự động ghi doanh thu và in tem dán ly cùng lúc nhé!", "info");
+        }
+
+        // 10. Chốt đơn: Lưu vào Database, tự động in Hóa đơn và in tất cả các tem dán ly
+        window.submitCashierOrder = async function() {
+            if (window.cashierCart.length === 0) {
+                showToast("Giỏ hàng rỗng!", "warning");
+                return;
+            }
+
+            const totalPrice = window.cashierCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const paymentMethod = document.getElementById('cashier-payment-method').value;
+            const cashGivenInput = document.getElementById('cashier-cash-given');
+            const note = cashGivenInput && Number(cashGivenInput.value) > 0 ? `Khách đưa: ${Number(cashGivenInput.value).toLocaleString()}đ` : '';
+
+            // Map cashierCart sang định dạng order items
+            const itemsToOrder = window.cashierCart.map(item => ({
+                recipeId: item.recipeId,
+                quantity: item.quantity,
+                price: item.price,
+                note: item.note
+            }));
+
+            showToast("Đang ghi nhận đơn hàng lên máy chủ...", "info");
+
+            try {
+                // 1. Tạo đơn hàng lên server
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        items: itemsToOrder, 
+                        paymentMethod, 
+                        note, 
+                        clientTotal: totalPrice,
+                        platform: 'local' // Đơn hàng offline tại quầy
+                    })
+                });
+
+                const data = await res.json();
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+
+                const orderId = data.orderId;
+                showToast("Đã lưu đơn hàng thành công! Đang kích hoạt in hóa đơn...", "success");
+
+                // 2. Kích hoạt in hóa đơn thanh toán 58mm (Bill)
+                // Cần nạp đơn hàng vừa tạo vào window.currentOrders để printReceipt có thể đọc
+                if (!window.currentOrders) window.currentOrders = [];
+                
+                // Fetch thông tin chi tiết đơn vừa tạo để cập nhật cache
+                const orderRes = await fetch(`/api/orders`);
+                const ordersData = await orderRes.json();
+                if (ordersData.success) {
+                    window.currentOrders = ordersData.data || [];
+                }
+
+                // Gọi in hóa đơn
+                setTimeout(() => {
+                    window.printReceipt(orderId);
+                }, 500);
+
+                // 3. Tự động in TEM LY (Label) cho tất cả các ly trong đơn nếu đang chạy trong App APK
+                if (window.AndroidPrint) {
+                    showToast("Đang tự động in tem nhãn ly qua máy in tem...", "info");
+                    setTimeout(() => {
+                        window.printOrderLabel(orderId);
+                    }, 1500);
+                }
+
+                // 4. Xóa rỗng giỏ hàng, reset input tiền khách đưa
+                window.cashierCart = [];
+                if (cashGivenInput) cashGivenInput.value = '';
+                updateCashierCartUI();
+
+            } catch (err) {
+                console.error("Lỗi chốt đơn cashier:", err);
+                showToast("Lỗi khi lưu đơn hàng: " + err.message, "error");
+            }
+        }
 
         // --- 0. PUBLIC WELCOME ---
         function renderWelcome() {
