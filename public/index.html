@@ -3345,9 +3345,9 @@
                     window.drawLabelFrontend(order, labelInfo.oi, layout, labelInfo.itemIndex, labelInfo.totalQuantity, ctx, offsetY, fontName);
                 });
 
-                // Xuất base64 PNG và in qua RawBT Deep Link
-                const base64Png = canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
-                const intentUrl = "intent:#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.base64=" + encodeURIComponent(base64Png) + ";end;";
+                // Xuất ảnh dưới định dạng JPEG chất lượng 0.9 (giảm dung lượng xuống cực nhẹ) và in qua RawBT Custom Protocol để tránh lỗi giới hạn độ dài của Intent Chrome
+                const base64Jpeg = canvas.toDataURL('image/jpeg', 0.9).replace(/^data:image\/jpeg;base64,/, '');
+                const intentUrl = "rawbt:base64," + base64Jpeg;
                 
                 window.location.href = intentUrl;
                 if (typeof showToast === 'function') showToast("Đã gửi lệnh in trực tiếp tới RawBT!", "success");
