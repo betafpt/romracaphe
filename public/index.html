@@ -3406,9 +3406,8 @@
                 }
                 const base64Tspl = btoa(binaryString);
                 
-                // Gửi dữ liệu in nhị phân thô TSPL qua giao thức rawbt:base64,
-                // Cách này siêu nhẹ, máy in nhận dạng được lệnh gốc nhãn nên in cực nét, đầy đủ Tiếng Việt 100% và dừng chuẩn vạch chia 100%
-                const intentUrl = "rawbt:base64," + base64Tspl;
+                // Gửi dữ liệu in nhị phân thô TSPL qua Intent Android chuẩn chỉ định rõ Mime Type application/x-rawbt-prn để RawBT gửi thô trực tiếp xuống máy in mà không bị dịch thành chữ Plain Text
+                const intentUrl = "intent:#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;type=application/x-rawbt-prn;S.base64=" + encodeURIComponent(base64Tspl) + ";end;";
                 
                 window.location.href = intentUrl;
                 if (typeof showToast === 'function') showToast("Đã gửi lệnh in nhị phân TSPL tới RawBT!", "success");
