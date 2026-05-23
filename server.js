@@ -1052,7 +1052,7 @@ app.post('/api/print-label-backend', async (req, res) => {
                 const bitmapBuffer = Buffer.from(bitmapData);
 
                 // Khởi tạo trang in nhãn TSPL và ghép ảnh bitmap nhị phân thô
-                allLabelsBuffers.push(Buffer.from("SIZE 50 mm, 30 mm\r\nGAP 2 mm, 0 mm\r\nDIRECTION 1\r\nCLS\r\n"));
+                allLabelsBuffers.push(Buffer.from("SIZE 50 mm, 30 mm\r\nGAP 2 mm, 0 mm\r\nSET TEAR ON\r\nDIRECTION 0,0\r\nCLS\r\n"));
                 allLabelsBuffers.push(Buffer.from("BITMAP 0,0,50,240,0,"));
                 allLabelsBuffers.push(bitmapBuffer);
                 allLabelsBuffers.push(Buffer.from("\r\nPRINT 1,1\r\n"));
@@ -1101,6 +1101,49 @@ app.post('/api/print-label-backend', async (req, res) => {
         if (browser) {
             await browser.close().catch(err => console.error("Lỗi đóng browser ngầm:", err));
         }
+    }
+});
+
+// API in nhãn TSPL nhị phân thô trực tiếp từ dữ liệu Base64 gửi từ Frontend
+app.post('/api/print-raw-tspl', async (req, res) => {
+    const { printerIP, base64Data } = req.body;
+    if (!base64Data) {
+        return res.status(400).json({ success: false, error: "Thiếu dữ liệu base64Data" });
+    }
+    
+    try {
+        const ip = printerIP || '192.168.50.12';
+        const buffer = Buffer.from(base64Data, 'base64');
+        const net = require('net');
+        const printerPort = 9100;
+        
+        console.log(`[PRINT RAW TSPL] Đang kết nối trực tiếp đến máy in mạng IP ${ip}...`);
+        const client = new net.Socket();
+        client.setTimeout(3000);
+        
+        client.connect(printerPort, ip, () => {
+            console.log(`[PRINT RAW TSPL] Kết nối thành công! Đang gửi mảng byte nhị phân...`);
+            client.write(buffer, () => {
+                console.log(`[PRINT RAW TSPL] Đã gửi lệnh in thành công!`);
+                client.destroy();
+                res.json({ success: true });
+            });
+        });
+        
+        client.on('error', (err) => {
+            console.error("[PRINT RAW TSPL] Lỗi kết nối:", err);
+            client.destroy();
+            res.status(500).json({ success: false, error: `Lỗi kết nối máy in mạng: ${err.message}` });
+        });
+        
+        client.on('timeout', () => {
+            console.error("[PRINT RAW TSPL] Timeout kết nối!");
+            client.destroy();
+            res.status(500).json({ success: false, error: "Timeout kết nối tới máy in mạng." });
+        });
+    } catch (e) {
+        console.error("Lỗi API print-raw-tspl:", e);
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 

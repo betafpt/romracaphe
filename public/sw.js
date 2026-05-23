@@ -1,4 +1,4 @@
-const CACHE_NAME = 'romracaphe-v4'; // Bumped to v4 to clear old cache
+const CACHE_NAME = 'romracaphe-v5'; // Bumped to v5 to clear old cache and apply Auth Guard
 const ASSETS = [
     '/',
     '/index.html',
