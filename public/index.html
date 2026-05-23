@@ -3340,112 +3340,28 @@
                     await document.fonts.ready;
                 }
 
-                const uint8ArrayToBase64 = function (arr) {
-                    let binary = '';
-                    const len = arr.byteLength;
-                    for (let i = 0; i < len; i++) {
-                        binary += String.fromCharCode(arr[i]);
-                    }
-                    return window.btoa(binary);
-                };
+                // Tạo Canvas gộp theo chiều dọc
+                const canvas = document.createElement('canvas');
+                canvas.width = 400;
+                canvas.height = 240 * labelsToRender.length;
+                const ctx = canvas.getContext('2d');
 
-                const encoder = new TextEncoder();
-                let allLabelsBuffers = [];
-
-                // Duyệt qua từng tem để vẽ và xuất dữ liệu bitmap đơn sắc riêng lẻ khổ 50x30mm
                 labelsToRender.forEach((labelInfo, idx) => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 400; // 50mm tại 203 DPI (8 dots/mm)
-                    canvas.height = 240; // 30mm tại 203 DPI (8 dots/mm)
-                    const ctx = canvas.getContext('2d');
-
-                    // 1. Vẽ nền trắng
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, 400, 240);
-
-                    // 2. Vẽ tem lên canvas (tọa độOffsetY luôn là 0)
-                    window.drawLabelFrontend(order, labelInfo.oi, layout, labelInfo.itemIndex, labelInfo.totalQuantity, ctx, 0, fontName);
-
-                    // 3. Chuyển đổi dữ liệu Canvas sang mảng byte monochrome TSPL thô (1 bit/pixel)
-                    const width = canvas.width;
-                    const height = canvas.height;
-                    const imgData = ctx.getImageData(0, 0, width, height).data;
-
-                    const bytesPerRow = 50; // 400 / 8
-                    const tsplData = new Uint8Array(bytesPerRow * height);
-                    tsplData.fill(255); // Mặc định ban đầu điền đầy 0xFF (màu trắng, không in mực)
-
-                    for (let y = 0; y < height; y++) {
-                        for (let x = 0; x < width; x++) {
-                            const pixelIdx = (y * width + x) * 4;
-                            const alpha = imgData[pixelIdx + 3];
-                            let luma = 255;
-                            if (alpha > 50) {
-                                luma = (imgData[pixelIdx] + imgData[pixelIdx + 1] + imgData[pixelIdx + 2]) / 3;
-                            }
-                            if (luma < 200) {
-                                const byteIdx = y * bytesPerRow + Math.floor(x / 8);
-                                const bitIdx = 7 - (x % 8);
-                                tsplData[byteIdx] &= ~(1 << bitIdx); // Xóa bit về 0 để in mực đen
-                            }
-                        }
-                    }
-
-                    // 4. Tạo lệnh in cho 1 tem này (Giữ nguyên khổ 50x30mm cố định, bật tự động xé SET TEAR ON và in xuôi DIRECTION 0,0)
-                    const headerText = `SIZE 50 mm,30 mm\r\n` +
-                                       `GAP 2 mm,0 mm\r\n` +
-                                       `SET TEAR ON\r\n` +
-                                       `DIRECTION 0,0\r\n` +
-                                       `CLS\r\n` +
-                                       `BITMAP 0,0,50,240,0,`;
-                    const footerText = `\r\nPRINT 1,1\r\n`;
-
-                    const headerBytes = encoder.encode(headerText);
-                    const footerBytes = encoder.encode(footerText);
-
-                    // Ghép thành buffer cho tem này
-                    const labelBuffer = new Uint8Array(headerBytes.length + tsplData.length + footerBytes.length);
-                    labelBuffer.set(headerBytes, 0);
-                    labelBuffer.set(tsplData, headerBytes.length);
-                    labelBuffer.set(footerBytes, headerBytes.length + tsplData.length);
-
-                    allLabelsBuffers.push(labelBuffer);
+                    const offsetY = 240 * idx;
+                    window.drawLabelFrontend(order, labelInfo.oi, layout, labelInfo.itemIndex, labelInfo.totalQuantity, ctx, offsetY, fontName);
                 });
 
-                // Nối tất cả các tem lại thành 1 buffer duy nhất gửi đi
-                let totalLength = allLabelsBuffers.reduce((sum, buf) => sum + buf.length, 0);
-                const finalBuffer = new Uint8Array(totalLength);
-                let currentOffset = 0;
-                allLabelsBuffers.forEach(buf => {
-                    finalBuffer.set(buf, currentOffset);
-                    currentOffset += buf.length;
-                });
-
-                // Mã hóa Base64
-                const base64Data = uint8ArrayToBase64(finalBuffer);
-
-                // Gửi dữ liệu nhị phân TSPL thô trực tiếp tới máy in mạng LAN qua Backend NodeJS
-                const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
-                if (typeof showToast === 'function') showToast("Đang gửi dữ liệu in tem trực tiếp qua LAN...", "success");
-
-                const res = await fetch('/api/print-raw-tspl', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        printerIP,
-                        base64Data
-                    })
-                });
-
-                const j = await res.json();
-                if (j.success) {
-                    if (typeof showToast === 'function') showToast("Đã in tem trực tiếp LAN thành công!", "success");
-                } else {
-                    if (typeof showToast === 'function') showToast("Lỗi in tem: " + j.error, "error");
-                }
+                // Xuất ảnh dưới định dạng JPEG chất lượng 0.9 (giảm dung lượng xuống cực nhẹ)
+                const base64Jpeg = canvas.toDataURL('image/jpeg', 0.9).replace(/^data:image\/jpeg;base64,/, '');
+                
+                // Gửi dữ liệu ảnh JPEG qua Intent Android chuẩn với tham số phụ S.mime=image/jpeg để RawBT nhận diện chính xác là ảnh đồ họa
+                const intentUrl = "intent:#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.base64=" + encodeURIComponent(base64Jpeg) + ";S.mime=image/jpeg;end;";
+                
+                window.location.href = intentUrl;
+                if (typeof showToast === 'function') showToast("Đã gửi lệnh in hình ảnh tới RawBT!", "success");
 
             } catch (e) {
-                console.error("Lỗi in trực tiếp qua LAN:", e);
+                console.error("Lỗi in trực tiếp qua RawBT:", e);
                 if (typeof showToast === 'function') showToast("Lỗi in trực tiếp: " + e.message, "error");
             }
         };
