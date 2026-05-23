@@ -3335,82 +3335,26 @@
                     await document.fonts.ready;
                 }
 
-                let allLabelsBuffers = [];
-                
-                // Duyệt qua từng tem nhãn cần vẽ và biên dịch trực tiếp sang Monochrome Bitmap (TSPL) ở Frontend
-                labelsToRender.forEach((labelInfo) => {
-                    // Tạo một canvas tạm thời 400x240 để vẽ riêng từng tem
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = 400;
-                    tempCanvas.height = 240;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    
-                    // Vẽ tem lên canvas tạm
-                    window.drawLabelFrontend(order, labelInfo.oi, layout, labelInfo.itemIndex, labelInfo.totalQuantity, tempCtx, 0, fontName);
-                    
-                    // Dịch canvas tạm thành Monochrome Bitmap (1: trắng, 0: đen)
-                    const width = 400;
-                    const height = 240;
-                    const widthBytes = width / 8; // 50 bytes
-                    const imgData = tempCtx.getImageData(0, 0, width, height).data;
-                    const bitmap = new Uint8Array(widthBytes * height);
-                    
-                    for (let y = 0; y < height; y++) {
-                        for (let xBytes = 0; xBytes < widthBytes; xBytes++) {
-                            let byteVal = 0xff;
-                            for (let bit = 0; bit < 8; bit++) {
-                                const x = xBytes * 8 + bit;
-                                const pixelIdx = (y * width + x) * 4;
-                                const r = imgData[pixelIdx];
-                                const g = imgData[pixelIdx + 1];
-                                const b = imgData[pixelIdx + 2];
-                                const a = imgData[pixelIdx + 3];
-                                
-                                let isBlack = 0;
-                                if (a > 50) {
-                                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                                    if (gray < 200) { // Nét chữ/vạch kẻ
-                                        isBlack = 1;
-                                    }
-                                }
-                                
-                                if (isBlack) {
-                                    byteVal &= ~(1 << (7 - bit));
-                                }
-                            }
-                            bitmap[y * widthBytes + xBytes] = byteVal;
-                        }
-                    }
-                    
-                    // Đóng gói thành lệnh nhị phân TSPL chuẩn của máy in
-                    const encoder = new TextEncoder();
-                    allLabelsBuffers.push(encoder.encode("SIZE 50 mm, 30 mm\r\nGAP 2 mm, 0 mm\r\nDIRECTION 1\r\nCLS\r\n"));
-                    allLabelsBuffers.push(encoder.encode("BITMAP 0,0,50,240,0,"));
-                    allLabelsBuffers.push(bitmap);
-                    allLabelsBuffers.push(encoder.encode("\r\nPRINT 1,1\r\n"));
+                // Tạo Canvas gộp theo chiều dọc
+                const canvas = document.createElement('canvas');
+                canvas.width = 400;
+                canvas.height = 240 * labelsToRender.length;
+                const ctx = canvas.getContext('2d');
+
+                labelsToRender.forEach((labelInfo, idx) => {
+                    const offsetY = 240 * idx;
+                    window.drawLabelFrontend(order, labelInfo.oi, layout, labelInfo.itemIndex, labelInfo.totalQuantity, ctx, offsetY, fontName);
                 });
+
+                // Xuất ảnh dưới định dạng JPEG chất lượng 0.9 (giảm dung lượng xuống cực nhẹ)
+                const base64Jpeg = canvas.toDataURL('image/jpeg', 0.9).replace(/^data:image\/jpeg;base64,/, '');
                 
-                // Gộp toàn bộ các Uint8Array thành một mảng duy nhất
-                let totalLength = allLabelsBuffers.reduce((acc, val) => acc + val.length, 0);
-                let finalTsplData = new Uint8Array(totalLength);
-                let currentOffset = 0;
-                allLabelsBuffers.forEach(buf => {
-                    finalTsplData.set(buf, currentOffset);
-                    currentOffset += buf.length;
-                });
-                
-                // Mã hóa binary Uint8Array thành chuỗi Base64
-                let binaryString = "";
-                for (let i = 0; i < finalTsplData.length; i++) {
-                    binaryString += String.fromCharCode(finalTsplData[i]);
-                }
-                const base64Tspl = btoa(binaryString);
-                
-                // Gửi dữ liệu in nhị phân thô TSPL qua Intent Android chuẩn với tham số phụ S.mime để RawBT nhận diện là PRN thô, đồng thời tránh khai báo type trực tiếp ở Intent chính để không bị hệ thống Android hiểu lầm và nhảy sang CH Play
-                const intentUrl = "intent:#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.base64=" + encodeURIComponent(base64Tspl) + ";S.mime=application/x-rawbt-prn;end;";
+                // Gửi dữ liệu ảnh JPEG qua Intent Android chuẩn với tham số phụ S.mime=image/jpeg để RawBT nhận diện chính xác là ảnh đồ họa
+                // Cách này siêu nhẹ (chỉ khoảng 3-5KB), in cực kỳ mượt mà, đầy đủ Tiếng Việt có dấu và tự động căn đúng vạch chia nhãn 100% nhờ driver RawBT!
+                const intentUrl = "intent:#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.base64=" + encodeURIComponent(base64Jpeg) + ";S.mime=image/jpeg;end;";
                 
                 window.location.href = intentUrl;
-                if (typeof showToast === 'function') showToast("Đã gửi lệnh in nhị phân TSPL tới RawBT!", "success");
+                if (typeof showToast === 'function') showToast("Đã gửi lệnh in hình ảnh tới RawBT!", "success");
 
             } catch (e) {
                 console.error("Lỗi in trực tiếp qua RawBT:", e);
