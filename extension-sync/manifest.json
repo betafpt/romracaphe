@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Rôm Rả Cà Phê Sync",
+  "version": "1.0",
+  "description": "Tiện ích đồng bộ đơn hàng Grab/Shopee về Rôm Rả Cà Phê",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "cookies",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://merchant.shopeefood.vn/*",
+    "https://merchant.grab.com/*",
+    "https://api.grab.com/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Đồng bộ Rôm Rả Cà Phê"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

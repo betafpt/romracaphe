@@ -1,6 +1,10 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 26 tháng 3 năm 2026
+**Thời gian đồng bộ cuối cùng:** Ngày 23 tháng 5 năm 2026 (Cập nhật lúc 16:50)
+
+## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT (MỚI NHẤT)
+- **Quy tắc tuyệt đối:** Trước khi chỉnh sửa bất kỳ tệp tin mã nguồn nào hoặc thực hiện thay đổi nào trên hệ thống, bắt buộc phải tạo bản kế hoạch triển khai (`implementation_plan.md`) gửi cho Người dùng duyệt. Chỉ khi nhận được sự xác nhận của Người dùng mới được tiến hành viết/sửa code.
+- **Quy tắc giao tiếp:** Luôn luôn trả lời bằng Tiếng Việt. Luôn hỏi trước khi upload code lên GitHub.
 
 ## 1. TỔNG QUAN DỰ ÁN (PROJECT OVERVIEW)
 - Tên dự án: Hệ thống quản lý và vận hành Romra Cafe & Workspace.
@@ -10,22 +14,32 @@
 
 ## 2. KIẾN TRÚC & CÔNG NGHỆ (TECH STACK)
 - Frontend: Vanilla HTML/JS, Tailwind CSS, Javascript (Xử lý DOM trực tiếp, không dùng FrameWork như React/Vue).
-- Backend: `server.js` Node.js + Express (Quản lý routing, auth, cổng PayOS).
-- Database: Supabase PostgreSQL (`supabase_schema.sql` đang gánh toàn bộ dữ liệu, có hỗ trợ PGCrypto mã hóa UUID).
+- Backend: `server.js` Node.js + Express (Quản lý routing, auth, cổng PayOS, API in tem bằng Playwright).
+- Database: Supabase PostgreSQL (`supabase_schema.sql` đang gánh toàn bộ dữ liệu, có cột `note` mới ở bảng `order_items` để lưu ghi chú chi tiết từng món).
 - CSS Nổi bật: Phong cách "Brutalism" (viền đen dày `border-4 border-black`, thả bóng shadow đen `shadow-[4px_4px_0_0_#000]`, sử dụng phông chữ siêu đậm).
 
 ## 3. LỊCH SỬ CÁC TÍNH NĂNG ĐÃ TÍCH HỢP GẦN NHẤT
-### A. Tích hợp thanh toán PayOS (Mới nhất)
+### A. Nâng cấp Tem in & Ghi chú riêng cho từng món (Mới nhất - 23/05/2026)
+- **Ngày/Năm trên tem dán ly**: Thêm ngày và năm đầy đủ vào bên cạnh giờ in trên tem (định dạng `HH:MM DD/MM/YYYY`, ví dụ: `15:29 23/05/2026`). Tương ứng cập nhật trên khung canvas kéo thả thiết kế trực quan tại frontend (`settings.js`).
+- **Ghi chú riêng cho từng món**:
+  * Thay thế ô nhập ghi chú chung của đơn hàng bằng các ô nhập ghi chú riêng biệt ngay bên dưới mỗi món ăn trong giỏ hàng (`public/index.html`).
+  * Lưu trữ ghi chú của từng món vào cột `note` của bảng `order_items` trong database Supabase.
+  * Hiển thị dòng ghi chú riêng màu đỏ nổi bật ngay dưới tên món ăn trên màn hình **POS Live** để nhân viên pha chế dễ theo dõi.
+  * Khi in hóa đơn và in tem dán ly, hệ thống tự động hiển thị ghi chú riêng biệt của từng ly tương ứng.
+- **Cải tiến thuật toán in lẻ**: Khi in lẻ tem từng món, hệ thống tự động tính toán và giữ nguyên số thứ tự thực của ly trong đơn hàng gốc ban đầu (ví dụ: ly thứ 2 trong đơn 3 món khi in lẻ sẽ ra đúng số thứ tự `2/3` thay vì bị đổi thành `1/1`).
+- **Sửa lỗi `chromium is not defined`**: Khắc phục lỗi thiếu import `chromium` từ `playwright` ở đầu file `server.js` phục vụ vẽ tem canvas ngầm.
+
+### B. Tích hợp thanh toán PayOS
 - Đổi từ SePay sang PayOS SDK v2 (thanh toán QR động App-to-app).
-- **Tuy nhiên**, do cơ chế một số ứng dụng ngân hàng bị kén thiết bị (quên lệnh sau khi mở m.me hoặc vân tay) nên chủ quán đã yêu cầu **tạm ẩn luồng tự động PayOS** trên màn hình giao dịch (thẻ `<option value="payos">` đang set `display: none` và `disabled`).
+- **Tuy nhiên**, do cơ chế một số ứng dụng ngân hàng bị kén thiết bị nên chủ quán đã yêu cầu **tạm ẩn luồng tự động PayOS** trên màn hình giao dịch (thẻ `<option value="payos">` đang set `display: none` và `disabled`).
 - Thay thế bởi bộ tính năng **VietQR Thủ công (Techcombank)** kèm nút **[TẢI MÃ QR]** tự động lưu blob nội dung hóa đơn xuống máy điện thoại khách hàng (được làm tại file `public/index.html`). 
 
-### B. UI Cải tiến (Admin Dashboard)
+### C. UI Cải tiến (Admin Dashboard)
 - Chỉnh sửa lỗi vỡ Layout Header Admin: Các thuộc tính chống chèn và `flex-shrink`, `min-w` đã được gắn cho `searchbox` và các Navigation bên phải.
 - **Logo hệ thống:** Đã chèn logo Trắng (`brightness-0 invert`, size `h-24 w-full`) nổi bật cực lớn ở thanh Sidebar trái cùng bg xanh bộ nhận diện (`bg-secondary`).
 - Nút CTA Chat Messenger góc dưới bên phải giờ có thêm Tooltip **"Chat với quán"** chữ tĩnh có hiệu ứng đập nhịp và xoay góc nghiêng.
 
-### C. Nâng cấp bộ não AI (Supabase Skills)
+### D. Nâng cấp bộ não AI (Supabase Skills)
 - Đã cài đặt qua CLI: `npx skills add supabase/agent-skills -y -g`.
 - Từ giờ AI được kế thừa trọn bộ "Agent-skills Postgres Best Practices" để phục vụ các yêu cầu thao tác sâu về DB.
 

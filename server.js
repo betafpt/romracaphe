@@ -10,6 +10,7 @@ const { Readable } = require('stream');
 const UAParser = require('ua-parser-js');
 const PayOSModule = require('@payos/node');
 const PayOS = PayOSModule.PayOS || PayOSModule.default || PayOSModule;
+const { chromium } = require('playwright');
 
 const payos = new PayOS({
   clientId: process.env.PAYOS_CLIENT_ID || '7dadb264-b04a-49d5-924f-3ef465b0e394',
@@ -650,7 +651,8 @@ app.post('/api/orders', async (req, res) => {
                 validItems.push({
                     recipe_id: item.recipeId,
                     quantity: item.quantity,
-                    price: r.price
+                    price: r.price,
+                    note: item.note || ''
                 });
             }
         });
@@ -678,6 +680,427 @@ app.post('/api/orders', async (req, res) => {
         res.json({ success: true, orderId: orderData.id });
     } catch (e) {
         console.error('Order Error:', e);
+    }
+});
+
+// --- API IN TEM QUA MẠNG LAN TỪ BACKEND (Hỗ trợ in từ mọi thiết bị điện thoại/iPad/máy tính) ---
+function removeVietnameseTones(str) {
+    if (!str) return '';
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ý|Ỳ|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    return str.trim();
+}
+
+app.post('/api/print-label-backend', async (req, res) => {
+    const { orderId, printerIP: reqPrinterIP, singleItemIndex, singleItemType, layout: reqLayout } = req.body;
+    if (!orderId) {
+        return res.status(400).json({ success: false, error: "Thiếu orderId" });
+    }
+    
+    let browser = null;
+    try {
+        const printerIP = reqPrinterIP || '192.168.50.12';
+        console.log(`[PRINT LAN] Bắt đầu xử lý in tem đơn hàng #${orderId} qua máy in ${printerIP}...`);
+        
+        // 1. Lấy thông tin đơn hàng cùng order_items và recipes
+        const { data: order, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                order_items (
+                    id, quantity, price, note,
+                    recipes (name, size)
+                )
+            `)
+            .eq('id', orderId)
+            .single();
+
+        if (error || !order) {
+            console.error("Lỗi lấy đơn hàng từ Supabase:", error);
+            return res.status(404).json({ success: false, error: "Không tìm thấy đơn hàng trong Database" });
+        }
+
+        const isApp = order.platform && order.platform !== 'local';
+        let printItems = [];
+        let displayId = order.id;
+
+        if (isApp && order.note && order.note.startsWith('{')) {
+            try {
+                let appData = JSON.parse(order.note);
+                displayId = appData.shortOrderNumber || order.id;
+                if (appData.items) {
+                    printItems = appData.items.map(i => {
+                        let notesArray = [];
+                        if (i.toppings && i.toppings.length > 0) {
+                            i.toppings.forEach(t => notesArray.push(t));
+                        }
+                        if (i.note) {
+                            notesArray.push("Ghi chú: " + i.note);
+                        }
+                        return {
+                            name: i.name,
+                            quantity: i.quantity,
+                            size: i.size || '-',
+                            note: notesArray.join('|')
+                        };
+                    });
+                }
+            } catch(e) {
+                console.error("Lỗi parse order.note trong in backend:", e);
+            }
+        } else {
+            printItems = (order.order_items || []).map(oi => ({
+                name: oi.recipes?.name || 'Món',
+                quantity: oi.quantity,
+                size: oi.recipes?.size || '-',
+                note: oi.note ? "Ghi chú: " + oi.note : ''
+            }));
+        }
+
+        const platformName = (order.platform || 'LOCAL').toUpperCase();
+        const orderDate = new Date(order.created_at);
+        const pad = (n) => String(n).padStart(2, '0');
+        const timeStr = `${pad(orderDate.getHours())}:${pad(orderDate.getMinutes())} ${pad(orderDate.getDate())}/${pad(orderDate.getMonth() + 1)}/${orderDate.getFullYear()}`;
+
+        // Xây dựng danh sách toàn bộ các tem cốc được in ra của đơn hàng trước khi lọc in lẻ
+        let totalQuantity = printItems.reduce((acc, oi) => acc + (parseInt(oi.quantity) || 1), 0);
+        let tempIndex = 1;
+        const allLabelsToPrint = [];
+
+        printItems.forEach((oi, oiIdx) => {
+            const qty = parseInt(oi.quantity) || 1;
+            for (let i = 1; i <= qty; i++) {
+                allLabelsToPrint.push({
+                    oi,
+                    itemIndex: tempIndex,
+                    totalQuantity: totalQuantity,
+                    originalItemIndex: oiIdx
+                });
+                tempIndex++;
+            }
+        });
+
+        // Lọc in lẻ nếu có tham số singleItemIndex từ frontend
+        let labelsToRender = allLabelsToPrint;
+        if (singleItemIndex !== undefined) {
+            const idx = parseInt(singleItemIndex);
+            labelsToRender = allLabelsToPrint.filter(label => label.originalItemIndex === idx);
+            console.log(`[PRINT LAN] Yêu cầu in lẻ món tại vị trí index: ${idx}. Lọc được ${labelsToRender.length}/${totalQuantity} tem để in.`);
+        } else {
+            console.log(`[PRINT LAN] Tổng cộng cần in ${totalQuantity} tem.`);
+        }
+
+        // Khởi động Playwright Chromium ngầm
+        browser = await chromium.launch({ headless: true });
+        const page = await browser.newPage();
+
+        // Nạp Google Fonts tiếng Việt cao cấp và đợi load xong hoàn toàn trước khi vẽ
+        await page.setContent(`
+            <html>
+            <head>
+                <link rel="preconnect" href="https://fonts.googleapis.com">
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                <link href="https://fonts.googleapis.com/css2?family=Comfortaa:ital,wght@0,400;0,700;1,400;1,700&family=Inter:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:ital,wght@0,400;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+                <style>body { margin: 0; padding: 0; }</style>
+            </head>
+            <body></body>
+            </html>
+        `);
+        await page.evaluate(() => document.fonts.ready);
+
+        let allLabelsBuffers = [];
+        
+        // Sử dụng layout kéo thả từ request hoặc layout mặc định cực kỳ chuẩn xác
+        const layout = reqLayout || {
+            fontFamily: "Arial",
+            title: { x: 20, y: 20, fontSize: 24, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+            divider: { x: 20, y: 48, width: 360, height: 3, style: 'solid', visible: true },
+            itemName: { x: 20, y: 60, fontSize: 28, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+            size: { x: 20, y: 125, fontSize: 20, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+            note: { x: 20, y: 155, fontSize: 16, fontWeight: 'normal', fontStyle: 'normal', visible: true },
+            timeStr: { x: 20, y: 200, fontSize: 18, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+            indexStr: { x: 310, y: 200, fontSize: 18, fontWeight: 'bold', fontStyle: 'normal', visible: true }
+        };
+
+        // Duyệt qua danh sách nhãn đã lọc để vẽ
+        for (let labelInfo of labelsToRender) {
+            const oi = labelInfo.oi;
+            console.log(`[PRINT LAN] Đang vẽ tem ${labelInfo.itemIndex}/${labelInfo.totalQuantity}: ${oi.name}`);
+                
+                // Vẽ giao diện tem in trên canvas trong browser Playwright ngầm và xuất dữ liệu bitmap đơn sắc
+                const bitmapData = await page.evaluate((data) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 400; // 50mm tại 203 DPI (8 dots/mm)
+                    canvas.height = 240; // 30mm tại 203 DPI (8 dots/mm)
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 1. Vẽ nền trắng
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, 400, 240);
+                    
+                    // 2. Thiết lập màu vẽ mặc định là đen
+                    ctx.fillStyle = '#000000';
+                    ctx.strokeStyle = '#000000';
+                    
+                    // Bật textBaseline = 'top' để khớp hoàn hảo 1:1 với top của absolute div frontend!
+                    ctx.textBaseline = 'top';
+                    
+                    const layout = data.layout;
+                    const fontName = layout.fontFamily || 'Arial';
+                    
+                    // 3. Tiêu đề in đậm (Ví dụ: LOCAL #100)
+                    if (layout.title && layout.title.visible) {
+                        const t = layout.title;
+                        ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
+                        ctx.fillText(data.title, t.x, t.y);
+                    }
+                    
+                    // Vạch kẻ đen phân cách dày phong cách Brutalism
+                    if (layout.divider && layout.divider.visible) {
+                        const d = layout.divider;
+                        ctx.lineWidth = d.height || 3;
+                        
+                        // Cấu hình nét đứt, nét chấm
+                        if (d.style === 'dashed') {
+                            ctx.setLineDash([8, 6]);
+                        } else if (d.style === 'dotted') {
+                            ctx.setLineDash([2, 4]);
+                        } else {
+                            ctx.setLineDash([]);
+                        }
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(d.x, d.y);
+                        ctx.lineTo(d.x + (d.width || 360), d.y);
+                        ctx.stroke();
+                        ctx.setLineDash([]); // Reset nét vẽ
+                    }
+                    
+                    // 4. Vẽ tên món ăn (In đậm, tự động co size / xuống dòng thông minh để tiếng Việt không bao giờ bị cắt thô bạo)
+                    if (layout.itemName && layout.itemName.visible) {
+                        const itemLayout = layout.itemName;
+                        // Chừa lề phải tối thiểu 20px để chống tràn
+                        const maxTextWidth = 400 - itemLayout.x - 20;
+                        
+                        let fontSize = itemLayout.fontSize;
+                        ctx.font = `${itemLayout.fontStyle === 'italic' ? 'italic' : ''} ${itemLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                        
+                        let itemName = data.itemName.toUpperCase();
+                        let textWidth = ctx.measureText(itemName).width;
+                        
+                        // Thử giảm cỡ chữ dần dần (tối thiểu 18px) để tên món nằm trọn 1 dòng
+                        while (textWidth > maxTextWidth && fontSize > 18) {
+                            fontSize -= 2;
+                            ctx.font = `${itemLayout.fontStyle === 'italic' ? 'italic' : ''} ${itemLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                            textWidth = ctx.measureText(itemName).width;
+                        }
+                        
+                        let lines = [];
+                        if (textWidth <= maxTextWidth) {
+                            lines.push(itemName);
+                        } else {
+                            // Tên món quá dài -> ngắt thành 2 dòng thông minh theo khoảng trắng
+                            fontSize = 20; // Cỡ chữ tối ưu khi ngắt 2 dòng
+                            ctx.font = `${itemLayout.fontStyle === 'italic' ? 'italic' : ''} ${itemLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                            const words = itemName.split(' ');
+                            let currentLine = '';
+                            
+                            for (let word of words) {
+                                let testLine = currentLine ? currentLine + ' ' + word : word;
+                                let testWidth = ctx.measureText(testLine).width;
+                                if (testWidth > maxTextWidth) {
+                                    lines.push(currentLine);
+                                    currentLine = word;
+                                } else {
+                                    currentLine = testLine;
+                                }
+                            }
+                            if (currentLine) {
+                                lines.push(currentLine);
+                            }
+                        }
+                        
+                        // Vẽ từng dòng tên món ăn
+                        let currentY = itemLayout.y;
+                        lines.forEach((line) => {
+                            ctx.font = `${itemLayout.fontStyle === 'italic' ? 'italic' : ''} ${itemLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                            ctx.fillText(line, itemLayout.x, currentY);
+                            currentY += fontSize + 4;
+                        });
+                    }
+                    
+                    // 5. Hiển thị Size
+                    if (layout.size && layout.size.visible && data.size && data.size !== '-') {
+                        const s = layout.size;
+                        ctx.font = `${s.fontStyle === 'italic' ? 'italic' : ''} ${s.fontWeight === 'bold' ? 'bold' : ''} ${s.fontSize}px "${fontName}", Arial, sans-serif`;
+                        ctx.fillText(`Size: ${data.size}`, s.x, s.y);
+                    }
+                    
+                    // 6. Hiển thị Ghi chú / Topping (Tự động xuống dòng thông minh theo từ, tránh bị cắt bằng ba chấm)
+                    if (layout.note && layout.note.visible && data.note) {
+                        const n = layout.note;
+                        ctx.font = `${n.fontStyle === 'italic' ? 'italic' : ''} ${n.fontWeight === 'bold' ? 'bold' : ''} ${n.fontSize}px "${fontName}", Arial, sans-serif`;
+                        const notes = data.note.split('|');
+                        const maxTextWidth = 400 - n.x - 20;
+                        let currentY = n.y;
+                        
+                        notes.forEach((note) => {
+                            let noteText = note.trim();
+                            if (!noteText) return;
+                            
+                            // Thực hiện thuật toán Word Wrap (xuống dòng theo từ)
+                            let words = noteText.split(' ');
+                            let currentLine = '';
+                            let subLines = [];
+                            
+                            for (let word of words) {
+                                let testLine = currentLine ? currentLine + ' ' + word : word;
+                                let testWidth = ctx.measureText(testLine).width;
+                                if (testWidth > maxTextWidth) {
+                                    if (currentLine) subLines.push(currentLine);
+                                    currentLine = word;
+                                } else {
+                                    currentLine = testLine;
+                                }
+                            }
+                            if (currentLine) subLines.push(currentLine);
+                            
+                            // Vẽ từng dòng ghi chú
+                            subLines.forEach((line) => {
+                                // Khống chế tọa độ Y để không đè lên phần giờ in và số thứ tự tem ở Y = 200
+                                if (currentY < 195) {
+                                    ctx.fillText(line, n.x, currentY);
+                                    currentY += n.fontSize + 4;
+                                }
+                            });
+                        });
+                    }
+                    
+                    // 7. Footer: Giờ in
+                    if (layout.timeStr && layout.timeStr.visible) {
+                        const t = layout.timeStr;
+                        ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
+                        ctx.fillText(data.timeStr, t.x, t.y);
+                    }
+                    
+                    // Thứ tự tem
+                    if (layout.indexStr && layout.indexStr.visible) {
+                        const idx = layout.indexStr;
+                        ctx.font = `${idx.fontStyle === 'italic' ? 'italic' : ''} ${idx.fontWeight === 'bold' ? 'bold' : ''} ${idx.fontSize}px "${fontName}", Arial, sans-serif`;
+                        ctx.fillText(`${data.itemIndex}/${data.totalQuantity}`, idx.x, idx.y);
+                    }
+                    
+                    // 8. Chuyển đổi toàn bộ pixel canvas thành dữ liệu Monochrome Bitmap (1 là đen, 0 là trắng)
+                    const width = 400;
+                    const height = 240;
+                    const widthBytes = width / 8; // 50 bytes
+                    const imgData = ctx.getImageData(0, 0, width, height).data;
+                    const bitmap = new Uint8Array(widthBytes * height);
+                    
+                    for (let y = 0; y < height; y++) {
+                        for (let xBytes = 0; xBytes < widthBytes; xBytes++) {
+                            let byteVal = 0xff; // Mặc định là trắng (1)
+                            for (let bit = 0; bit < 8; bit++) {
+                                const x = xBytes * 8 + bit;
+                                const pixelIdx = (y * width + x) * 4;
+                                const r = imgData[pixelIdx];
+                                const g = imgData[pixelIdx + 1];
+                                const b = imgData[pixelIdx + 2];
+                                const a = imgData[pixelIdx + 3];
+                                
+                                let isBlack = 0;
+                                if (a > 50) {
+                                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                                    if (gray < 200) { // Nét chữ/vạch kẻ
+                                        isBlack = 1;
+                                    }
+                                }
+                                
+                                if (isBlack) {
+                                    // Xóa bit về 0 để máy in phun mực đen
+                                    byteVal &= ~(1 << (7 - bit));
+                                }
+                            }
+                            bitmap[y * widthBytes + xBytes] = byteVal;
+                        }
+                    }
+                    
+                    return Array.from(bitmap);
+                }, {
+                    title: `${platformName} #${displayId}`,
+                    itemName: oi.name,
+                    size: oi.size,
+                    note: oi.note,
+                    timeStr: timeStr,
+                    itemIndex: labelInfo.itemIndex,
+                    totalQuantity: labelInfo.totalQuantity,
+                    layout: layout
+                });
+
+                const bitmapBuffer = Buffer.from(bitmapData);
+
+                // Khởi tạo trang in nhãn TSPL và ghép ảnh bitmap nhị phân thô
+                allLabelsBuffers.push(Buffer.from("SIZE 50 mm, 30 mm\r\nGAP 2 mm, 0 mm\r\nDIRECTION 1\r\nCLS\r\n"));
+                allLabelsBuffers.push(Buffer.from("BITMAP 0,0,50,240,0,"));
+                allLabelsBuffers.push(bitmapBuffer);
+                allLabelsBuffers.push(Buffer.from("\r\nPRINT 1,1\r\n"));
+        }
+
+        // Đóng browser ngầm Playwright
+        await browser.close();
+        browser = null;
+
+        // Nối toàn bộ lệnh của tất cả các tem in thành một buffer nhị phân duy nhất
+        const finalTsplCommands = Buffer.concat(allLabelsBuffers);
+
+        // 3. Kết nối TCP Socket port 9100 gửi lệnh in thô trực tiếp đến IP của máy in mạng
+        const net = require('net');
+        const printerPort = 9100;
+
+        console.log(`[PRINT LAN] Đang kết nối tới máy in mạng IP ${printerIP}...`);
+        const client = new net.Socket();
+        client.setTimeout(4000); // Đặt timeout kết nối là 4 giây (tăng thêm chút phòng khi mạng bận)
+
+        client.connect(printerPort, printerIP, () => {
+            console.log(`[PRINT LAN] Kết nối thành công! Đang gửi Buffer lệnh in bitmap...`);
+            client.write(finalTsplCommands, () => {
+                console.log(`[PRINT LAN] Đã gửi Buffer lệnh in thô thành công!`);
+                client.destroy(); // Đóng socket kết nối
+                res.json({ success: true, message: "Đã in tem thành công!" });
+            });
+        });
+
+        client.on('error', (err) => {
+            console.error("[PRINT LAN] Lỗi kết nối máy in mạng:", err);
+            client.destroy();
+            res.status(500).json({ success: false, error: `Không kết nối được máy in mạng ${printerIP} (Port 9100). Vui lòng kiểm tra dây mạng.` });
+        });
+
+        client.on('timeout', () => {
+            console.error("[PRINT LAN] Timeout kết nối tới máy in mạng!");
+            client.destroy();
+            res.status(500).json({ success: false, error: `Quá giờ kết nối tới máy in mạng ${printerIP} (Timeout)` });
+        });
+
+    } catch (e) {
+        console.error("Lỗi API print-label-backend:", e);
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        if (browser) {
+            await browser.close().catch(err => console.error("Lỗi đóng browser ngầm:", err));
+        }
     }
 });
 
@@ -780,7 +1203,7 @@ app.get('/api/orders', async (req, res) => {
             .select(`
                 *,
                 order_items (
-                    id, quantity, price,
+                    id, quantity, price, note,
                     recipes (name, size)
                 )
             `);

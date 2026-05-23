@@ -6,10 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rôm Rả Cà Phê Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@500;700&display=swap"
-        rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@500;700;900&display=swap"
-        rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:ital,wght@0,400;0,700;1,400;1,700&family=Inter:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:ital,wght@0,400;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 
     <!-- PWA Configuration -->
     <link rel="manifest" href="/manifest.json">
@@ -878,7 +877,7 @@
                                     <option value="payos" style="display: none;" disabled>Chuyển khoản tự động (Tạm bảo trì)</option>
                                 </select>
                             </div>
-                            <div class="mb-4">
+                            <div class="mb-4 hidden">
                                 <label class="font-black text-sm uppercase block mb-2">Ghi chú (Tùy chọn):</label>
                                 <textarea id="cart-note" rows="2" placeholder="VD: ít đá, không đường, thêm trân châu..." class="w-full p-3 border-4 border-black font-bold focus:outline-none focus:translate-y-1 shadow-[4px_4px_0_0_#000] focus:shadow-[0_0_0_0_#000] transition-all resize-none"></textarea>
                             </div>
@@ -2926,9 +2925,16 @@
                     }
 
                     orders.forEach(order => {
-                        const itemsHtml = order.order_items.map(oi => `
-                            <div class="flex justify-between text-sm items-center border-b-2 border-dashed border-gray-300 pb-1 mb-1">
-                                <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.recipes?.name || 'Món Đã Xóa'}</span> (${oi.recipes?.size || '-'})</span>
+                        const itemsHtml = order.order_items.map((oi, oiIdx) => `
+                            <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1">
+                                <div class="flex justify-between text-sm items-center">
+                                    <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.recipes?.name || 'Món Đã Xóa'}</span> (${oi.recipes?.size || '-'})</span>
+                                    <!-- Nút in lẻ món này -->
+                                    <button onclick="printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center" title="In riêng tem món này">
+                                        <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
+                                    </button>
+                                </div>
+                                ${oi.note ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú: ${oi.note}</div>` : ''}
                             </div>
                         `).join('');
 
@@ -3070,92 +3076,73 @@
             }
         }
 
-        window.printOrderLabel = function (orderId) {
-            const order = window.currentOrders?.find(o => o.id === orderId);
-            if (!order) return showToast("Không tìm thấy đơn hàng", "error");
-
-            const conf = typeof getPrintConfig === 'function' ? getPrintConfig() : null;
-            const platformName = (order.platform || 'LOCAL').toUpperCase();
-            let storeDisplay = '';
-            if (conf && conf.labelShowStoreInfo) {
-                storeDisplay = `<span class="app-name">${conf.storeName} - ${platformName}</span>`;
-            } else {
-                storeDisplay = `<span class="app-name">${platformName}</span>`;
-            }
-
-            const timeStr = new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-
-            let labelsHtml = '';
-
-            // Lặp qua từng món và từng số lượng để in 1 tem/ly
-            order.order_items.forEach((oi) => {
-                for (let i = 1; i <= oi.quantity; i++) {
-                    labelsHtml += `
-                    <div class="label-page">
-                        <div class="header">
-                            ${storeDisplay}
-                            <span class="order-id">#${order.id}</span>
-                        </div>
-                        <div class="item-name">${oi.recipes?.name || 'Món'}</div>
-                        <div class="details">
-                            <span>Size: ${oi.recipes?.size || '-'}</span>
-                            <span style="float: right;">${i}<sub>/${oi.quantity}</sub></span>
-                        </div>
-                        <div class="note">${oi.note ? 'Ghi chú: ' + oi.note : ''}</div>
-                        ${(!conf || conf.labelShowTime) ? `<div class="footer">${timeStr}</div>` : ''}
-                    </div>
-                    `;
+        window.printOrderLabel = async function (orderId) {
+            try {
+                const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
+                const printConf = localStorage.getItem('romra_print_config_v4');
+                let layout = null;
+                if (printConf) {
+                    try {
+                        const parsed = JSON.parse(printConf);
+                        if (parsed.layout) layout = parsed.layout;
+                    } catch(e) {}
                 }
-            });
+                
+                if (typeof showToast === 'function') showToast("Đang gửi lệnh in tới máy in mạng...", "success");
+                const res = await fetch('/api/print-label-backend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderId,
+                        printerIP,
+                        layout
+                    })
+                });
+                const j = await res.json();
+                if (j.success) {
+                    if (typeof showToast === 'function') showToast("Đã in tem thành công!", "success");
+                } else {
+                    if (typeof showToast === 'function') showToast("Lỗi in tem: " + j.error, "error");
+                }
+            } catch (e) {
+                console.error("Lỗi in tem:", e);
+                if (typeof showToast === 'function') showToast("Lỗi kết nối server: " + e.message, "error");
+            }
+        }
 
-            const printHtml = `
-                <html>
-                <head>
-                    <title>In Tem #${order.id}</title>
-                    <style>
-                        /* 50x30mm: 1mm ~ 3.78px -> ~189x113px */
-                        @page { size: 50mm 30mm; margin: 0; }
-                        body { 
-                            font-family: ${conf && conf.labelFontFamily ? conf.labelFontFamily : 'sans-serif'}; 
-                            margin: 0; 
-                            padding: 0;
-                            color: #000;
-                            width: 50mm;
-                        }
-                        .label-page {
-                            width: 50mm;
-                            height: 30mm;
-                            padding: 2mm 3mm;
-                            box-sizing: border-box;
-                            page-break-after: always;
-                            display: flex;
-                            flex-direction: column;
-                            position: relative;
-                            overflow: hidden;
-                        }
-                        .label-page:last-child { page-break-after: auto; }
-                        .header { font-weight: bold; font-size: ${conf ? (Number(conf.labelBaseFontSize) || 9) + 1 : 10}px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
-                        .app-name { float: left; }
-                        .order-id { float: right; }
-                        .item-name { font-weight: 900; font-size: ${conf ? conf.labelFontSize : 12}px; line-height: 1.1; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                        .details { font-size: ${conf ? (Number(conf.labelSizeFontSize) || 11) : 11}px; font-weight: bold; margin-bottom: 1px; }
-                        .note { font-size: ${conf ? (Number(conf.labelBaseFontSize) || 9) - 1 : 8}px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-height: 10px; }
-                        .footer { font-size: ${conf ? (Number(conf.labelBaseFontSize) || 9) - 2 : 7}px; position: absolute; bottom: 2px; right: 3px; }
-                    </style>
-                </head>
-                <body>
-                    ${labelsHtml}
-                    <script>
-                        window.onload = function() { window.print(); window.close(); }
-                    <\/script>
-                </body>
-                </html>
-            `;
-
-            const printWindow = window.open('', '_blank', 'width=400,height=300');
-            printWindow.document.open();
-            printWindow.document.write(printHtml);
-            printWindow.document.close();
+        window.printSingleLabel = async function (orderId, itemIndex) {
+            try {
+                const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
+                const printConf = localStorage.getItem('romra_print_config_v4');
+                let layout = null;
+                if (printConf) {
+                    try {
+                        const parsed = JSON.parse(printConf);
+                        if (parsed.layout) layout = parsed.layout;
+                    } catch(e) {}
+                }
+                
+                if (typeof showToast === 'function') showToast("Đang gửi lệnh in lẻ tem món tới máy in...", "success");
+                const res = await fetch('/api/print-label-backend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderId, 
+                        printerIP,
+                        singleItemIndex: itemIndex,
+                        layout
+                    })
+                });
+                const j = await res.json();
+                if (j.success) {
+                    if (typeof showToast === 'function') showToast("Đã in lẻ tem thành công!", "success");
+                } else {
+                    if (typeof showToast === 'function') showToast("Lỗi in lẻ: " + j.error, "error");
+                }
+            } catch (e) {
+                console.error("Lỗi in lẻ:", e);
+                if (typeof showToast === 'function') showToast("Lỗi kết nối server: " + e.message, "error");
+            }
         }
 
         window.printReceipt = function (orderId) {
@@ -3419,26 +3406,44 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
 
             container.innerHTML = window.currentCart.map(item => {
                 let displayImg = item.image ? item.image.split('|')[0] : 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400&fm=jpg&fit=crop';
+                const noteVal = item.note || '';
                 return `
-                    <div class="flex border-4 border-black bg-white brutal-shadow-sm p-3 items-center gap-3 relative">
+                    <div class="flex flex-col border-4 border-black bg-white brutal-shadow-sm p-3 gap-3 relative">
                         <!-- Xóa item -->
                         <button onclick="window.changeCartQuantity(${item.recipeId}, -999)" class="absolute -top-3 -right-3 w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-red-500 font-bold border-2 border-white z-10 scale-90 transition-transform active:scale-75">
                             <span class="material-symbols-outlined text-sm">close</span>
                         </button>
                         
-                        <img src="${displayImg}" class="w-16 h-16 object-cover border-4 border-black bg-slate-100" />
-                        <div class="flex-1">
-                            <h4 class="font-black leading-tight text-sm">${item.name}</h4>
-                            <div class="font-bold text-primary drop-shadow-[1px_1px_0_#000]">${Number(item.price).toLocaleString('vi-VN')}đ</div>
+                        <div class="flex items-center gap-3">
+                            <img src="${displayImg}" class="w-16 h-16 object-cover border-4 border-black bg-slate-100" />
+                            <div class="flex-1">
+                                <h4 class="font-black leading-tight text-sm">${item.name}</h4>
+                                <div class="font-bold text-primary drop-shadow-[1px_1px_0_#000]">${Number(item.price).toLocaleString('vi-VN')}đ</div>
+                            </div>
+                            <div class="flex items-center gap-2 font-black border-4 border-black p-1 bg-gray-100">
+                                <button onclick="window.changeCartQuantity(${item.recipeId}, -1)" class="w-8 h-8 flex items-center justify-center hover:bg-yellow-300 active:scale-90">-</button>
+                                <span class="w-6 text-center select-none">${item.quantity}</span>
+                                <button onclick="window.changeCartQuantity(${item.recipeId}, 1)" class="w-8 h-8 flex items-center justify-center hover:bg-yellow-300 active:scale-90">+</button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2 font-black border-4 border-black p-1 bg-gray-100">
-                            <button onclick="window.changeCartQuantity(${item.recipeId}, -1)" class="w-8 h-8 flex items-center justify-center hover:bg-yellow-300 active:scale-90">-</button>
-                            <span class="w-6 text-center select-none">${item.quantity}</span>
-                            <button onclick="window.changeCartQuantity(${item.recipeId}, 1)" class="w-8 h-8 flex items-center justify-center hover:bg-yellow-300 active:scale-90">+</button>
+                        
+                        <!-- Ô ghi chú cho từng món -->
+                        <div class="w-full">
+                            <input type="text" placeholder="Ghi chú món này (VD: ít đá, ngọt vừa...)" 
+                                   value="${noteVal}" 
+                                   oninput="window.updateCartItemNote(${item.recipeId}, this.value)" 
+                                   class="w-full p-2 border-2 border-black font-bold text-xs bg-slate-50 focus:bg-white outline-none rounded-none brutal-shadow-sm" />
                         </div>
                     </div>
                 `;
             }).join('');
+        };
+
+        window.updateCartItemNote = function (recipeId, noteValue) {
+            const idx = window.currentCart.findIndex(i => i.recipeId === recipeId);
+            if (idx > -1) {
+                window.currentCart[idx].note = noteValue;
+            }
         };
 
         window.changeCartQuantity = function (recipeId, delta) {
