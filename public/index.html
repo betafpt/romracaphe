@@ -3077,164 +3077,169 @@
         }
 
         window.drawLabelFrontend = function (order, oi, itemLayout, labelIndex, totalLabels, ctx, offsetY, fontName) {
-            // 1. Vẽ nền trắng
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, offsetY, 400, 240);
-            
-            // 2. Thiết lập màu vẽ mặc định là đen
-            ctx.fillStyle = '#000000';
-            ctx.strokeStyle = '#000000';
-            
-            // Bật textBaseline = 'top' để khớp hoàn hảo 1:1 với top của absolute div frontend!
-            ctx.textBaseline = 'top';
-            
-            const isApp = order.platform && order.platform !== 'local';
-            const platformName = (order.platform || 'LOCAL').toUpperCase();
-            let displayId = order.id;
-            if (isApp && order.note && order.note.startsWith('{')) {
-                try {
-                    let appData = JSON.parse(order.note);
-                    displayId = appData.shortOrderNumber || order.id;
-                } catch(e) {}
-            }
-            const title = `${platformName} #${displayId}`;
-            
-            // 3. Tiêu đề
-            if (itemLayout.title && itemLayout.title.visible) {
-                const t = itemLayout.title;
-                ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
-                ctx.fillText(title, t.x, offsetY + t.y);
-            }
-            
-            // 4. Vạch kẻ phân cách
-            if (itemLayout.divider && itemLayout.divider.visible) {
-                const d = itemLayout.divider;
-                ctx.lineWidth = d.height || 3;
+            try {
+                // 1. Vẽ nền trắng
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, offsetY, 400, 240);
                 
-                if (d.style === 'dashed') {
-                    ctx.setLineDash([8, 6]);
-                } else if (d.style === 'dotted') {
-                    ctx.setLineDash([2, 4]);
-                } else {
-                    ctx.setLineDash([]);
+                // 2. Thiết lập màu vẽ mặc định là đen
+                ctx.fillStyle = '#000000';
+                ctx.strokeStyle = '#000000';
+                
+                // Bật textBaseline = 'top' để khớp hoàn hảo 1:1 với top của absolute div frontend!
+                ctx.textBaseline = 'top';
+                
+                const isApp = order.platform && order.platform !== 'local';
+                const platformName = (order.platform || 'LOCAL').toUpperCase();
+                let displayId = order.id;
+                if (isApp && order.note && order.note.startsWith('{')) {
+                    try {
+                        let appData = JSON.parse(order.note);
+                        displayId = appData.shortOrderNumber || order.id;
+                    } catch(e) {}
+                }
+                const title = `${platformName} #${displayId}`;
+                
+                // 3. Tiêu đề
+                if (itemLayout.title && itemLayout.title.visible) {
+                    const t = itemLayout.title;
+                    ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
+                    ctx.fillText(title, t.x, offsetY + t.y);
                 }
                 
-                ctx.beginPath();
-                ctx.moveTo(d.x, offsetY + d.y);
-                ctx.lineTo(d.x + (d.width || 360), offsetY + d.y);
-                ctx.stroke();
-                ctx.setLineDash([]); // Reset nét vẽ
-            }
-            
-            // 5. Vẽ tên món ăn
-            if (itemLayout.itemName && itemLayout.itemName.visible) {
-                const nameLayout = itemLayout.itemName;
-                const maxTextWidth = 400 - nameLayout.x - 20;
-                
-                let fontSize = nameLayout.fontSize;
-                ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
-                
-                let itemName = oi.name.toUpperCase();
-                let textWidth = ctx.measureText(itemName).width;
-                
-                while (textWidth > maxTextWidth && fontSize > 18) {
-                    fontSize -= 2;
-                    ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
-                    textWidth = ctx.measureText(itemName).width;
-                }
-                
-                let lines = [];
-                if (textWidth <= maxTextWidth) {
-                    lines.push(itemName);
-                } else {
-                    fontSize = 20;
-                    ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
-                    const words = itemName.split(' ');
-                    let currentLine = '';
+                // 4. Vạch kẻ phân cách
+                if (itemLayout.divider && itemLayout.divider.visible) {
+                    const d = itemLayout.divider;
+                    ctx.lineWidth = d.height || 3;
                     
-                    for (let word of words) {
-                        let testLine = currentLine ? currentLine + ' ' + word : word;
-                        let testWidth = ctx.measureText(testLine).width;
-                        if (testWidth > maxTextWidth) {
+                    if (d.style === 'dashed') {
+                        ctx.setLineDash([8, 6]);
+                    } else if (d.style === 'dotted') {
+                        ctx.setLineDash([2, 4]);
+                    } else {
+                        ctx.setLineDash([]);
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(d.x, offsetY + d.y);
+                    ctx.lineTo(d.x + (d.width || 360), offsetY + d.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]); // Reset nét vẽ
+                }
+                
+                // 5. Vẽ tên món ăn
+                if (itemLayout.itemName && itemLayout.itemName.visible) {
+                    const nameLayout = itemLayout.itemName;
+                    const maxTextWidth = 400 - nameLayout.x - 20;
+                    
+                    let fontSize = nameLayout.fontSize;
+                    ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                    
+                    let itemName = oi.name.toUpperCase();
+                    let textWidth = ctx.measureText(itemName).width;
+                    
+                    while (textWidth > maxTextWidth && fontSize > 18) {
+                        fontSize -= 2;
+                        ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                        textWidth = ctx.measureText(itemName).width;
+                    }
+                    
+                    let lines = [];
+                    if (textWidth <= maxTextWidth) {
+                        lines.push(itemName);
+                    } else {
+                        fontSize = 20;
+                        ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                        const words = itemName.split(' ');
+                        let currentLine = '';
+                        
+                        for (let word of words) {
+                            let testLine = currentLine ? currentLine + ' ' + word : word;
+                            let testWidth = ctx.measureText(testLine).width;
+                            if (testWidth > maxTextWidth) {
+                                lines.push(currentLine);
+                                currentLine = word;
+                            } else {
+                                currentLine = testLine;
+                            }
+                        }
+                        if (currentLine) {
                             lines.push(currentLine);
-                            currentLine = word;
-                        } else {
-                            currentLine = testLine;
                         }
                     }
-                    if (currentLine) {
-                        lines.push(currentLine);
-                    }
+                    
+                    let currentY = offsetY + nameLayout.y;
+                    lines.forEach((line) => {
+                        ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                        ctx.fillText(line, nameLayout.x, currentY);
+                        currentY += fontSize + 4;
+                    });
                 }
                 
-                let currentY = offsetY + nameLayout.y;
-                lines.forEach((line) => {
-                    ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
-                    ctx.fillText(line, nameLayout.x, currentY);
-                    currentY += fontSize + 4;
-                });
-            }
-            
-            // 6. Hiển thị Size
-            if (itemLayout.size && itemLayout.size.visible && oi.size && oi.size !== '-') {
-                const s = itemLayout.size;
-                ctx.font = `${s.fontStyle === 'italic' ? 'italic' : ''} ${s.fontWeight === 'bold' ? 'bold' : ''} ${s.fontSize}px "${fontName}", Arial, sans-serif`;
-                ctx.fillText(`Size: ${oi.size}`, s.x, offsetY + s.y);
-            }
-            
-            // 7. Hiển thị Ghi chú / Topping
-            if (itemLayout.note && itemLayout.note.visible && oi.note) {
-                const n = itemLayout.note;
-                ctx.font = `${n.fontStyle === 'italic' ? 'italic' : ''} ${n.fontWeight === 'bold' ? 'bold' : ''} ${n.fontSize}px "${fontName}", Arial, sans-serif`;
-                const notes = oi.note.split('|');
-                const maxTextWidth = 400 - n.x - 20;
-                let currentY = offsetY + n.y;
+                // 6. Hiển thị Size
+                if (itemLayout.size && itemLayout.size.visible && oi.size && oi.size !== '-') {
+                    const s = itemLayout.size;
+                    ctx.font = `${s.fontStyle === 'italic' ? 'italic' : ''} ${s.fontWeight === 'bold' ? 'bold' : ''} ${s.fontSize}px "${fontName}", Arial, sans-serif`;
+                    ctx.fillText(`Size: ${oi.size}`, s.x, offsetY + s.y);
+                }
                 
-                notes.forEach((note) => {
-                    let noteText = note.trim();
-                    if (!noteText) return;
+                // 7. Hiển thị Ghi chú / Topping
+                if (itemLayout.note && itemLayout.note.visible && oi.note) {
+                    const n = itemLayout.note;
+                    ctx.font = `${n.fontStyle === 'italic' ? 'italic' : ''} ${n.fontWeight === 'bold' ? 'bold' : ''} ${n.fontSize}px "${fontName}", Arial, sans-serif`;
+                    const notes = oi.note.split('|');
+                    const maxTextWidth = 400 - n.x - 20;
+                    let currentY = offsetY + n.y;
                     
-                    let words = noteText.split(' ');
-                    let currentLine = '';
-                    let subLines = [];
-                    
-                    for (let word of words) {
-                        let testLine = currentLine ? currentLine + ' ' + word : word;
-                        let testWidth = ctx.measureText(testLine).width;
-                        if (testWidth > maxTextWidth) {
-                            if (currentLine) subLines.push(currentLine);
-                            currentLine = word;
-                        } else {
-                            currentLine = testLine;
+                    notes.forEach((note) => {
+                        let noteText = note.trim();
+                        if (!noteText) return;
+                        
+                        let words = noteText.split(' ');
+                        let currentLine = '';
+                        let subLines = [];
+                        
+                        for (let word of words) {
+                            let testLine = currentLine ? currentLine + ' ' + word : word;
+                            let testWidth = ctx.measureText(testLine).width;
+                            if (testWidth > maxTextWidth) {
+                                if (currentLine) subLines.push(currentLine);
+                                currentLine = word;
+                            } else {
+                                currentLine = testLine;
+                            }
                         }
-                    }
-                    if (currentLine) subLines.push(currentLine);
-                    
-                    subLines.forEach((line) => {
-                        if (currentY < offsetY + 195) {
-                            ctx.fillText(line, n.x, currentY);
-                            currentY += n.fontSize + 4;
-                        }
+                        if (currentLine) subLines.push(currentLine);
+                        
+                        subLines.forEach((line) => {
+                            if (currentY < offsetY + 195) {
+                                ctx.fillText(line, n.x, currentY);
+                                currentY += n.fontSize + 4;
+                            }
+                        });
                     });
-                });
-            }
-            
-            // 8. Footer: Giờ in
-            const orderDate = new Date(order.created_at);
-            const pad = (n) => String(n).padStart(2, '0');
-            const timeStr = `${pad(orderDate.getHours())}:${pad(orderDate.getMinutes())} ${pad(orderDate.getDate())}/${pad(orderDate.getMonth() + 1)}/${orderDate.getFullYear()}`;
-            
-            if (itemLayout.timeStr && itemLayout.timeStr.visible) {
-                const t = itemLayout.timeStr;
-                ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
-                ctx.fillText(timeStr, t.x, offsetY + t.y);
-            }
-            
-            // Thứ tự tem
-            if (itemLayout.indexStr && itemLayout.indexStr.visible) {
-                const idx = itemLayout.indexStr;
-                ctx.font = `${idx.fontStyle === 'italic' ? 'italic' : ''} ${idx.fontWeight === 'bold' ? 'bold' : ''} ${idx.fontSize}px "${fontName}", Arial, sans-serif`;
-                ctx.fillText(`${labelIndex}/${totalLabels}`, idx.x, offsetY + idx.y);
+                }
+                
+                // 8. Footer: Giờ in
+                const orderDate = new Date(order.created_at);
+                const pad = (n) => String(n).padStart(2, '0');
+                const timeStr = `${pad(orderDate.getHours())}:${pad(orderDate.getMinutes())} ${pad(orderDate.getDate())}/${pad(orderDate.getMonth() + 1)}/${orderDate.getFullYear()}`;
+                
+                if (itemLayout.timeStr && itemLayout.timeStr.visible) {
+                    const t = itemLayout.timeStr;
+                    ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
+                    ctx.fillText(timeStr, t.x, offsetY + t.y);
+                }
+                
+                // Thứ tự tem
+                if (itemLayout.indexStr && itemLayout.indexStr.visible) {
+                    const idx = itemLayout.indexStr;
+                    ctx.font = `${idx.fontStyle === 'italic' ? 'italic' : ''} ${idx.fontWeight === 'bold' ? 'bold' : ''} ${idx.fontSize}px "${fontName}", Arial, sans-serif`;
+                    ctx.fillText(`${labelIndex}/${totalLabels}`, idx.x, offsetY + idx.y);
+                }
+            } catch (err) {
+                console.error("Lỗi vẽ canvas ở Frontend:", err);
+                if (typeof showToast === 'function') showToast("Lỗi vẽ tem: " + err.message, "error");
             }
         };
 
