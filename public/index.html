@@ -3076,8 +3076,294 @@
             }
         }
 
+        window.drawLabelFrontend = function (order, oi, itemLayout, labelIndex, totalLabels, ctx, offsetY, fontName) {
+            // 1. Vẽ nền trắng
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, offsetY, 400, 240);
+            
+            // 2. Thiết lập màu vẽ mặc định là đen
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#000000';
+            
+            // Bật textBaseline = 'top' để khớp hoàn hảo 1:1 với top của absolute div frontend!
+            ctx.textBaseline = 'top';
+            
+            const isApp = order.platform && order.platform !== 'local';
+            const platformName = (order.platform || 'LOCAL').toUpperCase();
+            let displayId = order.id;
+            if (isApp && order.note && order.note.startsWith('{')) {
+                try {
+                    let appData = JSON.parse(order.note);
+                    displayId = appData.shortOrderNumber || order.id;
+                } catch(e) {}
+            }
+            const title = `${platformName} #${displayId}`;
+            
+            // 3. Tiêu đề
+            if (itemLayout.title && itemLayout.title.visible) {
+                const t = itemLayout.title;
+                ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
+                ctx.fillText(title, t.x, offsetY + t.y);
+            }
+            
+            // 4. Vạch kẻ phân cách
+            if (itemLayout.divider && itemLayout.divider.visible) {
+                const d = itemLayout.divider;
+                ctx.lineWidth = d.height || 3;
+                
+                if (d.style === 'dashed') {
+                    ctx.setLineDash([8, 6]);
+                } else if (d.style === 'dotted') {
+                    ctx.setLineDash([2, 4]);
+                } else {
+                    ctx.setLineDash([]);
+                }
+                
+                ctx.beginPath();
+                ctx.moveTo(d.x, offsetY + d.y);
+                ctx.lineTo(d.x + (d.width || 360), offsetY + d.y);
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset nét vẽ
+            }
+            
+            // 5. Vẽ tên món ăn
+            if (itemLayout.itemName && itemLayout.itemName.visible) {
+                const nameLayout = itemLayout.itemName;
+                const maxTextWidth = 400 - nameLayout.x - 20;
+                
+                let fontSize = nameLayout.fontSize;
+                ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                
+                let itemName = oi.name.toUpperCase();
+                let textWidth = ctx.measureText(itemName).width;
+                
+                while (textWidth > maxTextWidth && fontSize > 18) {
+                    fontSize -= 2;
+                    ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                    textWidth = ctx.measureText(itemName).width;
+                }
+                
+                let lines = [];
+                if (textWidth <= maxTextWidth) {
+                    lines.push(itemName);
+                } else {
+                    fontSize = 20;
+                    ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                    const words = itemName.split(' ');
+                    let currentLine = '';
+                    
+                    for (let word of words) {
+                        let testLine = currentLine ? currentLine + ' ' + word : word;
+                        let testWidth = ctx.measureText(testLine).width;
+                        if (testWidth > maxTextWidth) {
+                            lines.push(currentLine);
+                            currentLine = word;
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+                    if (currentLine) {
+                        lines.push(currentLine);
+                    }
+                }
+                
+                let currentY = offsetY + nameLayout.y;
+                lines.forEach((line) => {
+                    ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
+                    ctx.fillText(line, nameLayout.x, currentY);
+                    currentY += fontSize + 4;
+                });
+            }
+            
+            // 6. Hiển thị Size
+            if (itemLayout.size && itemLayout.size.visible && oi.size && oi.size !== '-') {
+                const s = itemLayout.size;
+                ctx.font = `${s.fontStyle === 'italic' ? 'italic' : ''} ${s.fontWeight === 'bold' ? 'bold' : ''} ${s.fontSize}px "${fontName}", Arial, sans-serif`;
+                ctx.fillText(`Size: ${oi.size}`, s.x, offsetY + s.y);
+            }
+            
+            // 7. Hiển thị Ghi chú / Topping
+            if (itemLayout.note && itemLayout.note.visible && oi.note) {
+                const n = itemLayout.note;
+                ctx.font = `${n.fontStyle === 'italic' ? 'italic' : ''} ${n.fontWeight === 'bold' ? 'bold' : ''} ${n.fontSize}px "${fontName}", Arial, sans-serif`;
+                const notes = oi.note.split('|');
+                const maxTextWidth = 400 - n.x - 20;
+                let currentY = offsetY + n.y;
+                
+                notes.forEach((note) => {
+                    let noteText = note.trim();
+                    if (!noteText) return;
+                    
+                    let words = noteText.split(' ');
+                    let currentLine = '';
+                    let subLines = [];
+                    
+                    for (let word of words) {
+                        let testLine = currentLine ? currentLine + ' ' + word : word;
+                        let testWidth = ctx.measureText(testLine).width;
+                        if (testWidth > maxTextWidth) {
+                            if (currentLine) subLines.push(currentLine);
+                            currentLine = word;
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+                    if (currentLine) subLines.push(currentLine);
+                    
+                    subLines.forEach((line) => {
+                        if (currentY < offsetY + 195) {
+                            ctx.fillText(line, n.x, currentY);
+                            currentY += n.fontSize + 4;
+                        }
+                    });
+                });
+            }
+            
+            // 8. Footer: Giờ in
+            const orderDate = new Date(order.created_at);
+            const pad = (n) => String(n).padStart(2, '0');
+            const timeStr = `${pad(orderDate.getHours())}:${pad(orderDate.getMinutes())} ${pad(orderDate.getDate())}/${pad(orderDate.getMonth() + 1)}/${orderDate.getFullYear()}`;
+            
+            if (itemLayout.timeStr && itemLayout.timeStr.visible) {
+                const t = itemLayout.timeStr;
+                ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
+                ctx.fillText(timeStr, t.x, offsetY + t.y);
+            }
+            
+            // Thứ tự tem
+            if (itemLayout.indexStr && itemLayout.indexStr.visible) {
+                const idx = itemLayout.indexStr;
+                ctx.font = `${idx.fontStyle === 'italic' ? 'italic' : ''} ${idx.fontWeight === 'bold' ? 'bold' : ''} ${idx.fontSize}px "${fontName}", Arial, sans-serif`;
+                ctx.fillText(`${labelIndex}/${totalLabels}`, idx.x, offsetY + idx.y);
+            }
+        };
+
+        window.printLabelRawBT = async function (orderId, singleItemIndex) {
+            try {
+                const order = window.currentOrders?.find(o => o.id === orderId);
+                if (!order) {
+                    if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
+                    return;
+                }
+
+                const isApp = order.platform && order.platform !== 'local';
+                let printItems = [];
+                if (isApp && order.note && order.note.startsWith('{')) {
+                    try {
+                        let appData = JSON.parse(order.note);
+                        if (appData.items) {
+                            printItems = appData.items.map(i => {
+                                let notesArray = [];
+                                if (i.toppings && i.toppings.length > 0) {
+                                    i.toppings.forEach(t => notesArray.push(t));
+                                }
+                                if (i.note) {
+                                    notesArray.push("Ghi chú: " + i.note);
+                                }
+                                return {
+                                    name: i.name,
+                                    quantity: i.quantity,
+                                    size: i.size || '-',
+                                    note: notesArray.join('|')
+                                };
+                            });
+                        }
+                    } catch(e) {
+                        console.error("Lỗi parse order.note in RawBT:", e);
+                    }
+                } else {
+                    printItems = (order.order_items || []).map(oi => ({
+                        name: oi.recipes?.name || 'Món',
+                        quantity: oi.quantity,
+                        size: oi.recipes?.size || '-',
+                        note: oi.note ? "Ghi chú: " + oi.note : ''
+                    }));
+                }
+
+                // Xây dựng danh sách toàn bộ các tem cốc được in ra của đơn hàng trước khi lọc in lẻ
+                let totalQuantity = printItems.reduce((acc, oi) => acc + (parseInt(oi.quantity) || 1), 0);
+                let tempIndex = 1;
+                const allLabelsToPrint = [];
+
+                printItems.forEach((oi, oiIdx) => {
+                    const qty = parseInt(oi.quantity) || 1;
+                    for (let i = 1; i <= qty; i++) {
+                        allLabelsToPrint.push({
+                            oi,
+                            itemIndex: tempIndex,
+                            totalQuantity: totalQuantity,
+                            originalItemIndex: oiIdx
+                        });
+                        tempIndex++;
+                    }
+                });
+
+                // Lọc in lẻ nếu có singleItemIndex
+                let labelsToRender = allLabelsToPrint;
+                if (singleItemIndex !== undefined) {
+                    const idx = parseInt(singleItemIndex);
+                    labelsToRender = allLabelsToPrint.filter(label => label.originalItemIndex === idx);
+                }
+
+                if (labelsToRender.length === 0) {
+                    if (typeof showToast === 'function') showToast("Không có tem nào để in", "error");
+                    return;
+                }
+
+                // Lấy layout
+                const printConf = localStorage.getItem('romra_print_config_v4');
+                let layout = {
+                    fontFamily: "Arial",
+                    title: { x: 20, y: 20, fontSize: 24, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    divider: { x: 20, y: 48, width: 360, height: 3, style: 'solid', visible: true },
+                    itemName: { x: 20, y: 60, fontSize: 28, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    size: { x: 20, y: 125, fontSize: 20, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    note: { x: 20, y: 155, fontSize: 16, fontWeight: 'normal', fontStyle: 'normal', visible: true },
+                    timeStr: { x: 20, y: 200, fontSize: 18, fontWeight: 'bold', fontStyle: 'normal', visible: true },
+                    indexStr: { x: 310, y: 200, fontSize: 18, fontWeight: 'bold', fontStyle: 'normal', visible: true }
+                };
+                if (printConf) {
+                    try {
+                        const parsed = JSON.parse(printConf);
+                        if (parsed.layout) layout = { ...layout, ...parsed.layout };
+                    } catch(e) {}
+                }
+                const fontName = layout.fontFamily || 'Arial';
+
+                // Tạo Canvas gộp theo chiều dọc
+                const canvas = document.createElement('canvas');
+                canvas.width = 400;
+                canvas.height = 240 * labelsToRender.length;
+                const ctx = canvas.getContext('2d');
+
+                if (document.fonts) {
+                    await document.fonts.ready;
+                }
+
+                labelsToRender.forEach((labelInfo, idx) => {
+                    const offsetY = 240 * idx;
+                    window.drawLabelFrontend(order, labelInfo.oi, layout, labelInfo.itemIndex, labelInfo.totalQuantity, ctx, offsetY, fontName);
+                });
+
+                // Xuất base64 PNG và in qua RawBT Deep Link
+                const base64Png = canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+                const intentUrl = "intent:#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.base64=" + encodeURIComponent(base64Png) + ";end;";
+                
+                window.location.href = intentUrl;
+                if (typeof showToast === 'function') showToast("Đã gửi lệnh in trực tiếp tới RawBT!", "success");
+
+            } catch (e) {
+                console.error("Lỗi in trực tiếp qua RawBT:", e);
+                if (typeof showToast === 'function') showToast("Lỗi in trực tiếp: " + e.message, "error");
+            }
+        };
+
         window.printOrderLabel = async function (orderId) {
             try {
+                if (localStorage.getItem('romra_direct_lan_print') === 'true') {
+                    return window.printLabelRawBT(orderId);
+                }
+
                 const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
                 const printConf = localStorage.getItem('romra_print_config_v4');
                 let layout = null;
@@ -3112,6 +3398,10 @@
 
         window.printSingleLabel = async function (orderId, itemIndex) {
             try {
+                if (localStorage.getItem('romra_direct_lan_print') === 'true') {
+                    return window.printLabelRawBT(orderId, itemIndex);
+                }
+
                 const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
                 const printConf = localStorage.getItem('romra_print_config_v4');
                 let layout = null;

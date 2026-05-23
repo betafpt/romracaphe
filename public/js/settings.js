@@ -76,6 +76,15 @@ function renderSettings() {
                             </div>
                             <p class="text-xs text-gray-500 mt-1 font-bold">Bù khoảng cách cách lề bên trái nếu tem in ra thực tế bị lệch sát mép. Thường từ 10 đến 30px. Khi tăng, chữ trên tem thiết kế sẽ tự động dịch sang phải.</p>
                         </div>
+                        <div class="border-t border-dashed border-red-300 pt-3">
+                            <label class="flex items-center gap-3 cursor-pointer select-none border-2 border-black p-3 bg-white hover:bg-red-100 transition-colors">
+                                <input type="checkbox" id="cfg-directLanPrint" class="w-6 h-6 border-4 border-black bg-white accent-black" ${localStorage.getItem('romra_direct_lan_print') === 'true' ? 'checked' : ''}>
+                                <div>
+                                    <span class="font-bold text-sm block uppercase">Bật in trực tiếp LAN từ máy tính bảng (RawBT)</span>
+                                    <span class="text-xs text-gray-500 font-bold block normal-case mt-0.5">Bật tùy chọn này trên Máy tính bảng Android của quán để tự vẽ và in tem qua app RawBT mà không cần bật máy chủ Windows.</span>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -667,6 +676,9 @@ function saveVisualPrintConfig() {
     
     localStorage.setItem('romra_printer_ip', config.layout.printerIP);
     localStorage.setItem('romra_print_config_v4', JSON.stringify(config));
+    
+    const isDirectLan = document.getElementById('cfg-directLanPrint') ? document.getElementById('cfg-directLanPrint').checked : false;
+    localStorage.setItem('romra_direct_lan_print', isDirectLan ? 'true' : 'false');
     
     if (typeof showToast === 'function') showToast("Đã lưu Cài đặt In ấn & Thiết kế Tem!");
     updateReceiptPreview();
