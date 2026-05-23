@@ -602,14 +602,17 @@
             const topbar = document.getElementById('topbar-header');
             const mainWrapper = document.getElementById('main-wrapper');
 
+            const messengerContainer = document.getElementById('floating-messenger-container');
             if (route === 'welcome' || route === 'usermenu') {
                 sidebar.style.display = 'none';
                 topbar.style.display = 'none';
                 mainWrapper.classList.remove('md:ml-[240px]');
+                if (messengerContainer) messengerContainer.style.display = 'flex';
             } else {
                 sidebar.style.display = 'flex';
                 topbar.style.display = 'flex';
                 mainWrapper.classList.add('md:ml-[240px]');
+                if (messengerContainer) messengerContainer.style.display = 'none';
             }
 
             // Update active nav
@@ -4013,9 +4016,137 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
             }
         }
 
+        // ================= KÉO THẢ NÚT MESSENGER (DRAGGABLE) =================
+        function makeMessengerDraggable() {
+            const el = document.getElementById('floating-messenger-container');
+            if (!el) return;
+
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            let isDragging = false;
+
+            // PC Mouse Events
+            el.addEventListener('mousedown', dragMouseDown);
+            // Mobile/Tablet Touch Events
+            el.addEventListener('touchstart', dragTouchStart, { passive: false });
+
+            function dragMouseDown(e) {
+                // Khởi tạo tọa độ chuột ban đầu
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+                isDragging = false;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                isDragging = true;
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+
+                let newTop = el.offsetTop - pos2;
+                let newLeft = el.offsetLeft - pos1;
+
+                // Giới hạn trong màn hình viewport tránh kéo mất nút
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const elWidth = el.offsetWidth;
+                const elHeight = el.offsetHeight;
+
+                if (newLeft < 10) newLeft = 10;
+                if (newTop < 10) newTop = 10;
+                if (newLeft > viewportWidth - elWidth - 10) newLeft = viewportWidth - elWidth - 10;
+                if (newTop > viewportHeight - elHeight - 10) newTop = viewportHeight - elHeight - 10;
+
+                el.style.bottom = 'auto';
+                el.style.right = 'auto';
+                el.style.top = newTop + 'px';
+                el.style.left = newLeft + 'px';
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+                
+                // Nếu đang drag, ngăn chặn click mở link m.me mở bất ngờ
+                if (isDragging) {
+                    const link = el.querySelector('a');
+                    if (link) {
+                        const preventClick = (event) => {
+                            event.preventDefault();
+                            link.removeEventListener('click', preventClick);
+                        };
+                        link.addEventListener('click', preventClick);
+                    }
+                }
+            }
+
+            // Di động / Tablet Touch
+            function dragTouchStart(e) {
+                isDragging = false;
+                if (e.touches.length === 1) {
+                    pos3 = e.touches[0].clientX;
+                    pos4 = e.touches[0].clientY;
+                    el.addEventListener('touchmove', elementTouchDrag, { passive: false });
+                    el.addEventListener('touchend', closeTouchDragElement);
+                }
+            }
+
+            function elementTouchDrag(e) {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    pos1 = pos3 - e.touches[0].clientX;
+                    pos2 = pos4 - e.touches[0].clientY;
+                    pos3 = e.touches[0].clientX;
+                    pos4 = e.touches[0].clientY;
+
+                    let newTop = el.offsetTop - pos2;
+                    let newLeft = el.offsetLeft - pos1;
+
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    const elWidth = el.offsetWidth;
+                    const elHeight = el.offsetHeight;
+
+                    if (newLeft < 10) newLeft = 10;
+                    if (newTop < 10) newTop = 10;
+                    if (newLeft > viewportWidth - elWidth - 10) newLeft = viewportWidth - elWidth - 10;
+                    if (newTop > viewportHeight - elHeight - 10) newTop = viewportHeight - elHeight - 10;
+
+                    el.style.bottom = 'auto';
+                    el.style.right = 'auto';
+                    el.style.top = newTop + 'px';
+                    el.style.left = newLeft + 'px';
+
+                    // Ngăn chặn cuộn màn hình khi đang drag nút
+                    if (e.cancelable) e.preventDefault();
+                }
+            }
+
+            function closeTouchDragElement() {
+                el.removeEventListener('touchmove', elementTouchDrag);
+                el.removeEventListener('touchend', closeTouchDragElement);
+                
+                if (isDragging) {
+                    const link = el.querySelector('a');
+                    if (link) {
+                        const preventClick = (event) => {
+                            event.preventDefault();
+                            link.removeEventListener('click', preventClick);
+                        };
+                        link.addEventListener('click', preventClick);
+                    }
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             window.loadGlobalTheme();
             checkAndroidAppUpdate();
+            makeMessengerDraggable();
         });
 
         // Simple Mobile Drawer Logic
@@ -4474,8 +4605,8 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
     </script>
 
     <!-- Nút Chat Nổi (Floating Messenger Button) -->
-    <div class="fixed bottom-6 left-6 z-50 flex flex-col items-center gap-2 group">
-        <span class="bg-white text-black font-black text-[10px] sm:text-xs uppercase border-4 border-black px-2 py-1 whitespace-nowrap shadow-[4px_4px_0_0_#000] rotate-[-2deg] animate-pulse">
+    <div id="floating-messenger-container" class="fixed bottom-6 left-6 z-50 flex flex-col items-center gap-2 group" style="touch-action: none;">
+        <span class="bg-white text-black font-black text-[10px] sm:text-xs uppercase border-4 border-black px-2 py-1 whitespace-nowrap shadow-[4px_4px_0_0_#000] rotate-[-2deg] select-none pointer-events-none">
             Chat với quán
         </span>
         <a href="https://m.me/61587165028890" target="_blank" id="btn-messenger" class="bg-[#0084FF] text-white flex items-center justify-center p-3 sm:p-4 rounded-full border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 hover:-translate-x-1 group-hover:cursor-pointer" title="Nhắn tin cho quán">
