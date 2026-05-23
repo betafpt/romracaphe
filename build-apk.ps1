@@ -122,6 +122,12 @@ Write-Host ""
 Write-Host "=== DANG BAT DAU BIEN DICH FILE APK (ASSEMBLE DEBUG) ===" -ForegroundColor Cyan
 Write-Host "Qua trinh nay se dien ra trong khoang 1-2 phut..." -ForegroundColor Yellow
 
+# Tat sach cac tien trinh Java/Gradle chay ngam cu de giai phong file lock tranh kẹt build
+Write-Host "Dang don dep cac tien trinh Java/Gradle chay ngam cu de giai phong file lock..." -ForegroundColor Yellow
+try {
+    Stop-Process -Name "java" -Force -ErrorAction SilentlyContinue
+} catch {}
+
 $AndroidAppDir = Join-Path $PSScriptRoot "android-app"
 Push-Location $AndroidAppDir
 
