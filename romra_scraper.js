@@ -51,7 +51,7 @@ async function autoLoginGrab(page, config) {
         await passwordInput.fill(config.password);
 
         console.log('🔘 Đang bấm nút đăng nhập...');
-        const loginButton = page.locator('button[type="submit"], button:has-text("Đăng nhập"), button:has-text("Log In"), button:has-text("Sign In")').first();
+        const loginButton = page.locator('button[type="submit"], button.dui-btn, button:has-text("Đăng nhập"), button:has-text("Log In"), button:has-text("Sign In"), button:has-text("Continue"), button').filter({ visible: true }).first();
         await loginButton.click();
 
         console.log('⏳ Đang chờ hệ thống xác nhận đăng nhập thành công...');
