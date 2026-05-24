@@ -4,11 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rôm Rả Cà Phê Dashboard</title>
+    <title>Rôm Rả Cà Phê</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Comfortaa:ital,wght@0,400;0,700;1,400;1,700&family=Inter:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:ital,wght@0,400;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bungee&family=Comfortaa:ital,wght@0,400;0,700;1,400;1,700&family=Inter:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:ital,wght@0,400;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
 
     <!-- PWA Configuration -->
     <link rel="manifest" href="/manifest.json">
@@ -17,7 +19,7 @@
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="description" content="Hệ thống Quản lý và Công thức chuyên nghiệp của Rôm Rả Cà Phê">
+    <meta name="description" content="Cà phê gu đậm và pha chế thủ công">
 
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
@@ -161,7 +163,9 @@
         class="fixed top-0 left-0 h-full w-[240px] bg-secondary border-r-4 border-black z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col">
         <div class="relative p-4 border-b-4 border-black flex justify-center items-center">
             <img src="/img/logo.png" alt="Rôm Rả Cà Phê Logo" class="h-24 w-full object-contain brightness-0 invert">
-            <button class="md:hidden text-white active:scale-90 absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 rounded-full p-1" onclick="toggleDrawer()">
+            <button
+                class="md:hidden text-white active:scale-90 absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 rounded-full p-1"
+                onclick="toggleDrawer()">
                 <span class="material-symbols-outlined text-2xl">close</span>
             </button>
         </div>
@@ -180,12 +184,12 @@
                 <span class="material-symbols-outlined">restaurant_menu</span> Thực đơn
             </a>
             <a href="#" data-route="cashier"
-                class="nav-item flex items-center gap-3 p-3 font-bold text-black bg-[#FFD600] hover:bg-black/10 transition-colors border-4 border-transparent my-1">
-                <span class="material-symbols-outlined">shopping_cart</span> BÁN HÀNG
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">shopping_cart</span> Bán hàng
             </a>
             <a href="#" data-route="pos"
-                class="nav-item flex items-center gap-3 p-3 font-bold text-black bg-[#FEC6E9] hover:bg-black/10 transition-colors border-4 border-transparent animate-pulse my-1">
-                <span class="material-symbols-outlined">point_of_sale</span> Đơn Hàng
+                class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
+                <span class="material-symbols-outlined">point_of_sale</span> Đơn hàng
             </a>
             <a href="#" data-route="inventory"
                 class="nav-item flex items-center gap-3 p-3 font-bold text-white hover:bg-black/10 transition-colors border-4 border-transparent">
@@ -207,8 +211,8 @@
     </aside>
 
     <!-- Toggle Sidebar Button (Desktop) -->
-    <button id="btn-toggle-sidebar" onclick="window.toggleSidebarDesktop()" 
-        class="hidden md:flex fixed top-4 left-[220px] w-10 h-10 bg-white border-4 border-black rounded-full items-center justify-center brutal-shadow-sm active:translate-y-[1px] active:translate-x-[1px] active:shadow-none z-[100] hover:bg-[#FFD600] font-black transition-all duration-300" 
+    <button id="btn-toggle-sidebar" onclick="window.toggleSidebarDesktop()"
+        class="hidden md:flex fixed top-4 left-[220px] w-10 h-10 bg-white border-4 border-black rounded-full items-center justify-center brutal-shadow-sm active:translate-y-[1px] active:translate-x-[1px] active:shadow-none z-[100] hover:bg-[#FFD600] font-black transition-all duration-300"
         title="Ẩn/Hiện Sidebar">
         <span class="material-symbols-outlined font-black select-none" id="toggle-sidebar-icon">chevron_left</span>
     </button>
@@ -229,7 +233,8 @@
                         <span class="material-symbols-outlined font-bold">menu</span>
                     </button>
                     <h2 id="page-title"
-                        class="text-xl lg:text-2xl uppercase font-heading tracking-tight hidden sm:block truncate">Dashboard</h2>
+                        class="text-xl lg:text-2xl uppercase font-heading tracking-tight hidden sm:block truncate">
+                        Dashboard</h2>
                 </div>
 
                 <!-- Right: Search & Actions -->
@@ -245,7 +250,7 @@
                         <!-- Loai bo o tim kiem nhanh de tranh loi autofill Admin lam mat tham my va tinh gon giao dien -->
                     </div>
 
-                    <div class="relative group">
+                    <div class="relative group hidden" id="container-export-main">
                         <button onclick="toggleExportDropdown()" id="btn-export-main"
                             class="hidden sm:flex h-12 px-4 bg-white border-4 border-black brutal-shadow-sm items-center gap-2 font-bold uppercase whitespace-nowrap active:translate-y-1 active:translate-x-1 active:shadow-none transition-all hover:bg-slate-100">
                             <span class="material-symbols-outlined">file_download</span> <span
@@ -344,14 +349,16 @@
     <!-- Cashier QR Modal (VietQR) -->
     <div id="modal-cashier-qr" class="fixed inset-0 items-center justify-center p-4 content-center"
         style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
-        <div class="brutal-card w-full max-w-sm p-6 flex flex-col items-center gap-4 text-center relative animate-slide-up shadow-[12px_12px_0_0_#000]">
+        <div
+            class="brutal-card w-full max-w-sm p-6 flex flex-col items-center gap-4 text-center relative animate-slide-up shadow-[12px_12px_0_0_#000]">
             <h3 class="text-2xl font-heading uppercase border-b-4 border-black pb-2 w-full">QUÉT MÃ VIETQR</h3>
             <p class="text-sm font-bold text-gray-700">Mã thanh toán VietQR đã điền sẵn số tiền:</p>
-            
-            <div class="h-56 w-56 border-4 border-black bg-white overflow-hidden p-2 flex items-center justify-center shadow-[4px_4px_0_0_#000] relative">
+
+            <div
+                class="h-56 w-56 border-4 border-black bg-white overflow-hidden p-2 flex items-center justify-center shadow-[4px_4px_0_0_#000] relative">
                 <img id="cashier-qr-img" src="" alt="Mã VietQR" class="w-full h-full object-contain">
             </div>
-            
+
             <div class="w-full bg-slate-100 border-2 border-black p-3 text-xs font-bold text-left space-y-1">
                 <div>Ngân hàng: <span class="font-extrabold" id="cashier-qr-bank">Techcombank</span></div>
                 <div>Tài khoản: <span class="font-extrabold" id="cashier-qr-account">870788888888</span></div>
@@ -365,8 +372,10 @@
                     <span class="text-green-600 font-black" id="cashier-qr-info">ROMRA 100</span>
                 </div>
             </div>
-            
-            <button class="brutal-btn brutal-btn-primary py-3 w-full font-bold uppercase active:translate-y-1 active:shadow-none" onclick="document.getElementById('modal-cashier-qr').style.display='none'">
+
+            <button
+                class="brutal-btn brutal-btn-primary py-3 w-full font-bold uppercase active:translate-y-1 active:shadow-none"
+                onclick="document.getElementById('modal-cashier-qr').style.display='none'">
                 ĐÃ THANH TOÁN & ĐÓNG
             </button>
         </div>
@@ -375,60 +384,77 @@
     <!-- Modal Chốt Đơn Cashier Thành Công (POS Live Style) -->
     <div id="modal-cashier-success" class="fixed inset-0 items-center justify-center p-4 content-center"
         style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
-        <div class="bg-white border-8 border-black shadow-[16px_16px_0_0_#000] p-6 max-w-md w-full relative flex flex-col gap-4 brutal-card rounded-none select-none animate-slide-up">
-            
-            <div class="text-center font-heading font-black text-xl uppercase tracking-wider text-green-600 flex items-center justify-center gap-1.5">
+        <div
+            class="bg-white border-8 border-black shadow-[16px_16px_0_0_#000] p-6 max-w-md w-full relative flex flex-col gap-4 brutal-card rounded-none select-none animate-slide-up">
+
+            <div
+                class="text-center font-heading font-black text-xl uppercase tracking-wider text-green-600 flex items-center justify-center gap-1.5">
                 <span class="material-symbols-outlined font-black">check_circle</span> ĐÃ XÁC NHẬN ĐƠN HÀNG!
             </div>
 
             <!-- Khung Thẻ Đơn Hàng phong cách POS Live -->
-            <div class="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0_0_#000] flex flex-col relative rounded-none text-black text-left">
+            <div
+                class="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0_0_#000] flex flex-col relative rounded-none text-black text-left">
                 <!-- Header: Mã đơn & Giờ đặt -->
                 <div class="flex justify-between items-start mb-3">
-                    <span id="cashier-success-order-id" class="font-black text-2xl bg-black text-white px-2.5 py-0.5" style="line-height:1;">#0</span>
-                    <span class="font-bold text-xs bg-white border-2 border-black px-1.5 pb-1 pt-0.5 flex flex-col items-end rounded-none shadow-[2px_2px_0_0_#000]">
+                    <span id="cashier-success-order-id" class="font-black text-2xl bg-black text-white px-2.5 py-0.5"
+                        style="line-height:1;">#0</span>
+                    <span
+                        class="font-bold text-xs bg-white border-2 border-black px-1.5 pb-1 pt-0.5 flex flex-col items-end rounded-none shadow-[2px_2px_0_0_#000]">
                         <span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>
                         <span id="cashier-success-time">00:00</span>
                     </span>
                 </div>
-                
+
                 <!-- Body: Danh sách món uống -->
                 <div id="cashier-success-items-list" class="mb-3 mt-1 px-1 flex flex-col gap-2">
                     <!-- Được render động bằng JS -->
                 </div>
 
                 <!-- KHU VỰC QUÉT MÃ QR (Chỉ hiển thị khi chọn Chuyển khoản) -->
-                <div id="cashier-success-qr-container" class="mb-3 px-1 flex flex-col items-center gap-2 border-t-2 border-dashed border-gray-300 pt-3" style="display: none;">
-                    <span class="inline-block bg-[#FFD600] text-black text-[9px] font-black uppercase px-2 py-0.5 tracking-wider border-2 border-black shadow-[2px_2px_0_0_#000]">QUÉT MÃ THANH TOÁN VIETQR</span>
-                    <div class="h-44 w-44 border-3 border-black bg-white overflow-hidden p-1.5 flex items-center justify-center shadow-[3px_3px_0_0_#000] relative">
-                        <img id="cashier-success-qr-img" src="" alt="Mã VietQR" class="w-full h-full object-contain bg-white">
+                <div id="cashier-success-qr-container"
+                    class="mb-3 px-1 flex flex-col items-center gap-2 border-t-2 border-dashed border-gray-300 pt-3"
+                    style="display: none;">
+                    <span
+                        class="inline-block bg-[#FFD600] text-black text-[9px] font-black uppercase px-2 py-0.5 tracking-wider border-2 border-black shadow-[2px_2px_0_0_#000]">QUÉT
+                        MÃ THANH TOÁN VIETQR</span>
+                    <div
+                        class="h-44 w-44 border-3 border-black bg-white overflow-hidden p-1.5 flex items-center justify-center shadow-[3px_3px_0_0_#000] relative">
+                        <img id="cashier-success-qr-img" src="" alt="Mã VietQR"
+                            class="w-full h-full object-contain bg-white">
                     </div>
                     <div class="text-[10px] font-bold text-gray-600 text-center">
                         Nội dung: <span id="cashier-success-qr-info" class="text-green-600 font-black">ROMRA 0</span>
                     </div>
                 </div>
-                
+
                 <!-- Footer: Hình thức & Tổng tiền -->
                 <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-black border-dashed">
                     <div class="flex flex-col">
                         <span class="text-[10px] font-bold uppercase text-gray-500">Hình thức</span>
-                        <span id="cashier-success-payment-badge" class="text-[10px] font-black uppercase border-2 p-1 rounded-none">TIỀN MẶT</span>
+                        <span id="cashier-success-payment-badge"
+                            class="text-[10px] font-black uppercase border-2 p-1 rounded-none">TIỀN MẶT</span>
                     </div>
-                    <span id="cashier-success-total-amount" class="font-black text-3xl text-[#FFD600] drop-shadow-[1.5px_1.5px_0_#000]" style="line-height:1;">0</span>
+                    <span id="cashier-success-total-amount"
+                        class="font-black text-3xl text-[#FFD600] drop-shadow-[1.5px_1.5px_0_#000]"
+                        style="line-height:1;">0</span>
                 </div>
             </div>
-            
+
             <!-- Hàng nút in ấn & chốt đơn POS Live style -->
             <div class="grid grid-cols-2 gap-3.5 mt-2">
-                <button id="cashier-success-print-labels" class="h-12 bg-[#0084FF] text-white border-3 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none font-heading font-black text-sm uppercase flex items-center justify-center gap-1.5 transition-all">
+                <button id="cashier-success-print-labels"
+                    class="h-12 bg-[#0084FF] text-white border-3 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none font-heading font-black text-sm uppercase flex items-center justify-center gap-1.5 transition-all">
                     <span class="material-symbols-outlined text-lg font-bold">print</span> IN TEM LY
                 </button>
-                <button id="cashier-success-print-receipt" class="h-12 bg-[#D1F2EB] text-[#0E6251] border-3 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none font-heading font-black text-sm uppercase flex items-center justify-center gap-1.5 transition-all">
+                <button id="cashier-success-print-receipt"
+                    class="h-12 bg-[#D1F2EB] text-[#0E6251] border-3 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none font-heading font-black text-sm uppercase flex items-center justify-center gap-1.5 transition-all">
                     <span class="material-symbols-outlined text-lg font-bold">receipt_long</span> HÓA ĐƠN
                 </button>
             </div>
-            
-            <button onclick="window.closeCashierSuccessModal()" class="w-full h-12 bg-black text-white border-4 border-black font-heading font-black text-sm uppercase hover:bg-slate-800 active:translate-y-1 transition-all">
+
+            <button onclick="window.closeCashierSuccessModal()"
+                class="w-full h-12 bg-black text-white border-4 border-black font-heading font-black text-sm uppercase hover:bg-slate-800 active:translate-y-1 transition-all">
                 ĐƠN TIẾP THEO
             </button>
         </div>
@@ -739,6 +765,16 @@
                 }
             }
 
+            // Chỉ hiển thị nút EXPORT trên trang Báo cáo (reports)
+            const exportBtnContainer = document.getElementById('container-export-main');
+            if (exportBtnContainer) {
+                if (route === 'reports') {
+                    exportBtnContainer.classList.remove('hidden');
+                } else {
+                    exportBtnContainer.classList.add('hidden');
+                }
+            }
+
             // Update Title & Content
             pageTitle.innerText = routes[route].title;
             appContent.innerHTML = `<div class="flex items-center gap-2"><span class="material-symbols-outlined animate-spin">refresh</span> Đang tải dữ liệu...</div>`;
@@ -778,7 +814,7 @@
                     const res = await fetch('/api/recipes');
                     const json = await res.json();
                     window.publicRecipesCache = json.data || [];
-                } catch(e) {
+                } catch (e) {
                     window.publicRecipesCache = [];
                 }
             }
@@ -787,7 +823,7 @@
                     const res = await fetch('/api/categories');
                     const json = await res.json();
                     window.publicCategoriesCache = json.data || [];
-                } catch(e) {
+                } catch (e) {
                     window.publicCategoriesCache = [];
                 }
             }
@@ -922,7 +958,7 @@
             renderCashierRecipesList();
         }
 
-        window.filterCashierMenu = function() {
+        window.filterCashierMenu = function () {
             renderCashierRecipesList();
         }
 
@@ -939,10 +975,10 @@
             const grouped = {};
             recipes.forEach(r => {
                 const nameKey = r.name.trim().toLowerCase();
-                
+
                 // Lọc theo search query
                 if (query && !nameKey.includes(query)) return;
-                
+
                 // Lọc theo category
                 if (cat && r.category !== cat) return;
 
@@ -1015,7 +1051,7 @@
         }
 
         // 3. Thêm món vào giỏ hàng Cashier
-        window.addRecipeToCashier = function(recipeId) {
+        window.addRecipeToCashier = function (recipeId) {
             const recipe = window.publicRecipesCache?.find(r => r.id === recipeId);
             if (!recipe) return;
 
@@ -1038,7 +1074,7 @@
         }
 
         // 4. Cập nhật số lượng giỏ hàng
-        window.updateCashierCartQty = function(recipeId, delta) {
+        window.updateCashierCartQty = function (recipeId, delta) {
             const idx = window.cashierCart.findIndex(item => item.recipeId === recipeId);
             if (idx === -1) return;
 
@@ -1050,28 +1086,28 @@
         }
 
         // 5. Cập nhật ghi chú cho món trong giỏ hàng
-        window.updateCashierCartNote = function(recipeId, note) {
+        window.updateCashierCartNote = function (recipeId, note) {
             const idx = window.cashierCart.findIndex(item => item.recipeId === recipeId);
             if (idx === -1) return;
             window.cashierCart[idx].note = note;
         }
 
         // 6. Xóa toàn bộ giỏ hàng
-        window.clearCashierCart = function() {
+        window.clearCashierCart = function () {
             window.cashierCart = [];
             updateCashierCartUI();
             showToast("Đã xóa giỏ hàng", "info");
         }
 
         // 7. Định dạng tiền tệ cho ô khách đưa
-        window.formatCashierCashGiven = function(input) {
+        window.formatCashierCashGiven = function (input) {
             let val = input.value.replace(/\D/g, '');
             input.value = val ? Number(val).toLocaleString('vi-VN') : '';
             window.calculateCashReturn();
         };
 
         // 8. Tính tiền thối lại cho khách
-        window.calculateCashReturn = function() {
+        window.calculateCashReturn = function () {
             const total = window.cashierCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const cashGivenInput = document.getElementById('cashier-cash-given');
             const returnContainer = document.getElementById('cashier-cash-return-container');
@@ -1144,7 +1180,7 @@
         // 10. printCashierLabelsOnly has been deprecated and removed since printing is handled directly in submitCashierOrder success modal.
 
         // 11. IN BILL: Chỉ in hóa đơn tạm tính trực tiếp từ giỏ hàng hiện tại ra máy in 58mm, KHÔNG lưu đơn vào CSDL và KHÔNG gửi đi đâu
-        window.printCashierDraftReceipt = function() {
+        window.printCashierDraftReceipt = function () {
             if (window.cashierCart.length === 0) {
                 showToast("Giỏ hàng rỗng, không thể in!", "warning");
                 return;
@@ -1204,12 +1240,12 @@
             printWindow.document.open();
             printWindow.document.write(receiptHtml);
             printWindow.document.close();
-            
+
             showToast("Đã kích hoạt in hóa đơn tạm tính!", "success");
         };
 
         // 12. XÁC NHẬN ĐƠN: Lưu đơn hàng vào hệ thống, hiển thị Modal thành công POS Live style để in tem / in bill
-        window.submitCashierOrder = async function() {
+        window.submitCashierOrder = async function () {
             if (window.cashierCart.length === 0) {
                 showToast("Giỏ hàng rỗng!", "warning");
                 return;
@@ -1238,10 +1274,10 @@
                 const res = await fetch('/api/orders', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        items: itemsToOrder, 
-                        paymentMethod, 
-                        note, 
+                    body: JSON.stringify({
+                        items: itemsToOrder,
+                        paymentMethod,
+                        note,
                         clientTotal: totalPrice,
                         platform: 'local', // Đơn hàng offline tại quầy
                         status: 'processing' // CHUYỂN THẲNG VÀO TRẠNG THÁI ĐANG PHA CHẾ
@@ -1293,7 +1329,7 @@
                     if (paymentMethod === 'transfer') {
                         paymentBadgeBorder = 'border-[#4A235A] bg-[#E8DAEF] text-[#4A235A]';
                         paymentText = 'CK VIETQR';
-                        
+
                         // Cấu hình QR Code động
                         if (qrContainer && qrImg && qrInfo) {
                             const bankInfo = {
@@ -1303,7 +1339,7 @@
                             };
                             const addInfo = 'ROMRA ' + orderId;
                             const timestamp = new Date().getTime();
-                            
+
                             qrImg.src = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(bankInfo.accountName)}&t=${timestamp}`;
                             qrInfo.textContent = addInfo;
                             qrContainer.style.display = 'flex';
@@ -1335,14 +1371,14 @@
                 // 2. Xóa rỗng giỏ hàng, reset input tiền khách đưa
                 window.cashierCart = [];
                 if (cashGivenInput) cashGivenInput.value = '';
-                
+
                 // Dong bo lai phuong thuc thanh toan mac dinh (tien mat) cho don hang tiep theo
                 const selectMethod = document.getElementById('cashier-payment-method');
                 if (selectMethod) {
                     selectMethod.value = 'cash';
                     window.handleCashierPaymentMethodChange(selectMethod);
                 }
-                
+
                 updateCashierCartUI();
 
             } catch (err) {
@@ -1352,12 +1388,12 @@
         };
 
         // 13. Chọn nhanh tiền khách đưa cho thu ngân
-        window.setCashGivenQuick = function(amount) {
+        window.setCashGivenQuick = function (amount) {
             const input = document.getElementById('cashier-cash-given');
             const selectMethod = document.getElementById('cashier-payment-method');
             // Chi cho phep chon nhanh khi dang o hinh thuc tien mat
             if (selectMethod && selectMethod.value === 'transfer') return;
-            
+
             if (input) {
                 input.value = amount.toLocaleString('vi-VN');
                 window.calculateCashReturn();
@@ -1365,7 +1401,7 @@
         };
 
         // 13.5. Hàm in hóa đơn thanh toán chính thức & đóng Success Modal
-        window.printCashierOrderReceipt = function(orderId, totalPrice, paymentMethod) {
+        window.printCashierOrderReceipt = function (orderId, totalPrice, paymentMethod) {
             const cartCopy = window.lastCashierCartCopy;
             if (!cartCopy || cartCopy.length === 0) {
                 showToast("Không tìm thấy dữ liệu đơn hàng để in!", "warning");
@@ -1428,24 +1464,24 @@
             printWindow.document.open();
             printWindow.document.write(receiptHtml);
             printWindow.document.close();
-            
+
             showToast(`Đã in hóa đơn thanh toán #${orderId}!`, "success");
         };
 
-        window.closeCashierSuccessModal = function() {
+        window.closeCashierSuccessModal = function () {
             const successModal = document.getElementById('modal-cashier-success');
             if (successModal) successModal.style.display = 'none';
         };
 
         // 14. Xu ly an/hien, lam mo o nhap tien mat khi thu ngan chon hinh thuc QR/Chuyen khoan
-        window.handleCashierPaymentMethodChange = function(select) {
+        window.handleCashierPaymentMethodChange = function (select) {
             const cashInputWrapper = document.getElementById('cashier-cash-input-wrapper');
             const quickCashContainer = document.getElementById('cashier-quick-cash-container');
             const returnContainer = document.getElementById('cashier-cash-return-container');
             const cashInput = document.getElementById('cashier-cash-given');
-            
+
             if (!select) return;
-            
+
             if (select.value === 'transfer') {
                 if (cashInputWrapper) {
                     cashInputWrapper.style.opacity = '0.3';
@@ -2164,7 +2200,7 @@
 
                 appContent.innerHTML = `
             <div class="mb-8">
-                <h1 class="text-3xl md:text-5xl font-heading mb-2 leading-tight uppercase font-black tracking-tighter">KIỂM SOÁT PHA CHẾ &<br>CHI PHÍ KHÔNG SAI SÓT.</h1>
+                <h1 class="text-3xl md:text-5xl font-heading mb-2 leading-normal uppercase font-black tracking-tighter">QUẢN LÝ BÁN HÀNG<br>RÔM RẢ CÀ PHÊ.</h1>
                 <p class="text-slate-600 font-bold border-l-4 border-secondary pl-4 text-lg">Dashboard tổng hợp dữ liệu thời gian thực</p>
             </div>
 
@@ -3887,14 +3923,14 @@
                 // 1. Vẽ nền trắng
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, offsetY, 400, 240);
-                
+
                 // 2. Thiết lập màu vẽ mặc định là đen
                 ctx.fillStyle = '#000000';
                 ctx.strokeStyle = '#000000';
-                
+
                 // Bật textBaseline = 'top' để khớp hoàn hảo 1:1 với top của absolute div frontend!
                 ctx.textBaseline = 'top';
-                
+
                 const isApp = order.platform && order.platform !== 'local';
                 const platformName = (order.platform || 'LOCAL').toUpperCase();
                 let displayId = order.id;
@@ -3902,22 +3938,22 @@
                     try {
                         let appData = JSON.parse(order.note);
                         displayId = appData.shortOrderNumber || order.id;
-                    } catch(e) {}
+                    } catch (e) { }
                 }
                 const title = `${platformName} #${displayId}`;
-                
+
                 // 3. Tiêu đề
                 if (itemLayout.title && itemLayout.title.visible) {
                     const t = itemLayout.title;
                     ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
                     ctx.fillText(title, t.x, offsetY + t.y);
                 }
-                
+
                 // 4. Vạch kẻ phân cách
                 if (itemLayout.divider && itemLayout.divider.visible) {
                     const d = itemLayout.divider;
                     ctx.lineWidth = d.height || 3;
-                    
+
                     if (d.style === 'dashed') {
                         ctx.setLineDash([8, 6]);
                     } else if (d.style === 'dotted') {
@@ -3925,31 +3961,31 @@
                     } else {
                         ctx.setLineDash([]);
                     }
-                    
+
                     ctx.beginPath();
                     ctx.moveTo(d.x, offsetY + d.y);
                     ctx.lineTo(d.x + (d.width || 360), offsetY + d.y);
                     ctx.stroke();
                     ctx.setLineDash([]); // Reset nét vẽ
                 }
-                
+
                 // 5. Vẽ tên món ăn
                 if (itemLayout.itemName && itemLayout.itemName.visible) {
                     const nameLayout = itemLayout.itemName;
                     const maxTextWidth = 400 - nameLayout.x - 20;
-                    
+
                     let fontSize = nameLayout.fontSize;
                     ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
-                    
+
                     let itemName = oi.name.toUpperCase();
                     let textWidth = ctx.measureText(itemName).width;
-                    
+
                     while (textWidth > maxTextWidth && fontSize > 18) {
                         fontSize -= 2;
                         ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
                         textWidth = ctx.measureText(itemName).width;
                     }
-                    
+
                     let lines = [];
                     if (textWidth <= maxTextWidth) {
                         lines.push(itemName);
@@ -3958,7 +3994,7 @@
                         ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
                         const words = itemName.split(' ');
                         let currentLine = '';
-                        
+
                         for (let word of words) {
                             let testLine = currentLine ? currentLine + ' ' + word : word;
                             let testWidth = ctx.measureText(testLine).width;
@@ -3973,7 +4009,7 @@
                             lines.push(currentLine);
                         }
                     }
-                    
+
                     let currentY = offsetY + nameLayout.y;
                     lines.forEach((line) => {
                         ctx.font = `${nameLayout.fontStyle === 'italic' ? 'italic' : ''} ${nameLayout.fontWeight === 'bold' ? 'bold' : ''} ${fontSize}px "${fontName}", Arial, sans-serif`;
@@ -3981,14 +4017,14 @@
                         currentY += fontSize + 4;
                     });
                 }
-                
+
                 // 6. Hiển thị Size
                 if (itemLayout.size && itemLayout.size.visible && oi.size && oi.size !== '-') {
                     const s = itemLayout.size;
                     ctx.font = `${s.fontStyle === 'italic' ? 'italic' : ''} ${s.fontWeight === 'bold' ? 'bold' : ''} ${s.fontSize}px "${fontName}", Arial, sans-serif`;
                     ctx.fillText(`Size: ${oi.size}`, s.x, offsetY + s.y);
                 }
-                
+
                 // 7. Hiển thị Ghi chú / Topping
                 if (itemLayout.note && itemLayout.note.visible && oi.note) {
                     const n = itemLayout.note;
@@ -3996,15 +4032,15 @@
                     const notes = oi.note.split('|');
                     const maxTextWidth = 400 - n.x - 20;
                     let currentY = offsetY + n.y;
-                    
+
                     notes.forEach((note) => {
                         let noteText = note.trim();
                         if (!noteText) return;
-                        
+
                         let words = noteText.split(' ');
                         let currentLine = '';
                         let subLines = [];
-                        
+
                         for (let word of words) {
                             let testLine = currentLine ? currentLine + ' ' + word : word;
                             let testWidth = ctx.measureText(testLine).width;
@@ -4016,7 +4052,7 @@
                             }
                         }
                         if (currentLine) subLines.push(currentLine);
-                        
+
                         subLines.forEach((line) => {
                             if (currentY < offsetY + 195) {
                                 ctx.fillText(line, n.x, currentY);
@@ -4025,7 +4061,7 @@
                         });
                     });
                 }
-                
+
                 // 8. Footer: Giờ in
                 let orderDate = new Date(order.created_at);
                 if (isNaN(orderDate.getTime())) {
@@ -4033,13 +4069,13 @@
                 }
                 const pad = (n) => String(n).padStart(2, '0');
                 const timeStr = `${pad(orderDate.getHours())}:${pad(orderDate.getMinutes())} ${pad(orderDate.getDate())}/${pad(orderDate.getMonth() + 1)}/${orderDate.getFullYear()}`;
-                
+
                 if (itemLayout.timeStr && itemLayout.timeStr.visible) {
                     const t = itemLayout.timeStr;
                     ctx.font = `${t.fontStyle === 'italic' ? 'italic' : ''} ${t.fontWeight === 'bold' ? 'bold' : ''} ${t.fontSize}px "${fontName}", Arial, sans-serif`;
                     ctx.fillText(timeStr, t.x, offsetY + t.y);
                 }
-                
+
                 // Thứ tự tem
                 if (itemLayout.indexStr && itemLayout.indexStr.visible) {
                     const idx = itemLayout.indexStr;
@@ -4099,7 +4135,7 @@
                                 };
                             });
                         }
-                    } catch(e) {
+                    } catch (e) {
                         console.error("Lỗi parse order.note in RawBT:", e);
                     }
                 } else {
@@ -4157,7 +4193,7 @@
                     try {
                         const parsed = JSON.parse(printConf);
                         if (parsed.layout) layout = { ...layout, ...parsed.layout };
-                    } catch(e) {}
+                    } catch (e) { }
                 }
                 const fontName = layout.fontFamily || 'Arial';
 
@@ -4179,10 +4215,10 @@
 
                 // Xuất ảnh dưới định dạng JPEG chất lượng 0.9 (giảm dung lượng xuống cực nhẹ)
                 const base64Jpeg = canvas.toDataURL('image/jpeg', 0.9).replace(/^data:image\/jpeg;base64,/, '');
-                
+
                 // Gửi dữ liệu ảnh JPEG qua Intent Android chuẩn với tham số phụ S.mime=image/jpeg để RawBT nhận diện chính xác là ảnh đồ họa
                 const intentUrl = "intent:#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.base64=" + encodeURIComponent(base64Jpeg) + ";S.mime=image/jpeg;end;";
-                
+
                 window.location.href = intentUrl;
                 if (typeof showToast === 'function') showToast("Đã gửi lệnh in hình ảnh tới RawBT!", "success");
 
@@ -4191,7 +4227,7 @@
                 if (typeof showToast === 'function') showToast("Lỗi in trực tiếp: " + e.message, "error");
             }
         };
-        
+
         window.printLabelSystem = async function (orderId, singleItemIndex) {
             try {
                 let order = window.currentOrders?.find(o => o.id === orderId);
@@ -4239,7 +4275,7 @@
                                 };
                             });
                         }
-                    } catch(e) {
+                    } catch (e) {
                         console.error("Lỗi parse order.note in System Label Print:", e);
                     }
                 } else {
@@ -4297,7 +4333,7 @@
                     try {
                         const parsed = JSON.parse(printConf);
                         if (parsed.layout) layout = { ...layout, ...parsed.layout };
-                    } catch(e) {}
+                    } catch (e) { }
                 }
                 const fontName = layout.fontFamily || 'Arial';
 
@@ -4319,7 +4355,7 @@
 
                 // Xuất ảnh chất lượng cao PNG hoặc JPEG Base64
                 const base64DataUrl = canvas.toDataURL('image/png');
-                
+
                 // Mở cửa sổ in hệ thống
                 const popup = window.open('', '_blank', `width=400,height=${240 * labelsToRender.length}`);
                 popup.document.open();
@@ -4416,7 +4452,7 @@
                                 };
                             });
                         }
-                    } catch(e) {
+                    } catch (e) {
                         console.error("Lỗi parse order.note in Android App Print:", e);
                     }
                 } else {
@@ -4474,7 +4510,7 @@
                     try {
                         const parsed = JSON.parse(printConf);
                         if (parsed.layout) layout = { ...layout, ...parsed.layout };
-                    } catch(e) {}
+                    } catch (e) { }
                 }
                 const fontName = layout.fontFamily || 'Arial';
 
@@ -4527,11 +4563,11 @@
 
                     // 4. Tạo lệnh in cho 1 tem này (Khổ 50x30mm, bật tự động xé SET TEAR ON, in xuôi DIRECTION 0,0)
                     const headerText = `SIZE 50 mm,30 mm\r\n` +
-                                       `GAP 2 mm,0 mm\r\n` +
-                                       `SET TEAR ON\r\n` +
-                                       `DIRECTION 0,0\r\n` +
-                                       `CLS\r\n` +
-                                       `BITMAP 0,0,50,240,0,`;
+                        `GAP 2 mm,0 mm\r\n` +
+                        `SET TEAR ON\r\n` +
+                        `DIRECTION 0,0\r\n` +
+                        `CLS\r\n` +
+                        `BITMAP 0,0,50,240,0,`;
                     const footerText = `\r\nPRINT 1,1\r\n`;
 
                     const headerBytes = encoder.encode(headerText);
@@ -4594,14 +4630,14 @@
                     try {
                         const parsed = JSON.parse(printConf);
                         if (parsed.layout) layout = parsed.layout;
-                    } catch(e) {}
+                    } catch (e) { }
                 }
-                
+
                 if (typeof showToast === 'function') showToast("Đang gửi lệnh in tới máy in mạng...", "success");
                 const res = await fetch('/api/print-label-backend', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         orderId,
                         printerIP,
                         layout
@@ -4638,15 +4674,15 @@
                     try {
                         const parsed = JSON.parse(printConf);
                         if (parsed.layout) layout = parsed.layout;
-                    } catch(e) {}
+                    } catch (e) { }
                 }
-                
+
                 if (typeof showToast === 'function') showToast("Đang gửi lệnh in lẻ tem món tới máy in...", "success");
                 const res = await fetch('/api/print-label-backend', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        orderId, 
+                    body: JSON.stringify({
+                        orderId,
                         printerIP,
                         singleItemIndex: itemIndex,
                         layout
@@ -4927,7 +4963,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
             function closeDragElement() {
                 document.onmouseup = null;
                 document.onmousemove = null;
-                
+
                 // Nếu đang drag, ngăn chặn click mở link m.me mở bất ngờ
                 if (isDragging) {
                     const link = el.querySelector('a');
@@ -4986,7 +5022,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
             function closeTouchDragElement() {
                 el.removeEventListener('touchmove', elementTouchDrag);
                 el.removeEventListener('touchend', closeTouchDragElement);
-                
+
                 if (isDragging) {
                     const link = el.querySelector('a');
                     if (link) {
@@ -5014,7 +5050,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                 const toggleIcon = document.getElementById('toggle-sidebar-icon');
                 const topbarHeader = document.getElementById('topbar-header');
                 const appContent = document.getElementById('app-content');
-                
+
                 if (sidebarEl && mainWrapper && toggleBtn && toggleIcon) {
                     // Tam thoi tat transition de tranh cam giac giat lag khi moi load trang
                     sidebarEl.classList.add('transition-none');
@@ -5022,7 +5058,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                     toggleBtn.classList.add('transition-none');
                     if (topbarHeader) topbarHeader.classList.add('transition-none');
                     if (appContent) appContent.classList.add('transition-none');
-                    
+
                     // Ap dung trang thai thu gon
                     sidebarEl.classList.add('-translate-x-full');
                     sidebarEl.classList.remove('md:translate-x-0');
@@ -5030,7 +5066,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                     toggleBtn.classList.remove('left-[220px]');
                     toggleBtn.classList.add('left-4');
                     toggleIcon.textContent = 'chevron_right';
-                    
+
                     if (topbarHeader) {
                         topbarHeader.style.paddingLeft = '80px';
                     }
@@ -5038,10 +5074,10 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                         appContent.classList.remove('max-w-[1400px]');
                         appContent.classList.add('max-w-none');
                     }
-                    
+
                     // Force reflow
                     sidebarEl.offsetHeight;
-                    
+
                     // Bat lai transition sau khi DOM on dinh
                     setTimeout(() => {
                         sidebarEl.classList.remove('transition-none');
@@ -5071,18 +5107,18 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
         }
 
         // Desktop Sidebar Toggle Logic
-        window.toggleSidebarDesktop = function() {
+        window.toggleSidebarDesktop = function () {
             const sidebarEl = document.getElementById('sidebar');
             const mainWrapper = document.getElementById('main-wrapper');
             const toggleBtn = document.getElementById('btn-toggle-sidebar');
             const toggleIcon = document.getElementById('toggle-sidebar-icon');
             const topbarHeader = document.getElementById('topbar-header');
             const appContent = document.getElementById('app-content');
-            
+
             if (!sidebarEl || !mainWrapper || !toggleBtn || !toggleIcon) return;
-            
+
             const isCollapsed = sidebarEl.classList.contains('-translate-x-full');
-            
+
             if (isCollapsed) {
                 // Hien thi sidebar
                 sidebarEl.classList.remove('-translate-x-full');
@@ -5091,7 +5127,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                 toggleBtn.classList.remove('left-4');
                 toggleBtn.classList.add('left-[220px]');
                 toggleIcon.textContent = 'chevron_left';
-                
+
                 if (topbarHeader) {
                     topbarHeader.style.paddingLeft = '';
                 }
@@ -5099,7 +5135,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                     appContent.classList.remove('max-w-none');
                     appContent.classList.add('max-w-[1400px]');
                 }
-                
+
                 localStorage.setItem('sidebar_collapsed', 'false');
             } else {
                 // An sidebar
@@ -5109,7 +5145,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                 toggleBtn.classList.remove('left-[220px]');
                 toggleBtn.classList.add('left-4');
                 toggleIcon.textContent = 'chevron_right';
-                
+
                 if (topbarHeader) {
                     topbarHeader.style.paddingLeft = '80px';
                 }
@@ -5117,7 +5153,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                     appContent.classList.remove('max-w-[1400px]');
                     appContent.classList.add('max-w-none');
                 }
-                
+
                 localStorage.setItem('sidebar_collapsed', 'true');
             }
         };
@@ -5279,9 +5315,9 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
             }
         };
 
-        window.downloadQR = async function() {
+        window.downloadQR = async function () {
             const imgEl = document.getElementById('cart-qr-img');
-            if(!imgEl || !imgEl.src) return;
+            if (!imgEl || !imgEl.src) return;
             try {
                 const response = await fetch(imgEl.src);
                 const blob = await response.blob();
@@ -5293,7 +5329,7 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-            } catch(err) {
+            } catch (err) {
                 showToast("Không thể tải ảnh: " + err.message, "error");
             }
         };
@@ -5354,12 +5390,12 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                         accountName: 'Nguyen Hong Minh Giang'
                     };
                     const addInfo = encodeURIComponent('Thanh toan don ' + orderId);
-                    
+
                     // Thêm tham số timestamp để báo trình duyệt chống lưu cache ảnh cũ
                     const timestamp = new Date().getTime();
                     qrImg.src = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}&t=${timestamp}`;
                     instruction.innerHTML = `Techcombank: ${bankInfo.accountNo}<br>${bankInfo.accountName}`;
-                    
+
                     if (downloadBtn) { downloadBtn.classList.remove('hidden'); downloadBtn.classList.add('flex'); }
                     qrContainer.classList.remove('hidden');
                     qrContainer.classList.add('flex');
@@ -5375,26 +5411,26 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
                             description: `Thanh toan don ${orderId}`
                         })
                     });
-                    
+
                     const payosData = await linkRes.json();
-                    
+
                     qrContainer.classList.remove('hidden');
                     qrContainer.classList.add('flex');
                     qrTitle.innerHTML = "Thanh toán tự động trực tuyến";
-                    
+
                     if (payosData.success && payosData.checkoutUrl) {
                         qrImg.classList.remove('hidden');
                         btnContainer.classList.remove('hidden');
                         btnContainer.classList.add('flex');
-                        
+
                         const info = payosData.qrInfo;
                         const addInfo = encodeURIComponent(info.description);
                         const accountName = encodeURIComponent(info.accountName);
                         const timestamp = new Date().getTime();
                         qrImg.src = `https://img.vietqr.io/image/${info.bin}-${info.accountNumber}-compact.jpg?amount=${info.amount}&addInfo=${addInfo}&accountName=${accountName}&t=${timestamp}`;
-                        
+
                         document.getElementById('payos-checkout-btn').href = payosData.checkoutUrl;
-                        
+
                         // Khởi tạo link Deeplink cho bộ nút App-to-App
                         const dlParams = `ba=${info.accountNumber}@${info.bin}&am=${info.amount}&tn=${addInfo}`;
                         document.getElementById('dl-vcb').href = `https://dl.vietqr.io/pay?app=vcb&${dlParams}`;
@@ -5562,13 +5598,18 @@ transform translate-x-full ${isError ? 'bg-red-400 text-black' : 'bg-[#52c48e] t
     </script>
 
     <!-- Nút Chat Nổi (Floating Messenger Button) -->
-    <div id="floating-messenger-container" class="fixed bottom-6 left-6 z-50 flex flex-col items-center gap-2 group" style="touch-action: none;">
-        <span class="bg-white text-black font-black text-[10px] sm:text-xs uppercase border-4 border-black px-2 py-1 whitespace-nowrap shadow-[4px_4px_0_0_#000] rotate-[-2deg] select-none pointer-events-none">
+    <div id="floating-messenger-container" class="fixed bottom-6 left-6 z-50 flex flex-col items-center gap-2 group"
+        style="touch-action: none;">
+        <span
+            class="bg-white text-black font-black text-[10px] sm:text-xs uppercase border-4 border-black px-2 py-1 whitespace-nowrap shadow-[4px_4px_0_0_#000] rotate-[-2deg] select-none pointer-events-none">
             Chat với quán
         </span>
-        <a href="https://m.me/61587165028890" target="_blank" id="btn-messenger" class="bg-[#0084FF] text-white flex items-center justify-center p-3 sm:p-4 rounded-full border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 hover:-translate-x-1 group-hover:cursor-pointer" title="Nhắn tin cho quán">
+        <a href="https://m.me/61587165028890" target="_blank" id="btn-messenger"
+            class="bg-[#0084FF] text-white flex items-center justify-center p-3 sm:p-4 rounded-full border-4 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[10px_10px_0_0_#000] transition-all hover:-translate-y-1 hover:-translate-x-1 group-hover:cursor-pointer"
+            title="Nhắn tin cho quán">
             <svg class="w-8 h-8 sm:w-10 sm:h-10 fill-white" viewBox="0 0 24 24">
-                <path d="M12 2C6.477 2 2 6.14 2 11.25c0 2.89 1.455 5.463 3.738 7.155v3.42l3.411-1.884c.907.258 1.867.399 2.851.399 5.523 0 10-4.14 10-9.25S17.523 2 12 2zm1.096 12.396l-2.812-3.003-5.466 3.003 6.002-6.386 2.868 3.003 5.41-3.003-6.002 6.386z"/>
+                <path
+                    d="M12 2C6.477 2 2 6.14 2 11.25c0 2.89 1.455 5.463 3.738 7.155v3.42l3.411-1.884c.907.258 1.867.399 2.851.399 5.523 0 10-4.14 10-9.25S17.523 2 12 2zm1.096 12.396l-2.812-3.003-5.466 3.003 6.002-6.386 2.868 3.003 5.41-3.003-6.002 6.386z" />
             </svg>
         </a>
     </div>
