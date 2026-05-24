@@ -282,6 +282,14 @@ async function testHistoryScrape() {
         const addressText = await detailsPanel.locator('text="Địa chỉ giao hàng"').or(detailsPanel.locator('text="Giao đến"')).locator('..').innerText().catch(() => '');
         const customerAddress = addressText.replace('Địa chỉ giao hàng', '').replace('Giao đến', '').trim() || 'Giao qua App';
 
+        // In văn bản chi tiết trên trang để phân tích cấu trúc hiển thị món ăn của đơn lịch sử
+        try {
+            const detailsText = await page.locator('body').innerText().catch(() => '');
+            console.log('\n📝 --- CHI TIẾT VĂN BẢN ĐƠN HÀNG (DEBUG PHÂN TÍCH MÓN) ---');
+            console.log(detailsText.substring(0, 2000));
+            console.log('----------------------------------------------------------\n');
+        } catch (err) {}
+
         // 6. Đóng gói kết quả
         const result = {
             status: "SUCCESS",
