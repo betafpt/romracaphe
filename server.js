@@ -734,12 +734,16 @@ app.post('/api/print-label-backend', async (req, res) => {
 
         const isApp = order.platform && order.platform !== 'local';
         let printItems = [];
-        let displayId = order.id;
+        let displayId = isApp ? (order.external_short_id || order.id) : order.id;
 
         if (isApp && order.note && order.note.startsWith('{')) {
             try {
                 let appData = JSON.parse(order.note);
-                displayId = appData.shortOrderNumber || order.id;
+                // Fallback to appData.shortOrderNumber if external_short_id is empty
+                if (!order.external_short_id && appData.shortOrderNumber) {
+                    displayId = appData.shortOrderNumber;
+                }
+                
                 if (appData.items) {
                     printItems = appData.items.map(i => {
                         let notesArray = [];
@@ -747,7 +751,11 @@ app.post('/api/print-label-backend', async (req, res) => {
                             i.toppings.forEach(t => notesArray.push(t));
                         }
                         if (i.note) {
-                            notesArray.push("Ghi chú: " + i.note);
+                            // Làm sạch ghi chú món: loại bỏ duplicate size
+                            const cleanedNote = i.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim();
+                            if (cleanedNote) {
+                                notesArray.push("Ghi chú: " + cleanedNote);
+                            }
                         }
                         return {
                             name: i.name,
@@ -761,12 +769,15 @@ app.post('/api/print-label-backend', async (req, res) => {
                 console.error("Lỗi parse order.note trong in backend:", e);
             }
         } else {
-            printItems = (order.order_items || []).map(oi => ({
-                name: oi.recipes?.name || 'Món',
-                quantity: oi.quantity,
-                size: oi.recipes?.size || '-',
-                note: oi.note ? "Ghi chú: " + oi.note : ''
-            }));
+            printItems = (order.order_items || []).map(oi => {
+                const cleanedNote = oi.note ? oi.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim() : '';
+                return {
+                    name: oi.recipes?.name || 'Món',
+                    quantity: oi.quantity,
+                    size: oi.recipes?.size || '-',
+                    note: cleanedNote ? "Ghi chú: " + cleanedNote : ''
+                };
+            });
         }
 
         const platformName = (order.platform || 'LOCAL').toUpperCase();
@@ -1051,8 +1062,8 @@ app.post('/api/print-label-backend', async (req, res) => {
 
                 const bitmapBuffer = Buffer.from(bitmapData);
 
-                // Khởi tạo trang in nhãn TSPL và ghép ảnh bitmap nhị phân thô
-                allLabelsBuffers.push(Buffer.from("SIZE 50 mm, 30 mm\r\nGAP 2 mm, 0 mm\r\nSET TEAR ON\r\nDIRECTION 0,0\r\nCLS\r\n"));
+                // Khởi tạo trang in nhãn TSPL và ghép ảnh bitmap nhị phân thô (không dấu cách sau dấu phẩy trong SIZE và GAP)
+                allLabelsBuffers.push(Buffer.from("SIZE 50 mm,30 mm\r\nGAP 2 mm,0 mm\r\nSET TEAR ON\r\nDIRECTION 0,0\r\nCLS\r\n"));
                 allLabelsBuffers.push(Buffer.from("BITMAP 0,0,50,240,0,"));
                 allLabelsBuffers.push(bitmapBuffer);
                 allLabelsBuffers.push(Buffer.from("\r\nPRINT 1,1\r\n"));

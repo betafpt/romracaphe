@@ -73,6 +73,11 @@ CREATE TABLE public.orders (
     payment_method TEXT DEFAULT 'cash',
     total_amount NUMERIC DEFAULT 0,
     status TEXT DEFAULT 'pending',
+    platform TEXT DEFAULT 'local',
+    external_order_id TEXT,
+    external_short_id TEXT,
+    raw_payload JSONB,
+    note TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -85,3 +90,11 @@ CREATE TABLE public.order_items (
     price NUMERIC DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 8. Migration scripts for existing database (Chạy lệnh này trong Supabase SQL Editor)
+-- ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'local';
+-- ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS external_order_id TEXT;
+-- ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS external_short_id TEXT;
+-- ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS raw_payload JSONB;
+-- ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';
+
