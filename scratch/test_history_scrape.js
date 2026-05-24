@@ -109,6 +109,20 @@ async function testHistoryScrape() {
             if (await datePicker.count() > 0) {
                 console.log('🔘 Đang click mở bộ chọn ngày (DatePicker) bằng Evaluate DOM...');
                 
+                // In cấu trúc HTML để phân tích
+                try {
+                    const html = await datePicker.evaluate(el => el.outerHTML);
+                    const parentHtml = await datePicker.locator('..').first().evaluate(el => el.outerHTML);
+                    const grandparentHtml = await datePicker.locator('..').locator('..').first().evaluate(el => el.outerHTML);
+                    console.log('\n📝 --- CẤU TRÚC DOM CỦA DATEPICKER ---');
+                    console.log('Element HTML:', html);
+                    console.log('Parent HTML (500 ký tự):', parentHtml.substring(0, 500));
+                    console.log('Grandparent HTML (800 ký tự):', grandparentHtml.substring(0, 800));
+                    console.log('-------------------------------------\n');
+                } catch (err) {
+                    console.warn('⚠️ Không thể đọc HTML của DatePicker:', err.message);
+                }
+
                 // Kích hoạt click trực tiếp ở mức DOM JavaScript để bypass các hạn chế layout của Chromium Headless trên VPS Linux
                 await datePicker.evaluate(el => el.click()).catch(() => {});
                 await page.waitForTimeout(1000);
