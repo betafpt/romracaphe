@@ -53,13 +53,24 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
   * Hiển thị dòng ghi chú riêng màu đỏ nổi bật ngay dưới tên món ăn trên màn hình **POS Live** và khi in hóa đơn/in tem.
 - **Cải tiến thuật toán in lẻ**: Khi in lẻ tem từng món, hệ thống tự động giữ nguyên số thứ tự thực của ly trong đơn hàng gốc ban đầu (ví dụ: `2/3` thay vì bị đổi thành `1/1`).
 
+### C. Tối ưu in ấn & Bảo mật phiên làm việc (Mới nhất - 25/05/2026)
+- **Vá lỗi in tem nhãn TSPL**: Sửa cú pháp kích thước lệnh in nhãn TSPL (`SIZE 50 mm,30 mm` và `GAP 2 mm,0 mm`), loại bỏ khoảng trắng dư thừa sau dấu phẩy giúp máy in tem nhãn (ví dụ Xprinter) hiểu chuẩn kích thước giấy 50x30mm, tránh tình trạng bị in lệch tem.
+- **Làm sạch ghi chú tem ly**: Tự động lọc sạch các cụm từ kích thước (size) bị trùng lặp trong chuỗi ghi chú của món trước khi in tem dán ly.
+- **Bảo mật session đăng nhập**: Cập nhật file `.gitignore` sửa lỗi gõ phím cách quãng và chạy lệnh `git rm --cached grab_state.json` để loại bỏ hoàn toàn file session cookie của Grab khỏi Git index, bảo vệ thông tin mật không bị lộ khi đồng bộ lên GitHub công khai.
+- **Xác thực Supabase**: Hoàn tất xác minh và đồng bộ các cột mới (`platform`, `external_order_id`, `external_short_id`, `raw_payload`, `note`) vào bảng `orders` của Supabase thật.
+
 ---
 
 ## 4. TIẾN TRÌNH TIẾP THEO KHI MỞ MÁY
 *(Dành cho phiên hỗ trợ tự động ở máy tính khác hoặc phiên làm việc tiếp theo)*
 Chào bạn (người đồng nghiệp AI). Hãy review lại tài liệu này.
-*   Hệ thống POS hiện tại đã tích hợp hoàn hảo bảng tính doanh thu thực nhận, in hóa đơn đối soát, logo sàn.
-*   Bot cào đơn `romra_scraper.js` đã hỗ trợ cơ chế tự động đăng nhập 100% không cần can thiệp con người. Bạn chỉ cần hướng dẫn người dùng đặt file bí mật `grab_config.json` chứa Username/Password trên VPS là bot sẽ hoạt động tự động vĩnh viễn.
-*   Mọi mã nguồn đã được đồng bộ hóa hoàn tất trên GitHub chính thức của quán. Hạn chế dùng Framework ngoài vì User rất chuộng Vanilla JS thuần túy, nhanh nhẹn và nhẹ nhàng.
+*   Hệ thống POS hiện tại hoạt động cực kỳ ổn định, đã vá triệt để lỗi in tem nhãn, in hóa đơn đối soát, logo sàn.
+*   Hệ thống bảo mật đã được gia cố hoàn hảo (file cookie Grab đã được ẩn khỏi Git, `.gitignore` được cấu hình chuẩn chỉnh).
+*   Bot cào đơn `romra_scraper.js` đã hỗ trợ cơ chế tự động đăng nhập 100% không cần can thiệp con người.
+*   **Hướng đi tiếp theo đề xuất:**
+    1.  Tích hợp tự động trừ kho nguyên liệu (Inventory Auto-Deduct) dựa trên công thức món khi có đơn bán ra.
+    2.  Xây dựng thêm Bot cào đơn tự động cho ShopeeFood Merchant Portal tương tự như GrabFood.
+    3.  Tạo trang Dashboard Brutalism thống kê chi tiết doanh thu thực nhận, chiết khấu và lợi nhuận ròng.
+    4.  Nâng cấp Telegram Bot thành tương tác 2 chiều (gõ lệnh để xem doanh thu, trạng thái bot, tồn kho).
 
 > *Note to User: Anh chỉ cần yêu cầu "Em đọc file AI_MEMORY.md ở thư mục gốc để biết mình đang làm gì nhé" khi anh qua máy tính mới hoặc mở app code ở điện thoại!*
