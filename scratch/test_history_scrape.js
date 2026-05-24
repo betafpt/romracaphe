@@ -91,6 +91,69 @@ async function testHistoryScrape() {
         await page.waitForTimeout(5000);
         console.log('📷 Đang kiểm tra danh sách đơn lịch sử hiển thị...');
 
+        // Tính toán chuỗi ngày hôm nay của Grab (ví dụ: "T2, 25 Th05 2026") để click DatePicker
+        try {
+            const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+            const months = ['Th01', 'Th02', 'Th03', 'Th04', 'Th05', 'Th06', 'Th07', 'Th08', 'Th09', 'Th10', 'Th11', 'Th12'];
+            const today = new Date();
+            
+            const dayName = days[today.getDay()];
+            const dateNum = String(today.getDate()).padStart(2, '0');
+            const monthName = months[today.getMonth()];
+            const year = today.getFullYear();
+            
+            const todayStr = `${dayName}, ${dateNum} ${monthName} ${year}`;
+            console.log(`📅 Chuỗi ngày hôm nay dự kiến hiển thị trên bộ lọc: "${todayStr}"`);
+            
+            const datePicker = page.locator(`text="${todayStr}"`).first();
+            if (await datePicker.count() > 0) {
+                console.log('🔘 Đang click mở bộ chọn ngày (DatePicker)...');
+                await datePicker.click();
+                await page.waitForTimeout(2000);
+                
+                // Tìm các tùy chọn khoảng ngày nhanh (ưu tiên 7 ngày qua để chắc chắn có đơn test)
+                const rangeSelectors = [
+                    'text="7 ngày qua"',
+                    'text="Last 7 days"',
+                    'text="Hôm qua"',
+                    'text="Yesterday"'
+                ];
+                
+                let clickedRange = false;
+                for (const selector of rangeSelectors) {
+                    const opt = page.locator(selector).filter({ visible: true }).first();
+                    if (await opt.count() > 0) {
+                        console.log(`🔘 Tìm thấy tùy chọn khoảng ngày nhanh bằng: ${selector}. Đang click...`);
+                        await opt.click();
+                        clickedRange = true;
+                        break;
+                    }
+                }
+                
+                if (!clickedRange) {
+                    console.log('⚠️ Không thấy nút khoảng ngày nhanh. Thử click chọn số ngày hôm qua trên lịch...');
+                    const yesterdayDate = new Date();
+                    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                    const yesterdayDayNum = String(yesterdayDate.getDate());
+                    const dayCell = page.locator(`span:has-text("${yesterdayDayNum}"), div:has-text("${yesterdayDayNum}")`).filter({ visible: true }).first();
+                    if (await dayCell.count() > 0) {
+                        await dayCell.click();
+                        clickedRange = true;
+                    }
+                }
+                
+                // Click nút Áp dụng
+                const applyBtn = page.locator('text="Áp dụng", text="Apply", button:has-text("Áp dụng"), button:has-text("Apply")').filter({ visible: true }).first();
+                if (await applyBtn.count() > 0) {
+                    console.log('🔘 Click nút Áp dụng bộ lọc ngày!');
+                    await applyBtn.click();
+                }
+                await page.waitForTimeout(5000); // Chờ tải danh sách mới
+            }
+        } catch (err) {
+            console.warn('⚠️ Lỗi khi cố gắng thay đổi bộ lọc ngày:', err.message);
+        }
+
         // Định vị các card đơn hàng trong danh sách lịch sử
         // Đơn hàng đã hoàn thành thường có text trạng thái là "Đã giao", "Đã hoàn thành", "Delivered", "Completed" hoặc "Đã hủy", "Cancelled"
         const orderSelectors = [
