@@ -94,8 +94,8 @@ async function autoLoginGrab(page, config) {
 
 // Hàm gửi cảnh báo khẩn cấp qua Telegram Bot (hỗ trợ customChatId để phản hồi riêng lẻ)
 async function sendTelegramAlert(message, customChatId = null) {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = customChatId || process.env.TELEGRAM_CHAT_ID;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || (grabConfig && grabConfig.telegram_bot_token);
+    const chatId = customChatId || process.env.TELEGRAM_CHAT_ID || (grabConfig && grabConfig.telegram_chat_id);
     
     if (!botToken || !chatId) {
         console.log('⚠️ [Telegram] Chưa cấu hình TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID. Bỏ qua gửi tin nhắn.');
@@ -268,8 +268,8 @@ async function handleTelegramCommand(text) {
 }
 
 async function startTelegramBot() {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || (grabConfig && grabConfig.telegram_bot_token);
+    const chatId = process.env.TELEGRAM_CHAT_ID || (grabConfig && grabConfig.telegram_chat_id);
     
     if (!botToken || !chatId) {
         addToLogs('⚠️ [Telegram Bot 2-way] Chưa cấu hình TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID. Không khởi chạy bot Telegram.');
