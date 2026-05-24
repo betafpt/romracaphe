@@ -29,9 +29,9 @@ try {
 // Hàm tự động điền tài khoản, mật khẩu và click đăng nhập Grab Merchant
 async function autoLoginGrab(page, config) {
     try {
-        console.log('🌐 Đang điều hướng trực tiếp tới trang đăng nhập Grab Merchant...');
-        // Đi thẳng vào URL weblogin để tránh kẹt redirect chuyển hướng trên VPS Linux
-        await page.goto('https://weblogin.grab.com/merchant/login?service_id=MEXUSERS&redirect=https%3A%2F%2Fmerchant.grab.com%2Fportal', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        console.log('🌐 Đang điều hướng tới trang đăng nhập Grab Merchant...');
+        // Đi qua trang gốc sử dụng commit để tránh kẹt redirect chuyển hướng trên VPS Linux
+        await page.goto('https://merchant.grab.com/portal/login', { waitUntil: 'commit', timeout: 60000 });
         
         console.log('⏳ Đang chờ trang đăng nhập tải...');
         const usernameInput = page.locator('#Username, input[type="text"], input[type="email"]').first();
