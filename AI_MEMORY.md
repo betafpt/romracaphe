@@ -1,6 +1,6 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 01:42)
+**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 02:15)
 
 ## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
 Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
@@ -61,19 +61,19 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 - **Xác minh thực tế trên VPS**: Bot quét đơn đã khởi chạy ngầm 100% tự động trên VPS, đăng nhập thành công hoàn hảo và tự động gia hạn phiên khi session cũ hết hạn mà không cần bất kỳ mã OTP hay can thiệp thủ công nào!
 - **Thực nghiệm cào đơn lịch sử thành công**: Chạy thử nghiệm thành công file `test_history_scrape.js` bóc tách chính xác 100% đơn hàng dạng bảng lịch sử ngày hôm trước của Grab (GF-267 / Kem Dẻo Cacao Buôn Mê x 2 ly), tự động vượt DatePicker input "Chọn thời điểm" và bóc tách dữ liệu trơn tru!
 
+- **Tích hợp Telegram Bot điều khiển 2 chiều (Mới nhất - 25/05/2026)**: Tích hợp hoàn tất module lắng nghe Telegram Bot 2 chiều zero-dependency ngầm song song vào `romra_scraper.js` sử dụng REST HTTP Long Polling. Hỗ trợ Whitelist Chat ID an toàn và 6 lệnh nhanh `/help`, `/status`, `/restart`, `/logs`, `/scrape`, `/revenue` hoạt động vô cùng ổn định.
+
 ---
 
 ## 4. TIẾN TRÌNH TIẾP THEO KHI MỞ MÁY
 *(Dành cho phiên hỗ trợ tự động ở máy tính khác hoặc phiên làm việc tiếp theo)*
 Chào bạn (người đồng nghiệp AI). Hãy review lại tài liệu này.
-*   Hệ thống POS hiện tại hoạt động cực kỳ ổn định, đã vá triệt để lỗi in tem nhãn, in hóa đơn đối soát, logo sàn.
-*   Hệ thống bảo mật đã được gia cố hoàn hảo (file cookie Grab đã được ẩn khỏi Git, `.gitignore` được cấu hình chuẩn chỉnh).
-*   Bot cào đơn `romra_scraper.js` đã hỗ trợ cơ chế tự động đăng nhập ngầm 100% không cần can thiệp con người, đã chạy thực tế thành công và đã được kiểm chứng bóc tách đơn hàng lịch sử qua DatePicker siêu tốc.
+*   Hệ thống POS hiện tại hoạt động cực kỳ ổn định, đã tích hợp thành công Telegram Bot tương tác 2 chiều điều khiển VPS.
+*   Bot cào đơn và tính doanh thu hoạt động 100% tự động trơn tru qua PM2.
 *   **Hướng đi tiếp theo đề xuất (ĐÃ THỐNG NHẤT):**
-    1.  **Nâng cấp Realtime Trạng thái đơn hàng (Đặc biệt ưu tiên):** Sửa đổi hàm quét đơn để không bỏ qua các đơn hàng đã tồn tại trong database nữa, mà tiến hành so sánh trạng thái hiện tại trong DB với trạng thái thực tế mới nhất trên Grab (Chờ tài xế, Đang giao, Đã hoàn tất, Đã hủy) để tự động `UPDATE` cột `status` trong Supabase. Kích hoạt Supabase Realtime WebSocket tự động đồng bộ đổi màu trạng thái trên Web POS của nhân viên tại quán tức thì.
-    2.  Tích hợp tự động trừ kho nguyên liệu (Inventory Auto-Deduct) dựa trên công thức món khi có đơn bán ra.
-    3.  Xây dựng thêm Bot cào đơn tự động cho ShopeeFood Merchant Portal tương tự như GrabFood.
-    4.  Tạo trang Dashboard Brutalism thống kê chi tiết doanh thu thực nhận, chiết khấu và lợi nhuận ròng.
-    5.  Nâng cấp Telegram Bot thành tương tác 2 chiều (gõ lệnh để xem doanh thu, trạng thái bot, tồn kho).
+    1.  Tích hợp tự động trừ kho nguyên liệu (Inventory Auto-Deduct) dựa trên công thức món khi có đơn bán ra (Supabase `orders` -> `order_items` -> `recipes` -> `inventory`).
+    2.  Xây dựng thêm Bot cào đơn tự động cho ShopeeFood Merchant Portal tương tự như GrabFood.
+    3.  Tạo trang Dashboard Brutalism thống kê chi tiết doanh thu thực nhận, chiết khấu và lợi nhuận ròng.
+    4.  Tối ưu hóa và mở rộng thêm các lệnh tương tác cho Telegram Bot (ví dụ: cảnh báo kho sắp hết, điều chỉnh phần trăm chiết khấu).
 
 > *Note to User: Anh chỉ cần yêu cầu "Em đọc file AI_MEMORY.md ở thư mục gốc để biết mình đang làm gì nhé" khi anh qua máy tính mới hoặc mở app code ở điện thoại!*
