@@ -119,6 +119,11 @@ async function testHistoryScrape() {
 
         if (!clickedOrder) {
             console.log('❌ Không phát hiện bất kỳ đơn hàng nào trong lịch sử để cào thử.');
+            const bodyText = await page.locator('body').innerText().catch(() => '');
+            console.log('\n📝 --- NỘI DUNG CHỮ TRÊN MÀN HÌNH (DEBUG) ---');
+            console.log(bodyText.substring(0, 1500));
+            console.log('-------------------------------------------\n');
+            
             // Lưu screenshot để debug nếu cần
             await page.screenshot({ path: path.join(__dirname, 'history_error.png') });
             console.log('Đã lưu ảnh lỗi tại scratch/history_error.png để kiểm tra.');
