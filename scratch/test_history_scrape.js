@@ -119,34 +119,65 @@ async function testHistoryScrape() {
                 await dateInput.locator('..').first().evaluate(el => el.click()).catch(() => {});
                 await page.waitForTimeout(1000);
                 
-                // Tìm các tùy chọn khoảng ngày nhanh (ưu tiên 7 ngày qua để chắc chắn có đơn test)
-                const rangeSelectors = [
-                    'text="7 ngày qua"',
-                    'text="Last 7 days"',
-                    'text="Hôm qua"',
-                    'text="Yesterday"'
-                ];
+                // Đọc tham số ngày truyền vào từ command line (ví dụ: --date 23)
+                const dateArgIndex = process.argv.indexOf('--date');
+                let targetDayNum = null;
+                if (dateArgIndex !== -1 && process.argv[dateArgIndex + 1]) {
+                    targetDayNum = process.argv[dateArgIndex + 1].trim();
+                }
                 
                 let clickedRange = false;
-                for (const selector of rangeSelectors) {
-                    const opt = page.locator(selector).filter({ visible: true }).first();
-                    if (await opt.count() > 0) {
-                        console.log(`🔘 Tìm thấy tùy chọn khoảng ngày nhanh bằng: ${selector}. Đang click...`);
-                        await opt.click();
+                
+                if (targetDayNum) {
+                    console.log(`🎯 Người dùng yêu cầu lọc ngày cụ thể: ngày "${targetDayNum}"`);
+                    
+                    // Tìm ô chứa số ngày cụ thể trên lịch
+                    const dayCell = page.locator(`span:has-text("${targetDayNum}"), div:has-text("${targetDayNum}")`).filter({ visible: true });
+                    const cellCount = await dayCell.count().catch(() => 0);
+                    
+                    if (cellCount > 0) {
+                        console.log(`🔘 Tìm thấy ô ngày "${targetDayNum}" trên lịch. Đang click chọn phạm vi...`);
+                        // Click lần 1 chọn ngày bắt đầu
+                        await dayCell.first().click().catch(() => {});
+                        await page.waitForTimeout(1000);
+                        // Click lần 2 chọn ngày kết thúc
+                        await dayCell.first().click().catch(() => {});
+                        await page.waitForTimeout(1000);
                         clickedRange = true;
-                        break;
+                    } else {
+                        console.log(`⚠️ Không tìm thấy ô chứa ngày "${targetDayNum}" trên lịch. Quay về bộ lọc mặc định.`);
                     }
                 }
                 
                 if (!clickedRange) {
-                    console.log('⚠️ Không thấy nút khoảng ngày nhanh. Thử click chọn số ngày hôm qua trên lịch...');
-                    const yesterdayDate = new Date();
-                    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                    const yesterdayDayNum = String(yesterdayDate.getDate());
-                    const dayCell = page.locator(`span:has-text("${yesterdayDayNum}"), div:has-text("${yesterdayDayNum}")`).filter({ visible: true }).first();
-                    if (await dayCell.count() > 0) {
-                        await dayCell.click();
-                        clickedRange = true;
+                    // Tìm các tùy chọn khoảng ngày nhanh (ưu tiên 7 ngày qua để chắc chắn có đơn test)
+                    const rangeSelectors = [
+                        'text="7 ngày qua"',
+                        'text="Last 7 days"',
+                        'text="Hôm qua"',
+                        'text="Yesterday"'
+                    ];
+                    
+                    for (const selector of rangeSelectors) {
+                        const opt = page.locator(selector).filter({ visible: true }).first();
+                        if (await opt.count() > 0) {
+                            console.log(`🔘 Tìm thấy tùy chọn khoảng ngày nhanh bằng: ${selector}. Đang click...`);
+                            await opt.click();
+                            clickedRange = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!clickedRange) {
+                        console.log('⚠️ Không thấy nút khoảng ngày nhanh. Thử click chọn số ngày hôm qua trên lịch...');
+                        const yesterdayDate = new Date();
+                        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                        const yesterdayDayNum = String(yesterdayDate.getDate());
+                        const dayCell = page.locator(`span:has-text("${yesterdayDayNum}"), div:has-text("${yesterdayDayNum}")`).filter({ visible: true }).first();
+                        if (await dayCell.count() > 0) {
+                            await dayCell.click();
+                            clickedRange = true;
+                        }
                     }
                 }
                 
@@ -161,6 +192,19 @@ async function testHistoryScrape() {
         } catch (err) {
             console.warn('⚠️ Lỗi khi cố gắng thay đổi bộ lọc ngày:', err.message);
         }
+
+        // In ra danh sách tóm tắt tất cả đơn hàng lọc được trước khi click chi tiết
+        try {
+            const summaryCards = page.locator('text=/^[A-Z0-9]+-[A-Z0-9]+$/').locator('..').locator('..');
+            const summaryCount = await summaryCards.count().catch(() => 0);
+            console.log(`\n📋 --- DANH SÁCH ĐƠN HÀNG LỌC ĐƯỢC TRÊN VPS (Tổng số: ${summaryCount} đơn) ---`);
+            for (let k = 0; k < summaryCount; k++) {
+                const cardText = await summaryCards.nth(k).innerText().catch(() => '');
+                const cardLines = cardText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                console.log(`Đơn #${k + 1}: ${cardLines.join(' | ')}`);
+            }
+            console.log('-------------------------------------------------------------\n');
+        } catch (err) {}
 
         // Định vị các card đơn hàng trong danh sách lịch sử
         // Đơn hàng đã hoàn thành thường có text trạng thái là "Đã giao", "Đã hoàn thành", "Delivered", "Completed" hoặc "Đã hủy", "Cancelled"
