@@ -58,8 +58,8 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 - **Làm sạch ghi chú tem ly**: Tự động lọc sạch các cụm từ kích thước (size) bị trùng lặp trong chuỗi ghi chú của món trước khi in tem dán ly.
 - **Bảo mật session đăng nhập**: Cập nhật file `.gitignore` sửa lỗi gõ phím cách quãng và chạy lệnh `git rm --cached grab_state.json` để loại bỏ hoàn toàn file session cookie của Grab khỏi Git index, bảo vệ thông tin mật không bị lộ khi đồng bộ lên GitHub công khai.
 - **Xác thực Supabase**: Hoàn tất xác minh và đồng bộ các cột mới (`platform`, `external_order_id`, `external_short_id`, `raw_payload`, `note`) vào bảng `orders` của Supabase thật.
-- **Khắc phục lỗi kẹt Đăng nhập bước 2 trên VPS**: Mở rộng selector cho nút bấm đăng nhập Grab Merchant để nhận dạng chính xác class `.dui-btn` đặc thù của Grab, đồng thời tích hợp thêm bộ lọc thông minh `.filter({ visible: true })` để chỉ bấm các phần tử hiển thị trực quan.
 - **Xác minh thực tế trên VPS**: Bot quét đơn đã khởi chạy ngầm 100% tự động trên VPS, đăng nhập thành công hoàn hảo và tự động gia hạn phiên khi session cũ hết hạn mà không cần bất kỳ mã OTP hay can thiệp thủ công nào!
+- **Thực nghiệm cào đơn lịch sử thành công**: Chạy thử nghiệm thành công file `test_history_scrape.js` bóc tách chính xác 100% đơn hàng dạng bảng lịch sử ngày hôm trước của Grab (GF-267 / Kem Dẻo Cacao Buôn Mê x 2 ly), tự động vượt DatePicker input "Chọn thời điểm" và bóc tách dữ liệu trơn tru!
 
 ---
 
