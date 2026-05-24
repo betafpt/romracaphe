@@ -19,6 +19,7 @@ const localLogs = [];
 let lastScanTime = '';
 let lastPageUrl = '';
 let sessionScrapedCount = 0;
+let activePage = null; // Lưu tham chiếu page của Playwright để chụp màn hình từ Telegram
 
 function addToLogs(message) {
     const timeStr = new Date().toLocaleTimeString('vi-VN');
@@ -124,6 +125,40 @@ async function sendTelegramAlert(message, customChatId = null) {
 // --- MODULE XỬ LÝ TELEGRAM BOT TƯƠNG TÁC 2 CHIỀU (LONG POLLING) ---
 let telegramOffset = 0;
 
+// --- HÀM GỬI ẢNH TELEGRAM (FORM DATA ZERO-DEPENDENCY) ---
+async function sendTelegramPhoto(photoPath, caption = '') {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || (grabConfig && grabConfig.telegram_bot_token);
+    const chatId = process.env.TELEGRAM_CHAT_ID || (grabConfig && grabConfig.telegram_chat_id);
+    
+    if (!botToken || !chatId || !fs.existsSync(photoPath)) return;
+    
+    try {
+        const formData = new FormData();
+        formData.append('chat_id', chatId);
+        
+        const fileBuffer = fs.readFileSync(photoPath);
+        const fileBlob = new Blob([fileBuffer], { type: 'image/png' });
+        formData.append('photo', fileBlob, 'screenshot.png');
+        if (caption) {
+            formData.append('caption', caption);
+            formData.append('parse_mode', 'HTML');
+        }
+        
+        const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) {
+            console.error('❌ Lỗi phản hồi gửi ảnh Telegram, status:', response.status);
+        }
+    } catch (e) {
+        console.error('❌ Lỗi gửi ảnh Telegram:', e.message);
+    }
+}
+
+
+
 async function handleTelegramCommand(text) {
     const command = text.split(' ')[0].toLowerCase();
     const args = text.split(' ').slice(1);
@@ -131,13 +166,26 @@ async function handleTelegramCommand(text) {
     addToLogs(`📥 [Telegram CMD] Nhận lệnh: ${text}`);
     
     if (command === '/start' || command === '/help') {
-        const helpMsg = `🤖 <b>HỆ THỐNG ĐIỀU KHIỂN RÔM RẢ BOT</b>\n\n` +
-            `Anh có thể sử dụng các lệnh nhanh sau:\n` +
-            `🔹 <b>/status</b> - Xem trạng thái hoạt động của Bot.\n` +
-            `🔹 <b>/restart</b> - Khởi động lại Bot quét đơn (qua PM2 auto-restart).\n` +
-            `🔹 <b>/logs</b> - Xem 15 dòng nhật ký logs gần nhất.\n` +
-            `🔹 <b>/scrape [ngày]</b> - Ra lệnh cào lịch sử (Ví dụ: <code>/scrape 23</code>).\n` +
-            `🔹 <b>/revenue</b> - Thống kê doanh thu hôm nay từ Supabase.`;
+        const helpMsg = `🤖 <b>HỆ THỐNG ĐIỀU KHIỂN RÔM RẢ BOT</b>\n` +
+            `<i>(Giải phóng 100% việc gõ CMD)</i>\n\n` +
+            `📊 <b>GIÁM SÁT & BÁO CÁO:</b>\n` +
+            `• <b>/status</b> - Xem trạng thái hoạt động thực tế của Bot.\n` +
+            `• <b>/logs</b> - Xem 15 dòng nhật ký hoạt động gần nhất trên VPS.\n` +
+            `• <b>/screenshot</b> - Chụp màn hình Chromium ngầm của Grab thực tế.\n` +
+            `• <b>/revenue</b> - Doanh thu realtime hôm nay.\n` +
+            `• <b>/revenue_yesterday</b> - Doanh thu đối soát hôm qua.\n` +
+            `• <b>/revenue_month</b> - Doanh thu tổng hợp tháng này.\n\n` +
+            `📦 <b>KHO & THỰC ĐƠN:</b>\n` +
+            `• <b>/stock</b> - Xem tồn kho nguyên liệu & Cảnh báo sắp hết.\n` +
+            `• <b>/addstock [tên] [SL]</b> - Nhập nhanh kho (Ví dụ: <code>/addstock "Sữa đặc" 24</code>).\n` +
+            `• <b>/menu</b> - Xem danh sách món nước & Trạng thái hết món.\n` +
+            `• <b>/toggle_soldout [món]</b> - Đổi trạng thái Hết/Còn món (Ví dụ: <code>/toggle_soldout "Bạc Xỉu"</code>).\n\n` +
+            `⚙️ <b>QUẢN TRỊ HỆ THỐNG VPS:</b>\n` +
+            `• <b>/scrape [ngày]</b> - Ra lệnh cào lịch sử (Ví dụ: <code>/scrape 23</code>).\n` +
+            `• <b>/update</b> - Tự cập nhật tải bản Bot mới nhất từ GitHub & reload.\n` +
+            `• <b>/update history</b> - Cập nhật script cào lịch sử từ GitHub.\n` +
+            `• <b>/restart</b> - Khởi động lại Bot quét đơn Grab.\n` +
+            `• <b>/cmd [lệnh]</b> - Chạy Terminal Linux tối cao (Ví dụ: <code>/cmd pm2 status</code>).`;
         await sendTelegramAlert(helpMsg);
     } 
     else if (command === '/status') {
@@ -262,6 +310,329 @@ async function handleTelegramCommand(text) {
             await sendTelegramAlert(`❌ Lỗi truy vấn doanh thu từ DB: ${e.message}`);
         }
     } 
+    else if (command === '/revenue_yesterday') {
+        await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang tính toán doanh thu hôm qua từ Supabase...');
+        try {
+            const today = new Date();
+            today.setHours(today.getHours() + 7);
+            const startOfYesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+            startOfYesterday.setHours(startOfYesterday.getHours() - 7);
+            const endOfYesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            endOfYesterday.setHours(endOfYesterday.getHours() - 7);
+            
+            const { data: orders, error: dbErr } = await supabase
+                .from('orders')
+                .select('total_amount, platform')
+                .gte('created_at', startOfYesterday.toISOString())
+                .lt('created_at', endOfYesterday.toISOString());
+                
+            if (dbErr) throw dbErr;
+            
+            if (!orders || orders.length === 0) {
+                await sendTelegramAlert('📊 <b>DOANH THU HÔM QUA:</b>\nHôm qua không ghi nhận đơn hàng nào trên hệ thống.');
+                return;
+            }
+            
+            let total = 0, grabTotal = 0, localTotal = 0;
+            let grabCount = 0, localCount = 0;
+            
+            for (const order of orders) {
+                const amt = parseFloat(order.total_amount) || 0;
+                total += amt;
+                if (order.platform === 'grab') {
+                    grabTotal += amt;
+                    grabCount++;
+                } else {
+                    localTotal += amt;
+                    localCount++;
+                }
+            }
+            
+            const revMsg = `📊 <b>THỐNG KÊ DOANH THU HÔM QUA</b>\n` +
+                `<i>(Từ 00:00 đến 23:59 hôm qua)</i>\n\n` +
+                `🔹 <b>Tổng doanh thu:</b> <code>${total.toLocaleString('vi-VN')}đ</code>\n` +
+                `• Tổng số đơn: <b>${orders.length} đơn</b>\n\n` +
+                `🛵 <b>Kênh GrabFood:</b>\n` +
+                `• Doanh thu: <code>${grabTotal.toLocaleString('vi-VN')}đ</code>\n` +
+                `• Số lượng: <b>${grabCount} đơn</b>\n\n` +
+                `🏠 <b>Bán tại quán (POS):</b>\n` +
+                `• Doanh thu: <code>${localTotal.toLocaleString('vi-VN')}đ</code>\n` +
+                `• Số lượng: <b>${localCount} đơn</b>`;
+            await sendTelegramAlert(revMsg);
+        } catch (e) {
+            console.error('Lỗi tính doanh thu hôm qua:', e.message);
+            await sendTelegramAlert(`❌ Lỗi truy vấn doanh thu từ DB: ${e.message}`);
+        }
+    } 
+    else if (command === '/revenue_month') {
+        await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang tính tổng doanh thu tháng này...');
+        try {
+            const today = new Date();
+            today.setHours(today.getHours() + 7);
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            startOfMonth.setHours(startOfMonth.getHours() - 7);
+            
+            const { data: orders, error: dbErr } = await supabase
+                .from('orders')
+                .select('total_amount, platform')
+                .gte('created_at', startOfMonth.toISOString());
+                
+            if (dbErr) throw dbErr;
+            
+            if (!orders || orders.length === 0) {
+                await sendTelegramAlert('📊 <b>DOANH THU THÁNG NÀY:</b>\nChưa ghi nhận đơn hàng nào trong tháng.');
+                return;
+            }
+            
+            let total = 0, grabTotal = 0, localTotal = 0;
+            let grabCount = 0, localCount = 0;
+            
+            for (const order of orders) {
+                const amt = parseFloat(order.total_amount) || 0;
+                total += amt;
+                if (order.platform === 'grab') {
+                    grabTotal += amt;
+                    grabCount++;
+                } else {
+                    localTotal += amt;
+                    localCount++;
+                }
+            }
+            
+            const monthNames = ["tháng 1", "tháng 2", "tháng 3", "tháng 4", "tháng 5", "tháng 6", "tháng 7", "tháng 8", "tháng 9", "tháng 10", "tháng 11", "tháng 12"];
+            const currentMonthName = monthNames[today.getMonth()];
+            
+            const revMsg = `📊 <b>DOANH THU TÍCH LŨY ${currentMonthName.toUpperCase()}</b>\n` +
+                `<i>(Từ ngày 01 đến hiện tại)</i>\n\n` +
+                `🔹 <b>Tổng doanh thu:</b> <code>${total.toLocaleString('vi-VN')}đ</code>\n` +
+                `• Tổng số đơn: <b>${orders.length} đơn</b>\n\n` +
+                `🛵 <b>Kênh GrabFood:</b>\n` +
+                `• Doanh thu: <code>${grabTotal.toLocaleString('vi-VN')}đ</code>\n` +
+                `• Số lượng: <b>${grabCount} đơn</b>\n\n` +
+                `🏠 <b>Bán tại quán (POS):</b>\n` +
+                `• Doanh thu: <code>${localTotal.toLocaleString('vi-VN')}đ</code>\n` +
+                `• Số lượng: <b>${localCount} đơn</b>`;
+            await sendTelegramAlert(revMsg);
+        } catch (e) {
+            console.error('Lỗi tính doanh thu tháng:', e.message);
+            await sendTelegramAlert(`❌ Lỗi truy vấn doanh thu từ DB: ${e.message}`);
+        }
+    }
+    else if (command === '/stock') {
+        await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang đọc danh sách tồn kho từ Supabase...');
+        try {
+            const { data: stockItems, error: dbErr } = await supabase
+                .from('inventory')
+                .select('name, stock, unit')
+                .order('name', { ascending: true });
+                
+            if (dbErr) throw dbErr;
+            
+            if (!stockItems || stockItems.length === 0) {
+                await sendTelegramAlert('📦 <b>TỒN KHO HỆ THỐNG:</b>\nKhông có nguyên liệu nào được lưu trong kho.');
+                return;
+            }
+            
+            let stockMsg = `📦 <b>TỒN KHO NGUYÊN LIỆU REALTIME:</b>\n\n`;
+            for (const item of stockItems) {
+                const stock = parseFloat(item.stock) || 0;
+                let warnSign = '';
+                
+                // Ngưỡng cảnh báo sắp hết nguyên liệu
+                if (item.name.includes('Robusta') && stock < 10) warnSign = ' ⚠️ <b>(Sắp hết!)</b>';
+                else if (item.name.includes('Arabica') && stock < 5) warnSign = ' ⚠️ <b>(Sắp hết!)</b>';
+                else if (item.name.includes('Sữa đặc') && stock < 20) warnSign = ' ⚠️ <b>(Sắp hết!)</b>';
+                else if (item.name.includes('Đường') && stock < 5) warnSign = ' ⚠️ <b>(Sắp hết!)</b>';
+                else if (stock <= 3) warnSign = ' ⚠️ <b>(Sắp hết!)</b>';
+                
+                stockMsg += `• ${item.name}: <b>${stock}</b> ${item.unit || ''}${warnSign}\n`;
+            }
+            await sendTelegramAlert(stockMsg);
+        } catch (e) {
+            console.error('Lỗi lấy tồn kho:', e.message);
+            await sendTelegramAlert(`❌ Lỗi truy vấn kho: ${e.message}`);
+        }
+    }
+    else if (command === '/addstock') {
+        const qtyStr = args.pop();
+        const qty = parseFloat(qtyStr);
+        const nameArg = args.join(' ').replace(/"/g, '').trim();
+        
+        if (!nameArg || isNaN(qty)) {
+            await sendTelegramAlert('⚠️ Vui lòng nhập đúng cú pháp.\nVí dụ: <code>/addstock "Sữa đặc" 24</code>');
+            return;
+        }
+        
+        await sendTelegramAlert(`⏳ Đang tìm kiếm và cộng kho nguyên liệu <b>"${nameArg}"</b>...`);
+        try {
+            const { data: stockItems } = await supabase
+                .from('inventory')
+                .select('id, name, stock');
+                
+            let matchedItem = null;
+            if (stockItems && stockItems.length > 0) {
+                // Thử tìm kiếm khớp chính xác hoặc khớp gần đúng
+                matchedItem = stockItems.find(item => item.name.toLowerCase() === nameArg.toLowerCase()) ||
+                              stockItems.find(item => item.name.toLowerCase().includes(nameArg.toLowerCase()));
+            }
+            
+            if (!matchedItem) {
+                await sendTelegramAlert(`❌ Không tìm thấy nguyên liệu nào khớp gần đúng với tên <b>"${nameArg}"</b>!`);
+                return;
+            }
+            
+            const newStock = (parseFloat(matchedItem.stock) || 0) + qty;
+            const { error: updateErr } = await supabase
+                .from('inventory')
+                .update({ stock: newStock })
+                .eq('id', matchedItem.id);
+                
+            if (updateErr) throw updateErr;
+            
+            // Ghi nhận lịch sử biến động kho
+            await supabase.from('inventory_history').insert({
+                inventory_id: matchedItem.id,
+                action_type: 'TELEGRAM',
+                quantity_changed: qty
+            }).catch(() => {});
+            
+            await sendTelegramAlert(`✅ <b>NHẬP KHO THÀNH CÔNG!</b>\n\n• Nguyên liệu: <b>${matchedItem.name}</b>\n• Số lượng vừa cộng: <b>+${qty}</b>\n• Tồn kho mới: <b>${newStock}</b>`);
+        } catch (e) {
+            console.error('Lỗi cộng kho:', e.message);
+            await sendTelegramAlert(`❌ Lỗi cập nhật kho: ${e.message}`);
+        }
+    }
+    else if (command === '/menu') {
+        await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang tải thực đơn của quán...');
+        try {
+            const { data: recipes, error: dbErr } = await supabase
+                .from('recipes')
+                .select('name, size, price, is_sold_out')
+                .order('name', { ascending: true });
+                
+            if (dbErr) throw dbErr;
+            
+            if (!recipes || recipes.length === 0) {
+                await sendTelegramAlert('☕ <b>THỰC ĐƠN DỰ ÁN:</b>\nKhông có món ăn nào được ghi nhận trên database.');
+                return;
+            }
+            
+            let menuMsg = `☕ <b>THỰC ĐƠN DỰ ÁN REALTIME:</b>\n\n`;
+            for (const r of recipes) {
+                const statusStr = r.is_sold_out ? '🔴 <i>(Hết hàng)</i>' : '🟢 <i>(Đang bán)</i>';
+                menuMsg += `• ${r.name} (${r.size || 'M'}): <b>${(parseFloat(r.price) || 0).toLocaleString('vi-VN')}đ</b> - ${statusStr}\n`;
+            }
+            await sendTelegramAlert(menuMsg);
+        } catch (e) {
+            console.error('Lỗi lấy thực đơn:', e.message);
+            await sendTelegramAlert(`❌ Lỗi truy vấn thực đơn: ${e.message}`);
+        }
+    }
+    else if (command === '/toggle_soldout') {
+        const nameArg = args.join(' ').replace(/"/g, '').trim();
+        if (!nameArg) {
+            await sendTelegramAlert('⚠️ Vui lòng cung cấp tên món cần đổi trạng thái.\nVí dụ: <code>/toggle_soldout "Bạc Xỉu"</code>');
+            return;
+        }
+        
+        await sendTelegramAlert(`⏳ Đang điều chỉnh trạng thái bán của món <b>"${nameArg}"</b>...`);
+        try {
+            const { data: recipes } = await supabase
+                .from('recipes')
+                .select('id, name, is_sold_out');
+                
+            let matchedRecipe = null;
+            if (recipes && recipes.length > 0) {
+                matchedRecipe = recipes.find(r => r.name.toLowerCase() === nameArg.toLowerCase()) ||
+                                recipes.find(r => r.name.toLowerCase().includes(nameArg.toLowerCase()));
+            }
+            
+            if (!matchedRecipe) {
+                await sendTelegramAlert(`❌ Không tìm thấy món ăn nào khớp gần đúng với tên <b>"${nameArg}"</b>!`);
+                return;
+            }
+            
+            const newStatus = !matchedRecipe.is_sold_out;
+            const { error: updateErr } = await supabase
+                .from('recipes')
+                .update({ is_sold_out: newStatus })
+                .eq('id', matchedRecipe.id);
+                
+            if (updateErr) throw updateErr;
+            
+            await sendTelegramAlert(`✅ <b>ĐÃ ĐỔI TRẠNG THÁI MÓN!</b>\n\n• Tên món: <b>${matchedRecipe.name}</b>\n• Trạng thái mới: ${newStatus ? '🔴 <b>Đã chuyển sang HẾT HÀNG (SOLD OUT)</b>' : '🟢 <b>Đã mở bán lại thành công</b>'}`);
+        } catch (e) {
+            console.error('Lỗi toggle sold out:', e.message);
+            await sendTelegramAlert(`❌ Lỗi cập nhật thực đơn: ${e.message}`);
+        }
+    }
+    else if (command === '/screenshot') {
+        if (!activePage) {
+            await sendTelegramAlert('❌ Trình duyệt quét đơn Playwright hiện đang offline hoặc chưa khởi chạy!');
+            return;
+        }
+        
+        await sendTelegramAlert('📸 <b>[RÔM RẢ BOT]</b> Đang tiến hành chụp ảnh màn hình Chromium ngầm thực tế... Vui lòng đợi trong 3 giây.');
+        try {
+            const screenshotPath = path.join(__dirname, 'screenshot.png');
+            await activePage.screenshot({ path: screenshotPath, timeout: 10000 }).catch((e) => {
+                addToLogs(`❌ Lỗi Playwright chụp màn hình: ${e.message}`);
+            });
+            
+            if (fs.existsSync(screenshotPath)) {
+                await sendTelegramPhoto(screenshotPath, '📷 Giao diện làm việc thực tế của Grab Portal trên VPS!');
+                fs.unlinkSync(screenshotPath); // Xóa file tạm
+            } else {
+                await sendTelegramAlert('❌ Không thể chụp được màn hình Chromium. Có thể trang đang reload hoặc kẹt mạng.');
+            }
+        } catch (err) {
+            await sendTelegramAlert(`❌ Lỗi chụp ảnh VPS: <code>${err.message}</code>`);
+        }
+    }
+    else if (command === '/update') {
+        const target = args[0] ? args[0].toLowerCase() : 'bot';
+        const { exec } = require('child_process');
+        
+        if (target === 'bot') {
+            await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang tải bản nâng cấp <code>romra_scraper.js</code> mới nhất trực tiếp từ GitHub về VPS...');
+            exec('curl -L -o /root/romra_scraper.js https://raw.githubusercontent.com/betafpt/romracaphe/main/romra_scraper.js', async (error, stdout, stderr) => {
+                if (error) {
+                    await sendTelegramAlert(`❌ Lỗi cập nhật bot: <code>${error.message}</code>`);
+                    return;
+                }
+                await sendTelegramAlert('✅ <b>CẬP NHẬT THÀNH CÔNG!</b>\nĐang tự động khởi động lại bot chỉ sau 1 giây qua PM2 để áp dụng code mới...');
+                setTimeout(() => {
+                    process.exit(0); // Thoát tiến trình, PM2 sẽ tự restart bot
+                }, 1000);
+            });
+        } 
+        else if (target === 'history') {
+            await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang tải bản nâng cấp script cào đơn lịch sử <code>test_history_scrape.js</code> từ GitHub...');
+            exec('curl -L -o /root/test_history_scrape.js https://raw.githubusercontent.com/betafpt/romracaphe/main/scratch/test_history_scrape.js', async (error, stdout, stderr) => {
+                if (error) {
+                    await sendTelegramAlert(`❌ Lỗi cập nhật cào lịch sử: <code>${error.message}</code>`);
+                    return;
+                }
+                await sendTelegramAlert('✅ <b>CẬP NHẬT THÀNH CÔNG!</b>\nĐã tải đè bản cào lịch sử hoàn hảo mới nhất về `/root/test_history_scrape.js`.');
+            });
+        }
+    }
+    else if (command === '/cmd') {
+        const shellCmd = args.join(' ');
+        if (!shellCmd) {
+            await sendTelegramAlert('⚠️ Vui lòng nhập lệnh Terminal cần chạy.\nVí dụ: <code>/cmd pm2 status</code>');
+            return;
+        }
+        
+        await sendTelegramAlert(`⏳ <b>[RÔM RẢ BOT]</b> Đang thực thi lệnh tối cao trên VPS:\n<code>${shellCmd}</code>...`);
+        const { exec } = require('child_process');
+        
+        exec(shellCmd, async (error, stdout, stderr) => {
+            const output = stdout || stderr || 'Không có phản hồi đầu ra (Empty output).';
+            const formattedOutput = output.length > 3500 ? output.slice(0, 3500) + '\n\n...(Output truncated due to length)...' : output;
+            await sendTelegramAlert(`💻 <b>KẾT QUẢ CMD VPS:</b>\n\n<pre>${formattedOutput}</pre>`);
+        });
+    }
     else {
         await sendTelegramAlert('❓ Lệnh không hợp lệ. Gõ <b>/help</b> để xem các lệnh được hỗ trợ.');
     }
@@ -406,6 +777,7 @@ async function runScraper() {
     });
 
     const page = await context.newPage();
+    activePage = page; // Lưu tham chiếu page toàn cục
 
     try {
         addToLogs('Đang truy cập trang Quản lý đơn hàng Grab Merchant...');
