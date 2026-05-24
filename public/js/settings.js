@@ -76,6 +76,15 @@ function renderSettings() {
                             </div>
                             <p class="text-xs text-gray-500 mt-1 font-bold">Bù khoảng cách cách lề bên trái nếu tem in ra thực tế bị lệch sát mép. Thường từ 10 đến 30px. Khi tăng, chữ trên tem thiết kế sẽ tự động dịch sang phải.</p>
                         </div>
+                        <div class="border-t border-dashed border-red-300 pt-3">
+                            <label class="flex items-center gap-3 cursor-pointer select-none border-2 border-black p-3 bg-white hover:bg-red-100 transition-colors">
+                                <input type="checkbox" id="cfg-autoPrintOnline" class="w-6 h-6 border-4 border-black bg-white accent-black" ${localStorage.getItem('romra_auto_print_online') === 'true' ? 'checked' : ''}>
+                                <span class="font-black text-sm uppercase text-red-950 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-base">print_connect</span> Tự động in tem đơn Online (Grab/Shopee)
+                                </span>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1 font-bold">Nếu bật, khi có đơn hàng Grab/Shopee mới đổ về, máy in sẽ tự động in tem dán cốc ngay lập tức. Nếu tắt, bạn phải click nút "In Tem" thủ công trên Popup báo đơn.</p>
+                        </div>
                         <!-- Loai bo cac checkbox RawBT va NokoPrint cu vi da co tinh nang in Native xuyen thau cuc ky on dinh tu App APK -->
                     </div>
                 </div>
@@ -111,6 +120,25 @@ function renderSettings() {
                         <div>
                             <label class="block font-bold mb-1 text-blue-800"><span class="material-symbols-outlined align-middle text-sm">text_fields</span> Cỡ chữ cơ sở (px)</label>
                             <input type="number" id="cfg-receiptFontSize" value="${conf.receiptFontSize}" oninput="updateReceiptPreview()" class="brutal-input w-32 font-bold text-center bg-white" min="8" max="24">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CẤU HÌNH CHIẾT KHẤU ĐƠN ONLINE -->
+                <div class="mb-6 p-4 bg-blue-50 border-4 border-black shadow-[4px_4px_0_0_#000]">
+                    <h3 class="font-bold text-xl mb-4 font-heading uppercase flex items-center gap-2 text-blue-900">
+                        <span class="material-symbols-outlined">percent</span> Chiết khấu đơn online
+                    </h3>
+                    <div class="flex flex-col gap-4 font-bold">
+                        <div>
+                            <label class="block font-bold mb-1">Tỷ lệ chiết khấu GrabFood (%)</label>
+                            <input type="number" id="cfg-commissionGrab" value="${localStorage.getItem('romra_commission_grab') || 25}" class="brutal-input w-32 font-bold text-center bg-white" min="0" max="100">
+                            <p class="text-xs text-gray-500 mt-1 font-bold">Tỷ lệ hoa hồng Grab thu của quán. Dùng để tính toán doanh thu thực nhận ước tính trên POS và Hóa đơn.</p>
+                        </div>
+                        <div class="border-t border-dashed border-blue-300 pt-3">
+                            <label class="block font-bold mb-1">Tỷ lệ chiết khấu ShopeeFood (%)</label>
+                            <input type="number" id="cfg-commissionShopee" value="${localStorage.getItem('romra_commission_shopee') || 25}" class="brutal-input w-32 font-bold text-center bg-white" min="0" max="100">
+                            <p class="text-xs text-gray-500 mt-1 font-bold">Tỷ lệ hoa hồng ShopeeFood thu của quán.</p>
                         </div>
                     </div>
                 </div>
@@ -668,6 +696,16 @@ function saveVisualPrintConfig() {
     
     localStorage.setItem('romra_printer_ip', config.layout.printerIP);
     localStorage.setItem('romra_print_config_v4', JSON.stringify(config));
+    
+    // Luu tuy chon tu dong in don hang online
+    const autoPrintOnline = document.getElementById('cfg-autoPrintOnline').checked;
+    localStorage.setItem('romra_auto_print_online', autoPrintOnline ? 'true' : 'false');
+    
+    // Luu tuy chon chiet khau don online
+    const commissionGrab = document.getElementById('cfg-commissionGrab').value || 25;
+    const commissionShopee = document.getElementById('cfg-commissionShopee').value || 25;
+    localStorage.setItem('romra_commission_grab', commissionGrab);
+    localStorage.setItem('romra_commission_shopee', commissionShopee);
     
     // Luon dat false cho cac tuy chon in giay/in giat de luon in native qua APK
     localStorage.setItem('romra_direct_lan_print', 'false');

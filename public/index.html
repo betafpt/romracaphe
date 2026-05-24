@@ -5,6 +5,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rôm Rả Cà Phê</title>
+    <script>
+        // Tự động giải phóng Service Worker và xóa Cache Storage cũ để sửa triệt để lỗi cache sâu làm treo UI
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (let registration of registrations) {
+                    registration.unregister();
+                    console.log('Đã gỡ bỏ Service Worker cũ thành công!');
+                }
+            });
+        }
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) {
+                    caches.delete(name);
+                    console.log('Đã xóa Cache Storage:', name);
+                }
+            });
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3767,18 +3786,48 @@
                     }
 
                     orders.forEach(order => {
-                        const itemsHtml = order.order_items.map((oi, oiIdx) => `
-                            <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1">
-                                <div class="flex justify-between text-sm items-center">
-                                    <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.recipes?.name || 'Món Đã Xóa'}</span> (${oi.recipes?.size || '-'})</span>
-                                    <!-- Nút in lẻ món này -->
-                                    <button onclick="printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center" title="In riêng tem món này">
-                                        <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
-                                    </button>
-                                </div>
-                                ${oi.note ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú: ${oi.note}</div>` : ''}
-                            </div>
-                        `).join('');
+                        const isApp = order.platform && order.platform !== 'local';
+                        let itemsHtml = '';
+
+                        if (isApp && order.note) {
+                            try {
+                                const parsed = JSON.parse(order.note);
+                                const onlineItems = parsed.items || [];
+                                itemsHtml = onlineItems.map((oi, oiIdx) => {
+                                    const cleanedNote = oi.note ? oi.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim() : '';
+                                    return `
+                                        <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
+                                            <div class="flex justify-between text-sm items-center">
+                                                <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.name}</span> (${oi.size || 'M'})</span>
+                                                <!-- Nút in lẻ món online này -->
+                                                <button onclick="printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center font-bold" title="In riêng tem món này">
+                                                    <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
+                                                </button>
+                                            </div>
+                                            ${cleanedNote ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú: ${cleanedNote}</div>` : ''}
+                                        </div>
+                                    `;
+                                }).join('');
+                            } catch (e) {
+                                itemsHtml = `<div class="text-xs text-red-500 font-bold text-left">Lỗi hiển thị chi tiết món ăn online</div>`;
+                            }
+                        } else {
+                            itemsHtml = (order.order_items || []).map((oi, oiIdx) => {
+                                const cleanedNote = oi.note ? oi.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim() : '';
+                                return `
+                                    <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
+                                        <div class="flex justify-between text-sm items-center">
+                                            <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.recipes?.name || 'Món Đã Xóa'}</span> (${oi.recipes?.size || '-'})</span>
+                                            <!-- Nút in lẻ món này -->
+                                            <button onclick="printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center" title="In riêng tem món này">
+                                                <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
+                                            </button>
+                                        </div>
+                                        ${cleanedNote ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú: ${cleanedNote}</div>` : ''}
+                                    </div>
+                                `;
+                            }).join('');
+                        }
 
                         let bgColor = 'bg-white';
                         let actionBtn = '';
@@ -3794,8 +3843,6 @@
                         }
 
                         // Cấu hình Nút bấm dựa trên trạng thái hóa đơn
-                        const isApp = order.platform && order.platform !== 'local';
-
                         if (isApp) {
                             // Giao diện cho Đơn từ App (Grab/Shopee)
                             actionBtn = `
@@ -3852,21 +3899,78 @@
                         const d = new Date(order.created_at);
                         const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
-                        const appBadge = isApp ? `<span class="px-2 py-0.5 text-xs font-black uppercase text-white bg-${order.platform === 'grab' ? 'green-600' : 'orange-500'} absolute -top-3 -right-3 border-2 border-black rotate-12 shadow-[2px_2px_0_0_#000] z-10">${order.platform}</span>` : '';
+                        // Thiết kế lại Badge Logo sàn Neo-Brutalism siêu premium, rực rỡ và có viền đen dày
+                        let appBadge = '';
+                        if (isApp) {
+                            const isGrab = order.platform === 'grab';
+                            const badgeBg = isGrab ? 'bg-[#00B14F]' : 'bg-[#EE4D2D]';
+                            const badgeLabel = isGrab ? 'GRABFOOD' : 'SHOPEEFOOD';
+                            appBadge = `<span class="px-2.5 py-1 text-[9px] font-black uppercase text-white ${badgeBg} absolute -top-3 -right-2.5 border-[3px] border-black rotate-6 shadow-[3px_3px_0_0_#000] z-10 tracking-widest">${badgeLabel}</span>`;
+                        }
+
+                        // Xử lý hiển thị ghi chú online đẹp mắt không bị json thô
+                        let noteDisplayHtml = '';
+                        let customerNameHtml = '';
+                        if (order.note) {
+                            if (isApp) {
+                                try {
+                                    const parsed = JSON.parse(order.note);
+                                    if (parsed.note) {
+                                        noteDisplayHtml = `<div class="mb-3 px-1 text-sm font-bold text-red-600 border-l-4 border-red-600 pl-2">Ghi chú: ${parsed.note}</div>`;
+                                    }
+                                    if (parsed.customerName) {
+                                        customerNameHtml = `<div class="text-xs font-black text-slate-700 bg-amber-100 border-2 border-black p-1.5 mb-2 text-left flex items-center gap-1"><span class="material-symbols-outlined text-sm font-black">person</span> KHÁCH: ${parsed.customerName.toUpperCase()}</div>`;
+                                    }
+                                } catch (e) {
+                                    noteDisplayHtml = `<div class="mb-3 px-1 text-sm font-bold text-red-600 border-l-4 border-red-600 pl-2">Ghi chú: ${order.note}</div>`;
+                                }
+                            } else {
+                                noteDisplayHtml = `<div class="mb-3 px-1 text-sm font-bold text-red-600 border-l-4 border-red-600 pl-2">Ghi chú: ${order.note}</div>`;
+                            }
+                        }
+
+                        // Tính toán chiết khấu và thực nhận ước tính dựa theo tỷ lệ cấu hình
+                        let pricingHtml = '';
+                        if (isApp) {
+                            const platform = order.platform || 'grab';
+                            const commissionPercent = Number(localStorage.getItem(`romra_commission_${platform}`) || 25);
+                            const commissionAmount = Math.round(order.total_amount * (commissionPercent / 100));
+                            const receiveAmount = order.total_amount - commissionAmount;
+
+                            pricingHtml = `
+                            <div class="mb-3 mt-2 p-2 bg-slate-50 border-2 border-black flex flex-col gap-1 text-[11px] font-bold text-left shadow-[2px_2px_0_0_#000]">
+                                <div class="flex justify-between text-gray-600">
+                                    <span>Doanh thu sau KM (Khách trả):</span>
+                                    <span>${Number(order.total_amount).toLocaleString('vi-VN')}đ</span>
+                                </div>
+                                <div class="flex justify-between text-red-600">
+                                    <span>Chiết khấu sàn ước tính (${commissionPercent}%):</span>
+                                    <span>-${commissionAmount.toLocaleString('vi-VN')}đ</span>
+                                </div>
+                                <div class="flex justify-between text-green-700 font-extrabold border-t border-dashed border-gray-400 pt-1 text-xs">
+                                    <span>Thực nhận (Quán nhận):</span>
+                                    <span>${receiveAmount.toLocaleString('vi-VN')}đ</span>
+                                </div>
+                            </div>
+                            `;
+                        }
 
                         const cardHtml = `
                         <div class="${bgColor} border-[3px] border-black p-3 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none">
                             ${appBadge}
                             <div class="flex justify-between items-start mb-2">
-                                <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${order.id}</span>
+                                <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${isApp ? (order.external_short_id || order.id) : order.id}</span>
                                 <span class="font-bold text-xs bg-white border-2 border-black px-1 pb-1 pt-0.5 flex flex-col items-end"><span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>${timeStr}</span>
                             </div>
+                            
+                            ${customerNameHtml}
                             
                             <div class="mb-3 mt-1 px-1">
                                 ${itemsHtml}
                             </div>
                             
-                            ${order.note ? `<div class="mb-3 px-1 text-sm font-bold text-red-600 border-l-4 border-red-600 pl-2">Ghi chú: ${order.note}</div>` : ''}
+                            ${noteDisplayHtml}
+                            ${pricingHtml}
 
                             <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-black border-dashed">
                                 <div class="flex flex-col">
@@ -4707,21 +4811,89 @@
             const conf = typeof getPrintConfig === 'function' ? getPrintConfig() : null;
             let logoHtml = (conf && conf.showLogo) ? `<div style="text-align: center; margin-bottom: 10px;"><img style="max-width: 80%; display: block; margin: 0 auto; filter: grayscale(100%) contrast(1.2);" src="${conf.logoUrl || '/img/logo.png'}" alt="Logo" onerror="this.style.display='none'"></div>` : '';
 
-            const itemsHtml = order.order_items.map(oi => `
-                <div style="margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 8px;">
-                    <div style="font-size: 16px; font-weight: bold;">${oi.quantity} x ${oi.recipes?.name || 'Món'}</div>
-                    <div style="font-size: 13px;">Size: ${oi.recipes?.size || '-'} | Giá: ${Number(oi.price).toLocaleString('vi-VN')}</div>
-                    ${oi.note ? `<div style="font-size: 12px; font-style: italic;">*${oi.note}</div>` : ''}
-                </div>
-            `).join('');
+            const isApp = order.platform && order.platform !== 'local';
+            let itemsHtml = '';
+
+            if (isApp && order.note) {
+                try {
+                    const parsed = JSON.parse(order.note);
+                    const onlineItems = parsed.items || [];
+                    itemsHtml = onlineItems.map(oi => {
+                        const cleanedNote = oi.note ? oi.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim() : '';
+                        return `
+                            <div style="margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 8px;">
+                                <div style="font-size: 16px; font-weight: bold;">${oi.quantity} x ${oi.name}</div>
+                                <div style="font-size: 13px;">Size: ${oi.size || 'M'}</div>
+                                ${cleanedNote ? `<div style="font-size: 12px; font-style: italic;">* ${cleanedNote}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                } catch (e) {
+                    itemsHtml = `<div style="color: red; font-weight: bold;">Lỗi hiển thị món ăn online</div>`;
+                }
+            } else {
+                itemsHtml = (order.order_items || []).map(oi => {
+                    const cleanedNote = oi.note ? oi.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim() : '';
+                    return `
+                        <div style="margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 8px;">
+                            <div style="font-size: 16px; font-weight: bold;">${oi.quantity} x ${oi.recipes?.name || 'Món'}</div>
+                            <div style="font-size: 13px;">Size: ${oi.recipes?.size || '-'} | Giá: ${Number(oi.price).toLocaleString('vi-VN')}</div>
+                            ${cleanedNote ? `<div style="font-size: 12px; font-style: italic;">* ${cleanedNote}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
 
             const platformName = (order.platform || 'LOCAL').toUpperCase();
             const timeStr = new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const displayId = isApp ? (order.external_short_id || order.id) : order.id;
+
+            let billCustomerHtml = '';
+            if (isApp && order.note) {
+                try {
+                    const parsed = JSON.parse(order.note);
+                    if (parsed.customerName) {
+                        billCustomerHtml = `<div style="text-align: center; margin-top: 5px; font-weight: bold; font-size: ${Number(conf ? conf.receiptFontSize : 12) + 2}px; border: 1.5px solid black; padding: 2px;">KHÁCH: ${parsed.customerName.toUpperCase()}</div>`;
+                    }
+                } catch(e) {}
+            }
+
+            // Tính toán chiết khấu và thực nhận in bill đối soát
+            let billPricingHtml = `
+                <div class="center text-lg" style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px;">
+                    TỔNG CỘNG:<br/>${Number(order.total_amount).toLocaleString('vi-VN')}đ
+                </div>
+            `;
+            if (isApp) {
+                const platform = order.platform || 'grab';
+                const commissionPercent = Number(localStorage.getItem(`romra_commission_${platform}`) || 25);
+                const commissionAmount = Math.round(order.total_amount * (commissionPercent / 100));
+                const receiveAmount = order.total_amount - commissionAmount;
+
+                billPricingHtml = `
+                    <div style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px; font-size: ${conf ? conf.receiptFontSize : 12}px;">
+                        <table style="width: 100%; border-collapse: collapse; font-family: monospace;">
+                            <tr>
+                                <td style="text-align: left;">Doanh thu (Khách trả):</td>
+                                <td style="text-align: right;">${Number(order.total_amount).toLocaleString('vi-VN')}đ</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Chiết khấu sàn (${commissionPercent}%):</td>
+                                <td style="text-align: right;">-${commissionAmount.toLocaleString('vi-VN')}đ</td>
+                            </tr>
+                            <tr style="font-weight: bold; border-top: 1px dashed #000; font-size: ${Number(conf ? conf.receiptFontSize : 12) + 1}px;">
+                                <td style="text-align: left; padding-top: 5px;">THỰC NHẬN QUÁN:</td>
+                                <td style="text-align: right; padding-top: 5px;">${receiveAmount.toLocaleString('vi-VN')}đ</td>
+                            </tr>
+                        </table>
+                    </div>
+                `;
+            }
 
             const receiptHtml = `
                 <html>
                 <head>
-                    <title>Hóa Đơn #${order.id}</title>
+                    <title>Hóa Đơn #${displayId}</title>
                     <style>
                         body { font-family: monospace; width: 58mm; margin: 0 auto; padding: 10px; color: #000; font-size: ${conf ? conf.receiptFontSize : 12}px; }
                         h2 { text-align: center; margin: 0 0 10px 0; font-size: ${conf ? Number(conf.receiptFontSize) + 6 : 18}px; border-bottom: 2px solid #000; padding-bottom: 5px; }
@@ -4737,15 +4909,14 @@
                     ${conf && conf.address ? `<div class="center mb text-sm">${conf.address}</div>` : ''}
                     ${conf && conf.phone ? `<div class="center mb text-sm">${conf.phone}</div>` : ''}
                     <div class="center mb" style="border-top: 1px dashed #000; padding-top: 5px;">
-                        <strong>ĐƠN ${platformName} #${order.id}</strong><br/>
+                        <strong>ĐƠN ${platformName} #${displayId}</strong><br/>
                         <span class="text-sm">${timeStr}</span>
+                        ${billCustomerHtml}
                     </div>
                     <div class="mb">
                         ${itemsHtml}
                     </div>
-                    <div class="center text-lg" style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px;">
-                        TỔNG CỘNG:<br/>${Number(order.total_amount).toLocaleString('vi-VN')}đ
-                    </div>
+                    ${billPricingHtml}
                     <div class="center text-sm" style="margin-top:20px; white-space: pre-wrap;">${conf ? conf.footerMsg : '-- Cảm ơn Quý Khách --'}</div>
                     <script>
                         window.onload = function() { window.print(); window.close(); }
