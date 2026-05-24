@@ -1,10 +1,20 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 23 tháng 5 năm 2026 (Cập nhật lúc 16:50)
+**Thời gian đồng bộ cuối cùng:** Ngày 24 tháng 5 năm 2026 (Cập nhật lúc 11:35)
 
-## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT (MỚI NHẤT)
-- **Quy tắc tuyệt đối:** Trước khi chỉnh sửa bất kỳ tệp tin mã nguồn nào hoặc thực hiện thay đổi nào trên hệ thống, bắt buộc phải tạo bản kế hoạch triển khai (`implementation_plan.md`) gửi cho Người dùng duyệt. Chỉ khi nhận được sự xác nhận của Người dùng mới được tiến hành viết/sửa code.
-- **Quy tắc giao tiếp:** Luôn luôn trả lời bằng Tiếng Việt. Luôn hỏi trước khi upload code lên GitHub.
+## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
+Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
+
+1. **Quy tắc tuyệt đối về Lập kế hoạch (Planning):** Trước khi chỉnh sửa bất kỳ tệp tin mã nguồn nào hoặc thực hiện thay đổi nào trên hệ thống, bắt buộc phải tạo bản kế hoạch triển khai (`implementation_plan.md`) gửi cho Người dùng duyệt. Chỉ khi nhận được sự xác nhận của Người dùng mới được tiến hành viết/sửa code.
+2. **Quy trình Phát triển Superpowers:**
+   * **Brainstorming (Động não):** Không bao giờ vội vã sửa code ngay khi nhận yêu cầu phức tạp. Phải đặt các câu hỏi Socratic để thảo luận và làm rõ mục tiêu thiết kế với Người dùng.
+   * **Planning (Lập kế hoạch chi tiết):** Chia nhỏ dự án thành các nhiệm vụ cực nhỏ (2-5 phút), xác định rõ ràng đường dẫn các file cần chỉnh sửa/tạo mới và phương án kiểm thử cụ thể cho từng phần.
+   * **TDD (Phát triển hướng kiểm thử):** Đối với các tính năng logic phức tạp, AI phải viết kiểm thử (test) bị lỗi trước (Red), sau đó mới viết mã nguồn để vượt qua kiểm thử đó (Green), và cuối cùng là tối ưu hóa mã nguồn (Refactor).
+   * **Subagent-driven (Điều phối Agent phụ):** Chia nhỏ công việc độc lập cho các subagent thực hiện để duy trì sự tập trung cao nhất vào ngữ cảnh công việc và tránh bị loãng hoặc mất ngữ cảnh.
+   * **Review & Verification (Đánh giá & Xác thực):** Tự động kiểm tra, chạy thử và xác thực kỹ lượng kết quả, viết báo cáo nghiệm thu (`walkthrough.md`) trước khi thông báo hoàn tất công việc.
+3. **Quy tắc giao tiếp & Phát hành:**
+   * Luôn luôn trả lời Người dùng bằng Tiếng Việt.
+   * Luôn hỏi ý kiến Người dùng trước khi thực hiện tải mã nguồn (push code) lên GitHub.
 
 ## 1. TỔNG QUAN DỰ ÁN (PROJECT OVERVIEW)
 - Tên dự án: Hệ thống quản lý và vận hành Romra Cafe & Workspace.

@@ -372,6 +372,68 @@
         </div>
     </div>
 
+    <!-- Modal Chốt Đơn Cashier Thành Công (POS Live Style) -->
+    <div id="modal-cashier-success" class="fixed inset-0 items-center justify-center p-4 content-center"
+        style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
+        <div class="bg-white border-8 border-black shadow-[16px_16px_0_0_#000] p-6 max-w-md w-full relative flex flex-col gap-4 brutal-card rounded-none select-none animate-slide-up">
+            
+            <div class="text-center font-heading font-black text-xl uppercase tracking-wider text-green-600 flex items-center justify-center gap-1.5">
+                <span class="material-symbols-outlined font-black">check_circle</span> ĐÃ XÁC NHẬN ĐƠN HÀNG!
+            </div>
+
+            <!-- Khung Thẻ Đơn Hàng phong cách POS Live -->
+            <div class="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0_0_#000] flex flex-col relative rounded-none text-black text-left">
+                <!-- Header: Mã đơn & Giờ đặt -->
+                <div class="flex justify-between items-start mb-3">
+                    <span id="cashier-success-order-id" class="font-black text-2xl bg-black text-white px-2.5 py-0.5" style="line-height:1;">#0</span>
+                    <span class="font-bold text-xs bg-white border-2 border-black px-1.5 pb-1 pt-0.5 flex flex-col items-end rounded-none shadow-[2px_2px_0_0_#000]">
+                        <span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>
+                        <span id="cashier-success-time">00:00</span>
+                    </span>
+                </div>
+                
+                <!-- Body: Danh sách món uống -->
+                <div id="cashier-success-items-list" class="mb-3 mt-1 px-1 flex flex-col gap-2">
+                    <!-- Được render động bằng JS -->
+                </div>
+
+                <!-- KHU VỰC QUÉT MÃ QR (Chỉ hiển thị khi chọn Chuyển khoản) -->
+                <div id="cashier-success-qr-container" class="mb-3 px-1 flex flex-col items-center gap-2 border-t-2 border-dashed border-gray-300 pt-3" style="display: none;">
+                    <span class="inline-block bg-[#FFD600] text-black text-[9px] font-black uppercase px-2 py-0.5 tracking-wider border-2 border-black shadow-[2px_2px_0_0_#000]">QUÉT MÃ THANH TOÁN VIETQR</span>
+                    <div class="h-44 w-44 border-3 border-black bg-white overflow-hidden p-1.5 flex items-center justify-center shadow-[3px_3px_0_0_#000] relative">
+                        <img id="cashier-success-qr-img" src="" alt="Mã VietQR" class="w-full h-full object-contain bg-white">
+                    </div>
+                    <div class="text-[10px] font-bold text-gray-600 text-center">
+                        Nội dung: <span id="cashier-success-qr-info" class="text-green-600 font-black">ROMRA 0</span>
+                    </div>
+                </div>
+                
+                <!-- Footer: Hình thức & Tổng tiền -->
+                <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-black border-dashed">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold uppercase text-gray-500">Hình thức</span>
+                        <span id="cashier-success-payment-badge" class="text-[10px] font-black uppercase border-2 p-1 rounded-none">TIỀN MẶT</span>
+                    </div>
+                    <span id="cashier-success-total-amount" class="font-black text-3xl text-[#FFD600] drop-shadow-[1.5px_1.5px_0_#000]" style="line-height:1;">0</span>
+                </div>
+            </div>
+            
+            <!-- Hàng nút in ấn & chốt đơn POS Live style -->
+            <div class="grid grid-cols-2 gap-3.5 mt-2">
+                <button id="cashier-success-print-labels" class="h-12 bg-[#0084FF] text-white border-3 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none font-heading font-black text-sm uppercase flex items-center justify-center gap-1.5 transition-all">
+                    <span class="material-symbols-outlined text-lg font-bold">print</span> IN TEM LY
+                </button>
+                <button id="cashier-success-print-receipt" class="h-12 bg-[#D1F2EB] text-[#0E6251] border-3 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none font-heading font-black text-sm uppercase flex items-center justify-center gap-1.5 transition-all">
+                    <span class="material-symbols-outlined text-lg font-bold">receipt_long</span> HÓA ĐƠN
+                </button>
+            </div>
+            
+            <button onclick="window.closeCashierSuccessModal()" class="w-full h-12 bg-black text-white border-4 border-black font-heading font-black text-sm uppercase hover:bg-slate-800 active:translate-y-1 transition-all">
+                ĐƠN TIẾP THEO
+            </button>
+        </div>
+    </div>
+
     <!-- PWA Install Modal -->
     <div id="modal-pwa-install" class="fixed inset-0 items-center justify-center p-4 content-center"
         style="display: none; background-color: rgba(0,0,0,0.6); z-index: 9999;">
@@ -775,8 +837,8 @@
                                 <div class="flex-1">
                                     <span class="inline-block bg-black text-white text-[9px] font-black uppercase px-2 py-0.5 mb-1.5 tracking-wider shadow-[2px_2px_0_0_#A2E8DD] border-2 border-black">HÌNH THỨC</span>
                                     <select id="cashier-payment-method" onchange="window.handleCashierPaymentMethodChange(this)" class="w-full h-12 px-2.5 border-3 border-black font-black focus:outline-none bg-[#E8F8F5] hover:bg-[#D1F2EB] text-xs md:text-sm cursor-pointer shadow-[3px_3px_0_0_#000] active:translate-y-[1px] active:shadow-none transition-all">
-                                        <option value="cash">Tiền mặt tại quầy</option>
-                                        <option value="transfer">Chuyển khoản / Quét QR</option>
+                                        <option value="cash">Tiền mặt</option>
+                                        <option value="transfer">Chuyển khoản</option>
                                     </select>
                                 </div>
                                 <!-- Khach dua -->
@@ -805,29 +867,17 @@
                         <div class="p-4 border-t-4 border-black bg-slate-100 flex flex-col gap-3">
                             <div class="flex justify-between items-center text-lg font-black">
                                 <span>TỔNG CỘNG:</span>
-                                <span class="text-primary text-2xl" id="cashier-total-amount">0đ</span>
+                                <span class="text-red-600 text-3xl font-black" id="cashier-total-amount">0đ</span>
                             </div>
 
                             <!-- Buttons -->
                             <div class="flex flex-col gap-2">
+                                <!-- Hàng 1: Nút Xác Nhận Đơn to rộng chiếm trọn 100% bề ngang -->
+                                <button onclick="window.submitCashierOrder()" class="w-full h-14 bg-[#52c48e] text-white border-3 border-black shadow-[4px_4px_0_0_#000] font-heading font-black text-base uppercase hover:brightness-105 active:translate-y-1 active:shadow-none flex items-center justify-center gap-2 transition-all">
+                                    <span class="material-symbols-outlined text-xl font-bold">check_circle</span> XÁC NHẬN ĐƠN & GỬI PHA CHẾ
+                                </button>
+                                <!-- Hàng 2: In Bill và Xóa Đơn chia đôi 50/50 -->
                                 <div class="flex gap-2.5">
-                                    <!-- Nút In Bill -->
-                                    <button onclick="window.printCashierDraftReceipt()" class="flex-1 h-12 bg-[#FFD600] text-black border-3 border-black shadow-[3px_3px_0_0_#000] font-heading font-black text-sm uppercase hover:bg-[#FFE040] active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1.5 transition-all">
-                                        <span class="material-symbols-outlined text-lg">receipt</span> IN BILL
-                                    </button>
-                                    <!-- Nút Xác Nhận Đơn -->
-                                    <button onclick="window.submitCashierOrder()" class="flex-1 h-12 bg-[#52c48e] text-white border-3 border-black shadow-[3px_3px_0_0_#000] font-heading font-black text-sm uppercase hover:brightness-105 active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1.5 transition-all">
-                                        <span class="material-symbols-outlined text-lg">check_circle</span> XÁC NHẬN ĐƠN
-                                    </button>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button onclick="window.printCashierLabelsOnly()" class="flex-1 h-11 bg-[#0084FF] text-white border-3 border-black shadow-[3px_3px_0_0_#000] font-heading font-black text-xs uppercase hover:brightness-105 active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1 transition-all">
-                                        <span class="material-symbols-outlined text-base">print</span> IN TEM LY
-                                    </button>
-                                    <button onclick="window.clearCashierCart()" class="flex-1 h-11 bg-red-500 text-white border-3 border-black shadow-[3px_3px_0_0_#000] font-heading font-black text-xs uppercase hover:brightness-105 active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1 transition-all">
-                                        <span class="material-symbols-outlined text-base">delete</span> XÓA ĐƠN
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -930,9 +980,22 @@
 
                 // Tạo các nút chọn size 2 dòng Neo-Brutalism to rõ, tối giản (không có chữ Size)
                 const sizeButtons = item.variants.map(v => {
-                    return `<button onclick="window.addRecipeToCashier(${v.id})" class="flex-1 h-14 flex flex-col items-center justify-center bg-white text-black border-[3px] border-black font-black shadow-[3px_3px_0_0_#000] hover:shadow-[1px_1px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:bg-[#FFD600] transition-all py-1">
-                        <span class="text-sm font-black leading-none uppercase">${v.size}</span>
-                        <span class="text-xs font-bold leading-none mt-1">${Number(v.price).toLocaleString('vi-VN')}đ</span>
+                    // Ánh xạ màu nền riêng biệt cho từng size theo chuẩn Neo-Brutalism
+                    let bgClass = 'bg-white';
+                    const sizeKey = String(v.size).toUpperCase().trim();
+                    if (sizeKey === 'S') {
+                        bgClass = 'bg-[#A7F3D0]'; // Xanh Mint sáng
+                    } else if (sizeKey === 'M') {
+                        bgClass = 'bg-[#FDE047]'; // Vàng sáng
+                    } else if (sizeKey === 'L') {
+                        bgClass = 'bg-[#FED7AA]'; // Cam đào sáng
+                    } else {
+                        bgClass = 'bg-[#BAE6FD]'; // Xanh Sky sáng cho các size khác
+                    }
+
+                    return `<button onclick="window.addRecipeToCashier(${v.id})" class="flex-1 h-16 flex flex-col items-center justify-center ${bgClass} text-black border-4 border-black font-black shadow-[4px_4px_0_0_#000] hover:brightness-95 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all py-1.5">
+                        <span class="text-lg font-black leading-none uppercase tracking-wider">${v.size}</span>
+                        <span class="text-sm font-black leading-none mt-1 text-black">${Number(v.price).toLocaleString('vi-VN')}đ</span>
                     </button>`;
                 }).join('');
 
@@ -1060,7 +1123,7 @@
                             <div class="font-extrabold text-xs uppercase leading-tight">${item.name}</div>
                             <div class="text-[10px] font-bold text-gray-500 mt-0.5">Size: ${item.size} | Đơn giá: ${item.price.toLocaleString()}đ</div>
                         </div>
-                        <div class="font-black text-xs text-primary shrink-0">${(item.price * item.quantity).toLocaleString()}đ</div>
+                        <div class="font-black text-sm text-black shrink-0">${(item.price * item.quantity).toLocaleString()}đ</div>
                     </div>
 
                     <!-- Note input -->
@@ -1078,23 +1141,7 @@
             calculateCashReturn();
         }
 
-        // 10. Chỉ in Tem ly trong giỏ hàng tại quầy
-        window.printCashierLabelsOnly = async function() {
-            if (window.cashierCart.length === 0) {
-                showToast("Giỏ hàng rỗng!", "warning");
-                return;
-            }
-
-            if (!window.AndroidPrint) {
-                showToast("Tính năng này chỉ khả dụng khi chạy trên Máy tính bảng Android của quán!", "error");
-                return;
-            }
-
-            showToast("Đang tạo lệnh in nháp tem nhãn ly...", "info");
-            
-            // Xử lý vẽ tem và gửi lệnh in cho từng sản phẩm trong giỏ hàng cashier
-            showToast("Vui lòng sử dụng nút 'IN BILL & LƯU ĐƠN' để hệ thống tự động ghi doanh thu và in tem dán ly cùng lúc nhé!", "info");
-        }
+        // 10. printCashierLabelsOnly has been deprecated and removed since printing is handled directly in submitCashierOrder success modal.
 
         // 11. IN BILL: Chỉ in hóa đơn tạm tính trực tiếp từ giỏ hàng hiện tại ra máy in 58mm, KHÔNG lưu đơn vào CSDL và KHÔNG gửi đi đâu
         window.printCashierDraftReceipt = function() {
@@ -1161,7 +1208,7 @@
             showToast("Đã kích hoạt in hóa đơn tạm tính!", "success");
         };
 
-        // 12. XÁC NHẬN ĐƠN: Chỉ lưu đơn hàng vào hệ thống với status là 'processing' để nó chuyển thẳng vào bar, KHÔNG in hóa đơn giấy hay tem ly
+        // 12. XÁC NHẬN ĐƠN: Lưu đơn hàng vào hệ thống, hiển thị Modal thành công POS Live style để in tem / in bill
         window.submitCashierOrder = async function() {
             if (window.cashierCart.length === 0) {
                 showToast("Giỏ hàng rỗng!", "warning");
@@ -1172,6 +1219,9 @@
             const paymentMethod = document.getElementById('cashier-payment-method').value;
             const cashGivenInput = document.getElementById('cashier-cash-given');
             const note = '';
+
+            // Sao lưu giỏ hàng hiện tại để in hoá đơn chính thức từ Modal thành công
+            window.lastCashierCartCopy = JSON.parse(JSON.stringify(window.cashierCart));
 
             // Map cashierCart sang định dạng order items
             const itemsToOrder = window.cashierCart.map(item => ({
@@ -1204,28 +1254,82 @@
                 }
 
                 const orderId = data.orderId;
-                showToast("Xác nhận đơn thành công! Đã chuyển đơn đi pha chế.", "success");
+                showToast("Xác nhận đơn thành công!", "success");
 
-                // Hiển thị Pop-up VietQR động nếu chọn Chuyển khoản / Quét QR
-                if (paymentMethod === 'transfer') {
-                    const bankInfo = {
-                        bin: 'techcombank',
-                        accountNo: '870788888888',
-                        accountName: 'Nguyen Hong Minh Giang'
-                    };
-                    const addInfo = encodeURIComponent('ROMRA ' + orderId);
-                    const timestamp = new Date().getTime();
-                    
-                    const qrImg = document.getElementById('cashier-qr-img');
-                    const qrAmount = document.getElementById('cashier-qr-amount');
-                    const qrInfo = document.getElementById('cashier-qr-info');
-                    
-                    if (qrImg && qrAmount && qrInfo) {
-                        qrImg.src = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${addInfo}&accountName=${encodeURIComponent(bankInfo.accountName)}&t=${timestamp}`;
-                        qrAmount.textContent = totalPrice.toLocaleString('vi-VN') + 'đ';
-                        qrInfo.textContent = 'ROMRA ' + orderId;
-                        document.getElementById('modal-cashier-qr').style.display = 'flex';
+                // --- HIỂN THỊ MODAL THÀNH CÔNG POS LIVE STYLE ---
+                const successModal = document.getElementById('modal-cashier-success');
+                const orderIdSpan = document.getElementById('cashier-success-order-id');
+                const timeSpan = document.getElementById('cashier-success-time');
+                const itemsListContainer = document.getElementById('cashier-success-items-list');
+                const paymentBadge = document.getElementById('cashier-success-payment-badge');
+                const totalAmountSpan = document.getElementById('cashier-success-total-amount');
+                const printLabelsBtn = document.getElementById('cashier-success-print-labels');
+                const printReceiptBtn = document.getElementById('cashier-success-print-receipt');
+
+                if (successModal && orderIdSpan && timeSpan && itemsListContainer && paymentBadge && totalAmountSpan) {
+                    // A. Gán mã đơn và giờ đặt
+                    orderIdSpan.textContent = '#' + orderId;
+                    const d = new Date();
+                    timeSpan.textContent = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+                    // B. Vẽ danh sách món uống y hệt POS Live
+                    itemsListContainer.innerHTML = window.lastCashierCartCopy.map(item => `
+                        <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1.5 mb-1.5 last:border-0 last:pb-0 last:mb-0">
+                            <div class="flex justify-between text-sm items-center">
+                                <span class="font-bold text-base flex-1">x${item.quantity} <span class="uppercase">${item.name}</span> (${item.size})</span>
+                                <span class="font-black text-sm text-black shrink-0 ml-2">${(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
+                            </div>
+                            ${item.note ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú: ${item.note}</div>` : ''}
+                        </div>
+                    `).join('');
+
+                    // C. Thiết lập huy hiệu phương thức thanh toán & Hiển thị QR Code
+                    let paymentBadgeBorder = 'border-green-800 bg-green-100 text-green-800';
+                    let paymentText = 'TIỀN MẶT';
+                    const qrContainer = document.getElementById('cashier-success-qr-container');
+                    const qrImg = document.getElementById('cashier-success-qr-img');
+                    const qrInfo = document.getElementById('cashier-success-qr-info');
+
+                    if (paymentMethod === 'transfer') {
+                        paymentBadgeBorder = 'border-[#4A235A] bg-[#E8DAEF] text-[#4A235A]';
+                        paymentText = 'CK VIETQR';
+                        
+                        // Cấu hình QR Code động
+                        if (qrContainer && qrImg && qrInfo) {
+                            const bankInfo = {
+                                bin: 'techcombank',
+                                accountNo: '870788888888',
+                                accountName: 'Nguyen Hong Minh Giang'
+                            };
+                            const addInfo = 'ROMRA ' + orderId;
+                            const timestamp = new Date().getTime();
+                            
+                            qrImg.src = `https://img.vietqr.io/image/${bankInfo.bin}-${bankInfo.accountNo}-compact.jpg?amount=${totalPrice}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(bankInfo.accountName)}&t=${timestamp}`;
+                            qrInfo.textContent = addInfo;
+                            qrContainer.style.display = 'flex';
+                        }
+                    } else {
+                        if (qrContainer) qrContainer.style.display = 'none';
                     }
+
+                    paymentBadge.className = `text-[10px] font-black uppercase border-2 p-1 rounded-none ${paymentBadgeBorder}`;
+                    paymentBadge.textContent = paymentText;
+
+                    // D. Thiết lập tổng tiền
+                    totalAmountSpan.textContent = totalPrice.toLocaleString('vi-VN');
+
+                    // E. Gán sự kiện in tem ly dán cốc
+                    printLabelsBtn.onclick = () => {
+                        window.printOrderLabel(orderId);
+                    };
+
+                    // F. Gán sự kiện in hoá đơn thanh toán chính thức
+                    printReceiptBtn.onclick = () => {
+                        window.printCashierOrderReceipt(orderId, totalPrice, paymentMethod);
+                    };
+
+                    // G. Hiển thị Modal
+                    successModal.style.display = 'flex';
                 }
 
                 // 2. Xóa rỗng giỏ hàng, reset input tiền khách đưa
@@ -1258,6 +1362,79 @@
                 input.value = amount.toLocaleString('vi-VN');
                 window.calculateCashReturn();
             }
+        };
+
+        // 13.5. Hàm in hóa đơn thanh toán chính thức & đóng Success Modal
+        window.printCashierOrderReceipt = function(orderId, totalPrice, paymentMethod) {
+            const cartCopy = window.lastCashierCartCopy;
+            if (!cartCopy || cartCopy.length === 0) {
+                showToast("Không tìm thấy dữ liệu đơn hàng để in!", "warning");
+                return;
+            }
+
+            const conf = typeof getPrintConfig === 'function' ? getPrintConfig() : null;
+            let logoHtml = (conf && conf.showLogo) ? `<div style="text-align: center; margin-bottom: 10px;"><img style="max-width: 80%; display: block; margin: 0 auto; filter: grayscale(100%) contrast(1.2);" src="${conf.logoUrl || '/img/logo.png'}" alt="Logo" onerror="this.style.display='none'"></div>` : '';
+
+            const itemsHtml = cartCopy.map(item => `
+                <div style="margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 8px;">
+                    <div style="font-size: 16px; font-weight: bold;">${item.quantity} x ${item.name}</div>
+                    <div style="font-size: 13px;">Size: ${item.size || '-'} | Giá: ${Number(item.price).toLocaleString('vi-VN')}đ</div>
+                    ${item.note ? `<div style="font-size: 12px; font-style: italic;">*${item.note}</div>` : ''}
+                </div>
+            `).join('');
+
+            const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN');
+            const methodText = paymentMethod === 'transfer' ? 'Chuyển khoản / Quét QR' : 'Tiền mặt tại quầy';
+
+            const receiptHtml = `
+                <html>
+                <head>
+                    <title>Hóa Đơn Thanh Toán #${orderId}</title>
+                    <style>
+                        body { font-family: monospace; width: 58mm; margin: 0 auto; padding: 10px; color: #000; font-size: ${conf ? conf.receiptFontSize : 12}px; }
+                        h2 { text-align: center; margin: 0 0 10px 0; font-size: ${conf ? Number(conf.receiptFontSize) + 6 : 18}px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                        .center { text-align: center; }
+                        .mb { margin-bottom: 10px; }
+                        .text-sm { font-size: ${conf ? Number(conf.receiptFontSize) - 2 : 10}px; }
+                        .text-lg { font-size: ${conf ? Number(conf.receiptFontSize) + 2 : 14}px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    ${logoHtml}
+                    <h2>${conf ? (conf.storeName || 'RÔM RẢ CÀ PHÊ') : 'RÔM RẢ CÀ PHÊ'}</h2>
+                    ${conf && conf.address ? `<div class="center mb text-sm">${conf.address}</div>` : ''}
+                    ${conf && conf.phone ? `<div class="center mb text-sm">${conf.phone}</div>` : ''}
+                    <div class="center mb" style="border-top: 1px dashed #000; padding-top: 5px;">
+                        <strong>HÓA ĐƠN THANH TOÁN</strong><br/>
+                        <strong>Số đơn: #${orderId}</strong><br/>
+                        <span class="text-sm">${timeStr}</span><br/>
+                        <span class="text-sm">HTTT: ${methodText}</span>
+                    </div>
+                    <div class="mb">
+                        ${itemsHtml}
+                    </div>
+                    <div class="center text-lg" style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px;">
+                        TỔNG CỘNG:<br/>${totalPrice.toLocaleString('vi-VN')}đ
+                    </div>
+                    <div class="center text-sm" style="margin-top:20px; white-space: pre-wrap;">${conf ? conf.footerMsg : '-- Cảm ơn Quý Khách --'}</div>
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', '_blank', 'width=400,height=600');
+            printWindow.document.open();
+            printWindow.document.write(receiptHtml);
+            printWindow.document.close();
+            
+            showToast(`Đã in hóa đơn thanh toán #${orderId}!`, "success");
+        };
+
+        window.closeCashierSuccessModal = function() {
+            const successModal = document.getElementById('modal-cashier-success');
+            if (successModal) successModal.style.display = 'none';
         };
 
         // 14. Xu ly an/hien, lam mo o nhap tien mat khi thu ngan chon hinh thuc QR/Chuyen khoan
