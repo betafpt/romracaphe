@@ -47,7 +47,7 @@ async function autoLoginGrab(page, config) {
         await loginButton.click();
 
         console.log('⏳ Đang chờ hệ thống xác nhận đăng nhập thành công...');
-        await page.waitForURL('**/portal/dashboard**', { timeout: 45000 });
+        await page.waitForURL(url => url.href.includes('dashboard') || url.href.includes('order'), { timeout: 45000 });
         console.log('🎉 Tự động đăng nhập Grab Merchant thành công!');
         return true;
     } catch (e) {
