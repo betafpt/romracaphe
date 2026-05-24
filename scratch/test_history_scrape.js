@@ -210,10 +210,26 @@ async function testHistoryScrape() {
 
         if (!clickedOrder) {
             console.log('❌ Không phát hiện bất kỳ đơn hàng nào trong lịch sử để cào thử.');
-            const bodyText = await page.locator('body').innerText().catch(() => '');
-            console.log('\n📝 --- TOÀN BỘ NỘI DUNG CHỮ TRÊN MÀN HÌNH (DEBUG KHÔNG CẮT) ---');
-            console.log(bodyText);
-            console.log('-------------------------------------------------------------\n');
+            
+            // Quét và in ra danh sách tất cả phần tử có khả năng tương tác trên trang để tìm DatePicker thực sự
+            try {
+                const elementsInfo = await page.evaluate(() => {
+                    const elms = Array.from(document.querySelectorAll('button, div[role="button"], input, a'));
+                    return elms.map(el => ({
+                        tag: el.tagName,
+                        text: (el.innerText || '').trim().substring(0, 100),
+                        class: el.className || '',
+                        placeholder: el.placeholder || '',
+                        type: el.type || '',
+                        role: el.getAttribute('role') || ''
+                    }));
+                });
+                console.log('\n📝 --- DANH SÁCH PHẦN TỬ CLICKABLE TRÊN TRANG (DEBUG) ---');
+                console.log(JSON.stringify(elementsInfo, null, 2));
+                console.log('-----------------------------------------------------------\n');
+            } catch (err) {
+                console.warn('⚠️ Lỗi khi quét phần tử:', err.message);
+            }
             
             // Lưu screenshot để debug nếu cần
             await page.screenshot({ path: path.join(__dirname, 'history_error.png') });
