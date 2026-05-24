@@ -14,6 +14,48 @@ if (!fs.existsSync(STORAGE_STATE) && fs.existsSync(path.join(__dirname, 'grab_st
     STORAGE_STATE = path.join(__dirname, 'grab_state.json');
 }
 
+// Đọc cấu hình tài khoản/mật khẩu Grab từ file grab_config.json (nếu có để tự động login 100%)
+const CONFIG_FILE = path.join(__dirname, 'grab_config.json');
+let grabConfig = null;
+try {
+    if (fs.existsSync(CONFIG_FILE)) {
+        grabConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+        console.log('🔑 Đã tải thành công cấu hình tự động đăng nhập từ grab_config.json');
+    }
+} catch (e) {
+    console.warn('⚠️ Lỗi khi tải file cấu hình grab_config.json:', e.message);
+}
+
+// Hàm tự động điền tài khoản, mật khẩu và click đăng nhập Grab Merchant
+async function autoLoginGrab(page, config) {
+    try {
+        console.log('🌐 Đang điều hướng tới trang đăng nhập Grab Merchant...');
+        await page.goto('https://merchant.grab.com/portal/login', { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
+        await page.waitForTimeout(5000);
+
+        console.log('✍ ... Đang điền tên đăng nhập...');
+        const usernameInput = page.locator('input[type="text"], input[type="email"], input[name="username"], input[placeholder*="tên"], input[placeholder*="phone"], input[placeholder*="email"]').first();
+        await usernameInput.waitFor({ state: 'visible', timeout: 15000 });
+        await usernameInput.fill(config.username);
+
+        console.log('✍ ... Đang điền mật khẩu...');
+        const passwordInput = page.locator('input[type="password"], input[name="password"], input[placeholder*="mật khẩu"], input[placeholder*="password"]').first();
+        await passwordInput.fill(config.password);
+
+        console.log('🔘 Đang bấm nút đăng nhập...');
+        const loginButton = page.locator('button[type="submit"], button:has-text("Đăng nhập"), button:has-text("Sign In"), button:has-text("Log In")').first();
+        await loginButton.click();
+
+        console.log('⏳ Đang chờ hệ thống xác nhận đăng nhập thành công...');
+        await page.waitForURL('**/portal/dashboard**', { timeout: 45000 });
+        console.log('🎉 Tự động đăng nhập Grab Merchant thành công!');
+        return true;
+    } catch (e) {
+        console.error('❌ Lỗi trong quá trình tự động đăng nhập ngầm:', e.message);
+        return false;
+    }
+}
+
 // Hàm gửi cảnh báo khẩn cấp qua Telegram Bot tới điện thoại chủ quán
 async function sendTelegramAlert(message) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -88,9 +130,29 @@ async function runScraper() {
     // --- CHẾ ĐỘ CHẠY QUÉT ĐƠN 24/7 ---
     console.log('🚀 [BOT MODE] Bắt đầu khởi động Bot quét đơn Grab 24/7...');
     if (!fs.existsSync(STORAGE_STATE)) {
-        console.error('❌ KHÔNG TÌM THẤY PHIÊN ĐĂNG NHẬP!');
-        console.error('Vui lòng chạy lệnh: node romra_scraper.js --login để đăng nhập trước.');
-        process.exit(1);
+        if (grabConfig && grabConfig.username && grabConfig.password) {
+            console.log('🔐 Chưa có session. Bắt đầu tự động đăng nhập ngầm bằng tài khoản...');
+            const tempBrowser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+            const tempContext = await tempBrowser.newContext({
+                viewport: { width: 1280, height: 720 },
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            });
+            const tempPage = await tempContext.newPage();
+            const loginSuccess = await autoLoginGrab(tempPage, grabConfig);
+            if (loginSuccess) {
+                await tempContext.storageState({ path: STORAGE_STATE });
+                console.log('💾 Đã lưu session tự động đăng nhập thành công!');
+            } else {
+                console.error('❌ Tự động đăng nhập ngầm khởi tạo thất bại. Vui lòng kiểm tra lại tài khoản mật khẩu.');
+                await tempBrowser.close();
+                process.exit(1);
+            }
+            await tempBrowser.close();
+        } else {
+            console.error('❌ KHÔNG TÌM THẤY PHIÊN ĐĂNG NHẬP VÀ CẤU HÌNH TÀI KHOẢN!');
+            console.error('Vui lòng tạo file grab_config.json chứa tài khoản hoặc chạy --login để đăng nhập thủ công.');
+            process.exit(1);
+        }
     }
 
     const browser = await chromium.launch({
@@ -113,12 +175,30 @@ async function runScraper() {
         
         // Kiểm tra xem có bị đẩy về trang login do hết hạn không
         if (page.url().includes('login') || page.url().includes('auth')) {
-            const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nPhiên đăng nhập Grab Merchant đã hết hạn! Bot quét đơn đã dừng hoạt động.\nVui lòng truy cập VPS và chạy lại lệnh <code>node romra_scraper.js --login</code> để quét mã QR đăng nhập lại.';
-            console.error('❌ PHIÊN ĐĂNG NHẬP ĐÃ HẾT HẠN!');
-            console.error('Vui lòng chạy lại lệnh --login để gia hạn.');
-            await sendTelegramAlert(errorMsg);
-            await browser.close();
-            process.exit(1);
+            console.log('⚠️ Phát hiện phiên đăng nhập (Session Cookie) của Grab đã hết hạn!');
+            if (grabConfig && grabConfig.username && grabConfig.password) {
+                console.log('🔐 Đang tiến hành tự động gia hạn đăng nhập ngầm bằng tài khoản...');
+                const loginSuccess = await autoLoginGrab(page, grabConfig);
+                if (loginSuccess) {
+                    await context.storageState({ path: STORAGE_STATE });
+                    console.log('💾 Đã gia hạn và lưu session tự động đăng nhập thành công!');
+                    // Quay lại trang quản lý đơn
+                    await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+                    await page.waitForTimeout(5000);
+                } else {
+                    const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nTự động gia hạn đăng nhập ngầm thất bại! Vui lòng kiểm tra lại tài khoản mật khẩu.';
+                    await sendTelegramAlert(errorMsg);
+                    await browser.close();
+                    process.exit(1);
+                }
+            } else {
+                const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nPhiên đăng nhập Grab Merchant đã hết hạn! Bot quét đơn đã dừng hoạt động.\nVui lòng truy cập VPS và chạy lại lệnh <code>node romra_scraper.js --login</code> để quét mã QR đăng nhập lại.';
+                console.error('❌ PHIÊN ĐĂNG NHẬP ĐÃ HẾT HẠN!');
+                console.error('Vui lòng chạy lại lệnh --login để gia hạn.');
+                await sendTelegramAlert(errorMsg);
+                await browser.close();
+                process.exit(1);
+            }
         }
         console.log('✅ Truy cập thành công. Bắt đầu theo dõi đơn hàng...');
 
