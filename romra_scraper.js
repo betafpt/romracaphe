@@ -271,7 +271,7 @@ async function runScraper() {
                 // Kiểm tra xem đơn hàng đã tồn tại trong database Supabase chưa
                 const { data: existingOrder, error: checkErr } = await supabase
                     .from('orders')
-                    .select('id')
+                    .select('id, status')
                     .eq('external_order_id', bookingId)
                     .maybeSingle();
 
@@ -280,9 +280,35 @@ async function runScraper() {
                     continue;
                 }
 
+                // Ánh xạ trạng thái thực tế trên Grab Portal sang trạng thái chuẩn của POS Rôm Rả
+                const grabStatusText = await detailsPanel.locator('text="Đang chuẩn bị", text="Sẵn sàng", text="Tài xế đang đến", text="Đang giao", text="Đã giao", text="Đã hoàn tất", text="Đã hủy", text="Cancelled"').first().innerText().catch(() => '');
+                
+                let mappedStatus = 'pending';
+                if (grabStatusText.includes('Đang giao') || grabStatusText.includes('Tài xế đang đến')) {
+                    mappedStatus = 'shipping';
+                } else if (grabStatusText.includes('Đã giao') || grabStatusText.includes('Đã hoàn tất')) {
+                    mappedStatus = 'completed';
+                } else if (grabStatusText.includes('Đã hủy') || grabStatusText.includes('Cancelled')) {
+                    mappedStatus = 'cancelled';
+                }
+
                 if (existingOrder) {
-                    // Đơn hàng đã được đồng bộ trước đó, bỏ qua
-                    console.log(`Đơn hàng ${shortId} (${bookingId}) đã được đồng bộ.`);
+                    // Đơn hàng đã được đồng bộ trước đó, tiến hành kiểm tra & cập nhật trạng thái Realtime
+                    if (existingOrder.status !== mappedStatus) {
+                        console.log(`🔄 Phát hiện thay đổi trạng thái đơn ${shortId}: "${existingOrder.status}" -> "${mappedStatus}" (Grab: "${grabStatusText}")`);
+                        const { error: updateErr } = await supabase
+                            .from('orders')
+                            .update({ status: mappedStatus })
+                            .eq('id', existingOrder.id);
+                        
+                        if (updateErr) {
+                            console.error(`❌ Lỗi cập nhật trạng thái đơn ${shortId}:`, updateErr.message);
+                        } else {
+                            console.log(`🎉 Đã cập nhật trạng thái đơn ${shortId} thành công lên Supabase!`);
+                        }
+                    } else {
+                        console.log(`Đơn hàng ${shortId} (${bookingId}) đã đồng bộ và trạng thái không đổi ("${existingOrder.status}").`);
+                    }
                     continue;
                 }
 
