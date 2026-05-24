@@ -186,6 +186,14 @@ async function runScraper() {
             console.log('⚠️ Phát hiện phiên đăng nhập (Session Cookie) của Grab đã hết hạn!');
             if (grabConfig && grabConfig.username && grabConfig.password) {
                 console.log('🔐 Đang tiến hành tự động gia hạn đăng nhập ngầm bằng tài khoản...');
+                
+                // Xóa sạch cookie và bộ nhớ cũ của trang để tránh popup hết hạn session che mờ màn hình
+                await context.clearCookies().catch(() => {});
+                await page.evaluate(() => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                }).catch(() => {});
+
                 const loginSuccess = await autoLoginGrab(page, grabConfig);
                 if (loginSuccess) {
                     await context.storageState({ path: STORAGE_STATE });
