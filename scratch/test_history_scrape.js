@@ -103,41 +103,21 @@ async function testHistoryScrape() {
             const year = today.getFullYear();
             
             const todayStr = `${dayName}, ${dateNum} ${monthName} ${year}`;
-            console.log(`📅 Chuỗi ngày hôm nay dự kiến hiển thị trên bộ lọc: "${todayStr}"`);
+            console.log(`📅 Ngày hôm nay: "${todayStr}"`);
             
-            const datePicker = page.locator(`text="${todayStr}"`).first();
-            if (await datePicker.count() > 0) {
-                console.log('🔘 Đang click mở bộ chọn ngày (DatePicker) bằng Evaluate DOM...');
+            // Định vị chính xác ô input DatePicker bằng placeholder "Chọn thời điểm" vừa tìm thấy!
+            const dateInput = page.locator('input[placeholder="Chọn thời điểm"]').first();
+            if (await dateInput.count() > 0) {
+                console.log('🎯 Tìm thấy ô nhập liệu chọn ngày (input[placeholder="Chọn thời điểm"]). Đang click mở...');
                 
-                // In cấu trúc HTML để phân tích
-                try {
-                    const html = await datePicker.evaluate(el => el.outerHTML);
-                    const parentHtml = await datePicker.locator('..').first().evaluate(el => el.outerHTML);
-                    const grandparentHtml = await datePicker.locator('..').locator('..').first().evaluate(el => el.outerHTML);
-                    console.log('\n📝 --- CẤU TRÚC DOM CỦA DATEPICKER ---');
-                    console.log('Element HTML:', html);
-                    console.log('Parent HTML (500 ký tự):', parentHtml.substring(0, 500));
-                    console.log('Grandparent HTML (800 ký tự):', grandparentHtml.substring(0, 800));
-                    console.log('-------------------------------------\n');
-                } catch (err) {
-                    console.warn('⚠️ Không thể đọc HTML của DatePicker:', err.message);
-                }
-
-                // Kích hoạt click trực tiếp ở mức DOM JavaScript để bypass các hạn chế layout của Chromium Headless trên VPS Linux
-                await datePicker.evaluate(el => el.click()).catch(() => {});
+                // Click bằng cả Playwright click lẫn DOM click để đảm bảo hoạt động trong headless mode
+                await dateInput.click().catch(() => {});
+                await dateInput.evaluate(el => el.click()).catch(() => {});
+                await page.waitForTimeout(2000);
+                
+                // Click thêm vào thẻ cha của input nếu cần kích hoạt
+                await dateInput.locator('..').first().evaluate(el => el.click()).catch(() => {});
                 await page.waitForTimeout(1000);
-                
-                await datePicker.locator('..').first().evaluate(el => el.click()).catch(() => {});
-                await page.waitForTimeout(1000);
-                
-                await datePicker.locator('..').locator('..').first().evaluate(el => el.click()).catch(() => {});
-                await page.waitForTimeout(1000);
-                
-                const parentBtn = page.locator(`button:has-text("${todayStr}"), div[role="button"]:has-text("${todayStr}")`).first();
-                if (await parentBtn.count() > 0) {
-                    await parentBtn.evaluate(el => el.click()).catch(() => {});
-                    await page.waitForTimeout(1000);
-                }
                 
                 // Tìm các tùy chọn khoảng ngày nhanh (ưu tiên 7 ngày qua để chắc chắn có đơn test)
                 const rangeSelectors = [
