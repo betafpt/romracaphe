@@ -108,8 +108,22 @@ async function testHistoryScrape() {
             const datePicker = page.locator(`text="${todayStr}"`).first();
             if (await datePicker.count() > 0) {
                 console.log('🔘 Đang click mở bộ chọn ngày (DatePicker)...');
-                await datePicker.click();
-                await page.waitForTimeout(2000);
+                
+                // Click dồn dập vào chính nó, thẻ cha, thẻ ông và các button liên quan để chắc chắn kích hoạt popup chọn ngày
+                await datePicker.click().catch(() => {});
+                await page.waitForTimeout(1000);
+                
+                await datePicker.locator('..').first().click().catch(() => {});
+                await page.waitForTimeout(1000);
+                
+                await datePicker.locator('..').locator('..').first().click().catch(() => {});
+                await page.waitForTimeout(1000);
+                
+                const parentBtn = page.locator(`button:has-text("${todayStr}"), div[role="button"]:has-text("${todayStr}")`).first();
+                if (await parentBtn.count() > 0) {
+                    await parentBtn.click().catch(() => {});
+                    await page.waitForTimeout(1000);
+                }
                 
                 // Tìm các tùy chọn khoảng ngày nhanh (ưu tiên 7 ngày qua để chắc chắn có đơn test)
                 const rangeSelectors = [
