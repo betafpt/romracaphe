@@ -219,68 +219,81 @@ async function testHistoryScrape() {
         }
 
         await page.waitForTimeout(4000);
-        const detailsPanel = page.locator('body');
+        const detailsText = await page.locator('body').innerText().catch(() => '');
 
-        // 1. Lấy mã đơn ngắn
-        const shortId = await page.locator('text=/^[A-Z0-9]+-[A-Z0-9]+$/').first().innerText().catch(() => 'Không rõ');
+        // 1. Lấy mã đơn ngắn bằng regex thông minh trên văn bản thô (ví dụ: GF-463)
+        const shortIdMatch = detailsText.match(/GF-\d+/);
+        const shortId = shortIdMatch ? shortIdMatch[0] : 'Không rõ';
 
-        // 2. Lấy Booking ID (Mã đặt hàng dài)
-        const bookingIdStr = await detailsPanel.locator('text="Mã đặt hàng"').locator('..').innerText().catch(() => '');
-        const bookingId = bookingIdStr.replace('Mã đặt hàng', '').trim() || shortId;
+        // 2. Lấy Booking ID (Mã đặt hàng dài) bằng regex trên văn bản thô
+        const bookingIdMatch = detailsText.match(/Mã đặt hàng\s+([A-Z0-9\-]+)/i);
+        const bookingId = bookingIdMatch ? bookingIdMatch[1] : shortId;
 
         // 3. Tên khách hàng
-        const headerText = await detailsPanel.locator('text=/món cho /').first().innerText().catch(() => '');
-        const customerName = headerText.split(' cho ')[1] || 'Khách Grab Lịch Sử';
+        const customerNameMatch = detailsText.match(/Khách hàng\s+([^\n]+)/i);
+        const customerName = customerNameMatch && customerNameMatch[1].trim() !== '***' ? customerNameMatch[1].trim() : 'Khách Grab Lịch Sử';
 
-        // 4. Trích xuất danh sách món ăn
-        const itemsList = [];
-        const itemBlocks = detailsPanel.locator('text=/^[0-9]+ x /');
-        const itemCount = await itemBlocks.count().catch(() => 0);
-
-        for (let j = 0; j < itemCount; j++) {
-            const itemText = await itemBlocks.nth(j).innerText().catch(() => '');
-            const match = itemText.match(/^(\d+)\s*x\s*(.*?)\s*([\d\.]+)$/);
-            let qty = 1;
-            let name = itemText;
-            let price = 0;
-
-            if (match) {
-                qty = parseInt(match[1]);
-                name = match[2].trim();
-                price = parseInt(match[3].replace(/\./g, ''));
+        // 4. Trích xuất danh sách món ăn từ định dạng bảng lịch sử
+        let itemsList = [];
+        const orderSummaryHeader = 'Tóm tắt đơn hàng';
+        const subtotalHeader = 'Tổng tạm tính';
+        
+        if (detailsText.includes(orderSummaryHeader)) {
+            console.log('📝 Phát hiện bảng lịch sử đơn hàng dạng bảng. Đang bóc tách món ăn...');
+            const part1 = detailsText.split(orderSummaryHeader)[1] || '';
+            const summaryBody = part1.split(subtotalHeader)[0] || '';
+            const lines = summaryBody.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            const cleanLines = lines.filter(l => !l.includes('MÓN') && !l.includes('GIÁ') && !l.includes('SỐ LƯỢNG') && !l.includes('TỔNG SỐ TIỀN'));
+            
+            let currentItem = null;
+            for (let i = 0; i < cleanLines.length; i++) {
+                const line = cleanLines[i];
+                // Regex khớp dòng số liệu: [Giá] + [Số lượng] + [Tổng tiền] (ví dụ: 39.000,00       2       78.000)
+                const priceQtyMatch = line.match(/^([\d\.,\s]+?)\s+(\d+)\s+([\d\.,]+)$/);
+                
+                if (priceQtyMatch && currentItem) {
+                    currentItem.price = parseInt(priceQtyMatch[1].replace(/\D/g, '')) || 0;
+                    currentItem.quantity = parseInt(priceQtyMatch[2]) || 1;
+                    // Xử lý nếu giá có phần thập phân ,00
+                    if (priceQtyMatch[1].endsWith(',00') || priceQtyMatch[1].endsWith('.00')) {
+                        currentItem.price = Math.round(currentItem.price / 100);
+                    }
+                } else if (line.startsWith('Chọn ')) {
+                    const optionName = line.replace('Chọn ', '');
+                    const optionVal = cleanLines[i + 1] || '';
+                    if (currentItem && optionVal && !optionVal.startsWith('Chọn') && isNaN(optionVal.replace(/[\.,]/g, ''))) {
+                        currentItem.note += `${optionName}: ${optionVal} | `;
+                        i++; // Bỏ qua dòng giá trị tùy chọn đã xử lý
+                    }
+                } else if (isNaN(line.replace(/[\.,]/g, '')) && !line.includes('Tổng cộng') && !line.includes('thuế')) {
+                    // Dòng chữ không phải là số -> Tên món ăn mới!
+                    if (currentItem) {
+                        currentItem.note = currentItem.note.replace(/\s*\|\s*$/, '').trim();
+                        itemsList.push(currentItem);
+                    }
+                    currentItem = {
+                        name: line,
+                        quantity: 1,
+                        price: 0,
+                        note: ''
+                    };
+                }
             }
-
-            const itemParent = itemBlocks.nth(j).locator('..').locator('..');
-            const allTextUnderItem = await itemParent.innerText().catch(() => '');
-
-            let noteStr = '';
-            const noteMatch = allTextUnderItem.match(/'(.*?)'/);
-            if (noteMatch) noteStr = noteMatch[1].trim();
-
-            let optionsStr = '';
-            if (allTextUnderItem.includes('Chọn Size')) optionsStr += 'Size: ' + allTextUnderItem.split('Chọn Size')[1].split('\n')[1] + ' ';
-            if (allTextUnderItem.includes('Chọn Đá')) optionsStr += 'Đá: ' + allTextUnderItem.split('Chọn Đá')[1].split('\n')[1] + ' ';
-
-            itemsList.push({
-                name: name,
-                quantity: qty,
-                price: price,
-                note: `${optionsStr.trim()} | ${noteStr}`.replace(/^ \| | \| $/g, '')
-            });
+            if (currentItem) {
+                currentItem.note = currentItem.note.replace(/\s*\|\s*$/, '').trim();
+                itemsList.push(currentItem);
+            }
         }
 
         // 5. Cào các thông tin tài chính chi tiết
-        const totalText = await detailsPanel.locator('text="Tổng cộng"').locator('..').innerText().catch(() => '0');
-        const totalAmount = parseInt(totalText.replace(/\D/g, '')) || 0;
+        const totalTextMatch = detailsText.match(/Tổng cộng\s+([\d\.,\s]+?₫)/i) || detailsText.match(/Tổng cộng\s+([\d\.,]+)/i);
+        const totalAmount = totalTextMatch ? parseInt(totalTextMatch[1].replace(/\D/g, '')) : 0;
+        
+        const subtotalTextMatch = detailsText.match(/Tổng tạm tính\s+([\d\.,\s]+?₫)/i) || detailsText.match(/Tổng tạm tính\s+([\d\.,]+)/i);
+        const subtotalAmount = subtotalTextMatch ? parseInt(subtotalTextMatch[1].replace(/\D/g, '')) : totalAmount;
 
-        const subtotalText = await detailsPanel.locator('text="Tạm tính"').or(detailsPanel.locator('text="Tổng tiền món"')).locator('..').innerText().catch(() => '');
-        const subtotalAmount = parseInt(subtotalText.replace(/\D/g, '')) || totalAmount;
-
-        const discountText = await detailsPanel.locator('text="Khuyến mại"').or(detailsPanel.locator('text="Giảm giá"')).locator('..').innerText().catch(() => '');
-        const discountAmount = parseInt(discountText.replace(/\D/g, '')) || 0;
-
-        const addressText = await detailsPanel.locator('text="Địa chỉ giao hàng"').or(detailsPanel.locator('text="Giao đến"')).locator('..').innerText().catch(() => '');
-        const customerAddress = addressText.replace('Địa chỉ giao hàng', '').replace('Giao đến', '').trim() || 'Giao qua App';
+        const discountAmount = 0; // Đơn lịch sử tự tính khuyến mại hoặc mặc định 0
+        const customerAddress = 'Giao qua App';
 
         // In văn bản chi tiết trên trang để phân tích cấu trúc hiển thị món ăn của đơn lịch sử
         try {
