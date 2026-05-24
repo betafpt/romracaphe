@@ -2,10 +2,17 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-// Xác định file session cookie có sẵn
-let STORAGE_STATE = path.join(__dirname, '..', 'grab_session.json');
-if (!fs.existsSync(STORAGE_STATE) && fs.existsSync(path.join(__dirname, '..', 'grab_state.json'))) {
-    STORAGE_STATE = path.join(__dirname, '..', 'grab_state.json');
+// Tự động thích ứng đường dẫn session cookie (ở cùng thư mục hoặc thư mục cha)
+let STORAGE_STATE = path.join(__dirname, 'grab_session.json');
+if (!fs.existsSync(STORAGE_STATE)) {
+    STORAGE_STATE = path.join(__dirname, '..', 'grab_session.json');
+}
+if (!fs.existsSync(STORAGE_STATE)) {
+    if (fs.existsSync(path.join(__dirname, 'grab_state.json'))) {
+        STORAGE_STATE = path.join(__dirname, 'grab_state.json');
+    } else if (fs.existsSync(path.join(__dirname, '..', 'grab_state.json'))) {
+        STORAGE_STATE = path.join(__dirname, '..', 'grab_state.json');
+    }
 }
 
 async function testHistoryScrape() {
