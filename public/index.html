@@ -4051,10 +4051,26 @@
 
         window.printLabelRawBT = async function (orderId, singleItemIndex) {
             try {
-                const order = window.currentOrders?.find(o => o.id === orderId);
+                let order = window.currentOrders?.find(o => o.id === orderId);
                 if (!order) {
-                    if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
-                    return;
+                    if (window.lastCashierCartCopy) {
+                        order = {
+                            id: orderId,
+                            platform: 'local',
+                            note: '',
+                            order_items: window.lastCashierCartCopy.map(item => ({
+                                quantity: item.quantity,
+                                note: item.note,
+                                recipes: {
+                                    name: item.name,
+                                    size: item.size
+                                }
+                            }))
+                        };
+                    } else {
+                        if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
+                        return;
+                    }
                 }
 
                 const isApp = order.platform && order.platform !== 'local';
@@ -4174,10 +4190,26 @@
         
         window.printLabelSystem = async function (orderId, singleItemIndex) {
             try {
-                const order = window.currentOrders?.find(o => o.id === orderId);
+                let order = window.currentOrders?.find(o => o.id === orderId);
                 if (!order) {
-                    if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
-                    return;
+                    if (window.lastCashierCartCopy) {
+                        order = {
+                            id: orderId,
+                            platform: 'local',
+                            note: '',
+                            order_items: window.lastCashierCartCopy.map(item => ({
+                                quantity: item.quantity,
+                                note: item.note,
+                                recipes: {
+                                    name: item.name,
+                                    size: item.size
+                                }
+                            }))
+                        };
+                    } else {
+                        if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
+                        return;
+                    }
                 }
 
                 const isApp = order.platform && order.platform !== 'local';
@@ -4334,10 +4366,26 @@
 
         window.printLabelAndroidApp = async function (orderId, singleItemIndex) {
             try {
-                const order = window.currentOrders?.find(o => o.id === orderId);
+                let order = window.currentOrders?.find(o => o.id === orderId);
                 if (!order) {
-                    if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
-                    return;
+                    if (window.lastCashierCartCopy) {
+                        order = {
+                            id: orderId,
+                            platform: 'local',
+                            note: '',
+                            order_items: window.lastCashierCartCopy.map(item => ({
+                                quantity: item.quantity,
+                                note: item.note,
+                                recipes: {
+                                    name: item.name,
+                                    size: item.size
+                                }
+                            }))
+                        };
+                    } else {
+                        if (typeof showToast === 'function') showToast("Không tìm thấy đơn hàng trong POS", "error");
+                        return;
+                    }
                 }
 
                 const isApp = order.platform && order.platform !== 'local';
