@@ -30,20 +30,28 @@ try {
 async function autoLoginGrab(page, config) {
     try {
         console.log('🌐 Đang điều hướng tới trang đăng nhập Grab Merchant...');
-        await page.goto('https://merchant.grab.com/portal/login', { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
-        await page.waitForTimeout(5000);
+        // Sử dụng domcontentloaded thay vì networkidle để tránh kẹt mạng trên VPS
+        await page.goto('https://merchant.grab.com/portal/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        
+        console.log('⏳ Đang chờ trang đăng nhập tải...');
+        const usernameInput = page.locator('#Username, input[type="text"], input[type="email"]').first();
+        await usernameInput.waitFor({ state: 'visible', timeout: 30000 });
 
         console.log('✍ ... Đang điền tên đăng nhập...');
-        const usernameInput = page.locator('input[type="text"], input[type="email"], input[name="username"], input[placeholder*="tên"], input[placeholder*="phone"], input[placeholder*="email"]').first();
-        await usernameInput.waitFor({ state: 'visible', timeout: 15000 });
         await usernameInput.fill(config.username);
 
+        console.log('🔘 Đang bấm nút Continue...');
+        const continueButton = page.locator('button:has-text("Continue"), button:has-text("Tiếp tục"), button[type="button"]').first();
+        await continueButton.click();
+        await page.waitForTimeout(3000);
+
         console.log('✍ ... Đang điền mật khẩu...');
-        const passwordInput = page.locator('input[type="password"], input[name="password"], input[placeholder*="mật khẩu"], input[placeholder*="password"]').first();
+        const passwordInput = page.locator('input[type="password"], input[name="password"]').first();
+        await passwordInput.waitFor({ state: 'visible', timeout: 20000 });
         await passwordInput.fill(config.password);
 
         console.log('🔘 Đang bấm nút đăng nhập...');
-        const loginButton = page.locator('button[type="submit"], button:has-text("Đăng nhập"), button:has-text("Sign In"), button:has-text("Log In")').first();
+        const loginButton = page.locator('button[type="submit"], button:has-text("Đăng nhập"), button:has-text("Log In"), button:has-text("Sign In")').first();
         await loginButton.click();
 
         console.log('⏳ Đang chờ hệ thống xác nhận đăng nhập thành công...');
