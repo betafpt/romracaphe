@@ -713,19 +713,34 @@ async function startTelegramBot() {
 
 // --- CÁC HÀM HELPER XỬ LÝ API GRABFOOD (API INTERCEPTION) ---
 
-// Hàm bóc tách đơn hàng thích ứng từ JSON API của Grab (tương thích nhiều phiên bản API)
+// Hàm bóc tách đơn hàng thích ứng từ JSON API của Grab (tương thích cả đơn đang chạy và đơn lịch sử)
 function parseGrabOrder(order) {
-    const shortId = order.shortOrderNumber || order.shortId || order.displayId || order.id || 'GF-UNKNOWN';
-    const bookingId = order.orderID || order.bookingID || order.id || shortId;
+    const shortId = order.shortOrderNumber || order.shortId || order.displayId || order.displayID || order.id || 'GF-UNKNOWN';
+    const bookingId = order.orderID || order.bookingID || order.bookingCode || order.id || shortId;
+    const bookingCode = order.bookingCode || order.bookingID || bookingId;
     
-    // Tên khách hàng
-    let customerName = 'Khách Grab';
-    if (order.customer && order.customer.name) {
-        customerName = order.customer.name;
+    // Tên và SĐT khách hàng
+    let eaterName = 'Khách Grab';
+    let eaterPhone = 'Không có số';
+    
+    if (order.eater) {
+        eaterName = order.eater.name || eaterName;
+        eaterPhone = order.eater.mobileNumber || eaterPhone;
+    } else if (order.customer) {
+        eaterName = order.customer.name || eaterName;
+        eaterPhone = order.customer.mobileNumber || order.customer.phone || eaterPhone;
     } else if (order.customerName) {
-        customerName = order.customerName;
+        eaterName = order.customerName;
     }
     
+    // Tài xế
+    let driverName = '';
+    let driverPhone = '';
+    if (order.driver) {
+        driverName = order.driver.name || '';
+        driverPhone = order.driver.mobileNumber || order.driver.phone || '';
+    }
+
     // Địa chỉ khách hàng
     let customerAddress = 'Giao qua App';
     if (order.customer && order.customer.address) {
@@ -743,6 +758,10 @@ function parseGrabOrder(order) {
         totalAmount = order.price.total || order.price.totalAmount || 0;
         subtotalAmount = order.price.subtotal || order.price.subtotalAmount || totalAmount;
         discountAmount = order.price.discount || order.price.discountAmount || 0;
+    } else if (order.fare) {
+        totalAmount = order.fare.priceFloat || (order.fare.totalInCent ? order.fare.totalInCent / 100 : 0) || parseFloat(String(order.fare.totalDisplay || '0').replace(/\./g, '')) || 0;
+        subtotalAmount = order.fare.priceFloat || parseFloat(String(order.fare.subTotalDisplay || '0').replace(/\./g, '')) || totalAmount;
+        discountAmount = parseFloat(String(order.fare.promotionDisplay || '0').replace(/\./g, '')) || 0;
     } else {
         totalAmount = order.totalAmount || order.total || 0;
         subtotalAmount = order.subtotal || totalAmount;
@@ -751,7 +770,7 @@ function parseGrabOrder(order) {
     
     // Trạng thái đơn hàng
     let status = 'pending'; // mặc định
-    const orderState = order.orderState || order.status || '';
+    const orderState = order.orderState || order.status || order.state || '';
     const stateStr = String(orderState).toLowerCase();
     if (stateStr.includes('preparing') || stateStr.includes('upcoming') || stateStr.includes('accepted')) {
         status = 'pending';
@@ -765,16 +784,34 @@ function parseGrabOrder(order) {
 
     // Danh sách món ăn
     const itemsList = [];
-    const items = order.items || [];
-    for (const item of items) {
+    const rawItems = order.items || (order.itemInfo && order.itemInfo.items) || [];
+    
+    for (const item of rawItems) {
         const name = item.name || '';
         const qty = item.quantity || 1;
-        const price = item.price || 0;
         
-        let note = item.notes || item.note || '';
+        let price = 0;
+        if (item.price !== undefined) {
+            price = item.price;
+        } else if (item.fare && item.fare.priceFloat !== undefined) {
+            price = item.fare.priceFloat;
+        }
+        
+        let note = item.notes || item.note || item.comment || '';
         let optionsStr = '';
+        
         if (item.modifiers && item.modifiers.length > 0) {
             optionsStr = item.modifiers.map(m => m.name).join(', ');
+        } else if (item.modifierGroups && item.modifierGroups.length > 0) {
+            const mods = [];
+            for (const group of item.modifierGroups) {
+                if (group.modifiers && group.modifiers.length > 0) {
+                    for (const m of group.modifiers) {
+                        mods.push(`${group.modifierGroupName}: ${m.modifierName}`);
+                    }
+                }
+            }
+            optionsStr = mods.join(', ');
         }
         
         const fullNote = `${optionsStr} | ${note}`.replace(/^ \| | \| $/g, '').trim();
@@ -790,8 +827,13 @@ function parseGrabOrder(order) {
     return {
         shortId,
         bookingId,
-        customerName,
+        bookingCode,
+        customerName: eaterName, // Giữ tương thích ngược
         customerAddress,
+        eaterName,
+        eaterPhone,
+        driverName,
+        driverPhone,
         totalAmount,
         subtotalAmount,
         discountAmount,
@@ -848,17 +890,23 @@ async function syncGrabOrders(ordersArray) {
             addToLogs(`📣 PHÁT HIỆN ĐƠN MỚI CỦA GRABFOOD (API): ${shortId}! Đang chèn vào database...`);
             
             const rawPayload = {
+                orderID: bookingId,
                 shortOrderNumber: shortId,
-                customerName: customerName,
+                bookingCode: orderData.bookingCode || bookingId,
+                customerName: orderData.customerName || customerName,
                 customerAddress: customerAddress,
+                eaterName: orderData.eaterName || customerName,
+                eaterPhone: orderData.eaterPhone || 'Không có số',
+                driverName: orderData.driverName || '',
+                driverPhone: orderData.driverPhone || '',
                 subtotal: subtotalAmount,
                 totalDiscount: discountAmount,
                 items: items.map(i => {
                     let size = '-';
                     if (i.note && i.note.includes('Size')) {
-                        const match = i.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                        const match = i.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || i.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
                         if (match) {
-                            size = match[1];
+                            size = (match[1] || match[0]).trim();
                         }
                     }
                     return {
@@ -950,14 +998,18 @@ async function runScraper() {
         console.log('------------------------------------------------------------');
         
         try {
-            await page.waitForURL('**/portal/dashboard**', { timeout: 150000 });
+            // Chờ URL chuyển hướng chính xác (chứa dashboard hoặc order thực tế, loại trừ trang portal gốc và trang login)
+            await page.waitForURL(url => {
+                const href = url.href;
+                return href.includes('dashboard') || href.includes('/order');
+            }, { timeout: 150000 });
             console.log('🎉 Phát hiện đăng nhập thành công!');
         } catch (e) {
             console.log('Đang chờ hết thời gian thao tác thủ công...');
-            await page.waitForTimeout(20000);
+            await page.waitForTimeout(10000);
         }
         
-        await page.waitForTimeout(10000);
+        await page.waitForTimeout(5000);
         await context.storageState({ path: STORAGE_STATE });
         console.log('💾 Đã lưu session thành công vào file:', STORAGE_STATE);
         await browser.close();
@@ -1047,41 +1099,75 @@ async function runScraper() {
         page.on('response', async response => {
             try {
                 const url = response.url();
+                const status = response.status();
                 
-                // Lắng nghe API danh sách đơn hàng Grab
-                if (url.includes('/orders-pagination') || url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders')) {
-                    const status = response.status();
+                // Debug mọi request API Grab nhận được để phát hiện chính xác URL ở local
+                if (url.includes('api.grab.com') || url.includes('merchant') || url.includes('orders') || url.includes('paginator')) {
+                    addToLogs(`🔍 [API DEBUG] Bắt URL: ${url.substring(0, 150)}... | Status: ${status}`);
+                }
+                
+                // 1. Lắng nghe API danh sách đơn hàng Grab (Active & Lịch sử)
+                if (url.includes('/orders-pagination') || url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders') || url.includes('daily-paginator')) {
                     if (status === 200) {
                         try {
-                            const json = await response.json();
-                            let ordersArray = [];
-                            
-                            // Các API khác nhau có thể trả về định dạng mảng đơn hàng khác nhau
-                            if (json.orders && Array.isArray(json.orders)) {
-                                ordersArray = json.orders;
-                            } else if (Array.isArray(json)) {
-                                ordersArray = json;
-                            } else if (json.data && Array.isArray(json.data)) {
-                                ordersArray = json.data;
-                            } else if (json.data && json.data.orders && Array.isArray(json.data.orders)) {
-                                ordersArray = json.data.orders;
-                            }
-                            
-                            if (ordersArray.length > 0) {
-                                addToLogs(`📡 [API Intercept] Bắt được API đơn hàng: ${url} | Trạng thái: ${status} | Số lượng: ${ordersArray.length} đơn`);
-                                // Gọi hàm đồng bộ ngầm
-                                syncGrabOrders(ordersArray).catch(err => {
-                                    addToLogs(`❌ Lỗi đồng bộ đơn hàng từ API: ${err.message}`);
-                                });
+                            const headers = response.headers();
+                            const contentType = headers['content-type'] || headers['Content-Type'] || '';
+                            if (contentType.includes('application/json')) {
+                                const json = await response.json();
+                                
+                                // Ghi file dump để xem cấu trúc JSON thật 100%
+                                if (url.includes('/orders-pagination')) {
+                                    fs.writeFileSync(path.join(__dirname, 'scratch', 'orders_pagination_dump.json'), JSON.stringify(json, null, 2), 'utf-8');
+                                }
+
+                                let ordersArray = [];
+                                
+                                if (json.orders && Array.isArray(json.orders)) {
+                                    ordersArray = json.orders;
+                                } else if (Array.isArray(json)) {
+                                    ordersArray = json;
+                                } else if (json.data && Array.isArray(json.data)) {
+                                    ordersArray = json.data;
+                                } else if (json.data && json.data.orders && Array.isArray(json.data.orders)) {
+                                    ordersArray = json.data.orders;
+                                }
+                                
+                                if (ordersArray.length > 0) {
+                                    addToLogs(`📡 [API Intercept] Bắt được danh sách đơn hàng: ${url.split('?')[0]} | Số lượng: ${ordersArray.length} đơn`);
+                                    syncGrabOrders(ordersArray).catch(err => {
+                                        addToLogs(`❌ Lỗi đồng bộ danh sách đơn từ API: ${err.message}`);
+                                    });
+                                }
                             }
                         } catch (jsonErr) {
-                            // Bỏ qua nếu không parse được json
+                            addToLogs(`⚠️ Lỗi parse JSON danh sách đơn hàng: ${jsonErr.message}`);
                         }
-                    } else if (status === 401 || status === 403) {
-                        addToLogs(`⚠️ API báo lỗi auth: ${url} | Status: ${status}`);
                     }
                 }
-            } catch (e) {}
+                
+                // 2. Lắng nghe API CHI TIẾT đơn hàng (Chứa 100% Tên và SĐT thật của khách hàng & tài xế)
+                if (url.includes('/food/merchant/v3/orders/')) {
+                    if (status === 200) {
+                        try {
+                            const headers = response.headers();
+                            const contentType = headers['content-type'] || headers['Content-Type'] || '';
+                            if (contentType.includes('application/json')) {
+                                const json = await response.json();
+                                if (json.order) {
+                                    addToLogs(`📡 [API Intercept] Bắt được chi tiết đơn hàng ${json.order.displayID || json.order.orderID} chứa Tên & SĐT thật!`);
+                                    syncGrabOrders([json.order]).catch(err => {
+                                        addToLogs(`❌ Lỗi đồng bộ chi tiết đơn từ API: ${err.message}`);
+                                    });
+                                }
+                            }
+                        } catch (jsonErr) {
+                            addToLogs(`⚠️ Lỗi parse JSON chi tiết đơn hàng: ${jsonErr.message}`);
+                        }
+                    }
+                }
+            } catch (e) {
+                addToLogs(`❌ Lỗi trong page.on('response'): ${e.message}`);
+            }
         });
     } catch (err) {
         addToLogs(`❌ Lỗi khi tải trang: ${err.message}`);
@@ -1119,13 +1205,47 @@ async function runScraper() {
             
             addToLogs('Đang làm mới trang để kích hoạt API quét đơn hàng Grab...');
             await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(4000);
 
             // Kiểm tra lại URL sau khi reload để phòng hờ bị redirect sau reload
             const postReloadUrl = page.url();
             if (postReloadUrl.includes('/login') || postReloadUrl.includes('/auth')) {
                 addToLogs('⚠️ Phát hiện bị đá về trang Login sau khi reload! Bỏ qua chu kỳ quét này để chờ chu kỳ sau tự động login.');
                 return;
+            }
+
+            // Tự động tìm và click vào các thẻ đơn hàng đang hiển thị trên giao diện để trigger gọi API chi tiết
+            try {
+                const orderSelectors = [
+                    'text="Đang chuẩn bị"',
+                    'text="Preparing"',
+                    'text="Sắp tới"',
+                    'text="Upcoming"',
+                    'text="Sẵn sàng"',
+                    'text="Ready"',
+                    'text=/^[A-Z0-9]+-[A-Z0-9]+$/'
+                ];
+                
+                let foundCards = false;
+                for (const selector of orderSelectors) {
+                    const cards = page.locator(selector).locator('..').locator('..');
+                    const count = await cards.count().catch(() => 0);
+                    if (count > 0) {
+                        addToLogs(`🔘 Phát hiện ${count} thẻ đơn hàng trên UI. Tiến hành click tuần tự để trigger API chi tiết...`);
+                        for (let i = 0; i < count; i++) {
+                            await cards.nth(i).click().catch(() => {});
+                            await page.waitForTimeout(1500); // Chờ 1.5 giây giữa mỗi lần click để trigger API tải
+                        }
+                        foundCards = true;
+                        break;
+                    }
+                }
+                
+                if (!foundCards) {
+                    addToLogs('ℹ️ Hiện tại không có đơn hàng active nào hiển thị trên màn hình.');
+                }
+            } catch (clickErr) {
+                addToLogs(`⚠️ Lỗi khi click thẻ đơn hàng để trigger API: ${clickErr.message}`);
             }
 
             addToLogs('Chu kỳ làm mới hoàn tất. Hệ thống API Interception tự động bắt và đồng bộ đơn hàng.');

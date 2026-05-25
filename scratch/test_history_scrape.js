@@ -50,6 +50,45 @@ async function testHistoryScrape() {
 
     const page = await context.newPage();
 
+    let dumpCount = 0;
+    // Lắng nghe API Lịch sử và Đơn hàng thực tế
+    page.on('response', async response => {
+        try {
+            const url = response.url();
+            const status = response.status();
+            
+            if (url.includes('daily-paginator') || url.includes('orders-pagination') || url.includes('orders')) {
+                if (status === 200) {
+                    const contentType = response.headers()['content-type'] || '';
+                    if (contentType.includes('application/json')) {
+                        const json = await response.json();
+                        dumpCount++;
+                        
+                        console.log(`\n📡 [API DETECTED #${dumpCount}] URL: ${url}`);
+                        console.log(`🔑 JSON Keys: ${Object.keys(json).join(', ')}`);
+                        
+                        // Lưu toàn bộ JSON ra file riêng biệt
+                        const savePathDetail = path.join(__dirname, `grab_api_dump_${dumpCount}.json`);
+                        fs.writeFileSync(savePathDetail, JSON.stringify(json, null, 2), 'utf-8');
+                        
+                        // Nếu là daily-paginator chứa danh sách đơn hàng thì lưu vào grab_history_api_dump.json
+                        const hasOrders = json.orders || json.data || json.dailyReport || Array.isArray(json);
+                        const savePath = path.join(__dirname, 'grab_history_api_dump.json');
+                        
+                        if (url.includes('daily-paginator') && hasOrders) {
+                            fs.writeFileSync(savePath, JSON.stringify(json, null, 2), 'utf-8');
+                            console.log(`⭐ [MAIN DATA] Đã cập nhật file chính tại: ${savePath}`);
+                        } else if (!fs.existsSync(savePath)) {
+                            fs.writeFileSync(savePath, JSON.stringify(json, null, 2), 'utf-8');
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            // Tránh crash
+        }
+    });
+
     try {
         console.log('🌐 Đang kết nối tới Grab Merchant Portal...');
         await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
