@@ -4024,8 +4024,15 @@
                             }
                         }
 
-                        const d = new Date(order.created_at);
-                        const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                        let orderDate = new Date(order.created_at);
+                        if (isApp && rawPayload) {
+                            if (rawPayload.times && rawPayload.times.createdAt) {
+                                orderDate = new Date(rawPayload.times.createdAt);
+                            } else if (rawPayload.createdAt) {
+                                orderDate = new Date(rawPayload.createdAt);
+                            }
+                        }
+                        const timeStr = orderDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
                         // Thiết kế lại Badge Logo sàn Neo-Brutalism siêu premium, rực rỡ và có viền đen dày
                         let appBadge = '';
