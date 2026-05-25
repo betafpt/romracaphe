@@ -1,6 +1,6 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 20:35)
+**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 23:40)
 
 ## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
 Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
@@ -99,6 +99,21 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
     *   POS ưu tiên trích xuất trực tiếp thời gian khách đặt đơn gốc từ Grab (`rawPayload.times.createdAt` hoặc `rawPayload.createdAt`) đã convert chuẩn xác sang múi giờ Việt Nam, thay vì sử dụng thời gian tạo đơn ghi nhận trong database của POS.
 *   **Đẩy mã nguồn Git an toàn:**
     *   Đã quét kiểm tra toàn bộ cú pháp JavaScript và push code lên GitHub nhánh `main` (`52f4584`) thành công trọn vẹn, kích hoạt Vercel tự động build và deploy bản cập nhật hoàn mỹ này lên production.
+
+### G. Tích hợp chế độ ngủ đêm tự động (Sleep Mode) cho Rôm Rả Bot (Mới nhất - Ca đêm 25/05/2026)
+*   **Mục tiêu tối ưu hóa VPS:**
+    *   Quán không hoạt động từ 23:00 đêm đến 06:00 sáng hôm sau. Việc bot cào liên tục 24/7 gây lãng phí RAM, CPU trên VPS và làm tăng nguy cơ bị Grab quét chặn hoạt động bất thường.
+*   **Giải pháp Tự động hóa Toàn diện:**
+    *   **Lấy giờ Việt Nam chuẩn xác:** Tích hợp hàm `getVietnamHour()` sử dụng `Intl.DateTimeFormat` bảo đảm bot lấy giờ Việt Nam (UTC+7) chuẩn 100% không bị lệch múi giờ bất kể VPS hệ thống chạy múi giờ nào.
+    *   **Cơ chế Sleep Mode & Wake Up tự động:**
+        *   **Lúc 23:00 tối:** Bot tự đóng trình duyệt ngầm Playwright (`globalBrowser.close()`) để giải phóng 100% tài nguyên CPU/RAM, ghi log và gửi 1 tin nhắn Telegram báo an toàn: *"Đã chuyển sang chế độ ngủ đêm an toàn (23:00 - 06:00) 💤... Trình duyệt Playwright đã đóng để giải phóng RAM & CPU VPS..."*.
+        *   **Trong khung giờ ngủ (23:00 - 06:00):** Vòng lặp `setInterval` 20 giây lập tức `return` bỏ qua mọi tác vụ quét đơn, giữ cho VPS cực kỳ nhẹ nhàng. Tuy nhiên Telegram Bot điều khiển 2 chiều vẫn hoạt động ngầm để bạn tương tác kiểm tra trạng thái bất cứ lúc nào.
+        *   **Lúc 06:00 sáng:** Bot gửi tin nhắn Telegram chào buổi sáng, tự động khởi chạy lại trình duyệt ngầm thông qua hàm độc lập `initPlaywright()` và tiếp tục chu kỳ quét đơn bình thường.
+    *   **Nâng cấp phản hồi lệnh `/status`:**
+        *   Bổ sung thêm thông tin trạng thái hoạt động thực tế ngay trên tin nhắn phản hồi lệnh `/status` của Telegram Bot: `• Trạng thái: 💤 Đang ngủ đêm (23:00 - 06:00)` hoặc `🟢 Đang hoạt động bình thường` mang lại trải nghiệm chuyên nghiệp và an tâm.
+    *   **Đồng bộ kiểm thử & Đẩy Git:**
+        *   Đã chạy thử cú pháp JavaScript sạch 100% không lỗi (`node --check romra_scraper.js`).
+        *   Đã push toàn bộ code hoàn chỉnh lên GitHub nhánh `main` (`2e7d235`) thành công rực rỡ!
 
 ---
 
