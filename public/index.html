@@ -3664,47 +3664,15 @@
                 </div>
             </div>
             
-            <div class="flex flex-wrap gap-6 pb-4 pr-2">
-                <!-- Column 1: Chờ xử lý -->
-                <div class="border-[3px] border-black bg-yellow-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
-                    <div class="bg-yellow-400 border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
-                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">pending_actions</span> CHỜ XỬ LÝ</span>
-                        <span class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">1</span>
-                    </div>
-                    <div id="pos-col-pending" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
-                </div>
-                
-                <!-- Column 2: Đang làm -->
-                <div class="border-[3px] border-black bg-blue-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
-                    <div class="bg-[#85C1E9] border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
-                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">local_cafe</span> ĐANG PHA CHẾ</span>
-                        <span class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">2</span>
-                    </div>
-                    <div id="pos-col-processing" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3 max-h-[75vh]"></div>
-                </div>
-
-                <!-- Column 3: Đã Xong -->
-                <div class="border-[3px] border-black bg-green-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
-                    <div class="bg-[#58D68D] border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
-                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">check_circle</span> HOÀN THÀNH</span>
-                        <span class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">3</span>
-                    </div>
-                    <div id="pos-col-completed" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3 max-h-[75vh]"></div>
-                </div>
-
-                <!-- Column 4: Đã Hủy -->
-                <div class="border-[3px] border-black bg-gray-100 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] opacity-80 min-h-[400px]">
-                    <div class="bg-gray-300 border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0 text-gray-700">
-                        <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">cancel</span> ĐÃ HỦY</span>
-                        <span class="w-8 h-8 rounded-full bg-gray-500 text-white flex items-center justify-center font-bold text-sm">X</span>
-                    </div>
-                    <div id="pos-col-cancelled" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3"></div>
-                </div>
+            <div id="pos-columns-container" class="w-full">
+                <!-- Cột được dựng động tùy theo tab -->
             </div>
             `;
-            window.posCurrentTab = 'local';
+            window.posCurrentTab = window.posCurrentTab || 'local';
+            window.posRenderedTab = null; // Đảm bảo bắt buộc dựng lại khi load dữ liệu lần đầu
             loadPOSData();
             // Tự động quét đơn mới mỗi 5 giây
+            if (window.posInterval) clearInterval(window.posInterval);
             window.posInterval = setInterval(loadPOSData, 5000);
         }
 
@@ -3723,6 +3691,17 @@
             loadPOSData();
         };
 
+        window.expandedOrderIds = window.expandedOrderIds || new Set();
+
+        window.toggleOrderExpand = function (id) {
+            if (window.expandedOrderIds.has(id)) {
+                window.expandedOrderIds.delete(id);
+            } else {
+                window.expandedOrderIds.add(id);
+            }
+            loadPOSData(); // Render lại giao diện ngay lập tức
+        };
+
         async function loadPOSData() {
             try {
                 // Restore UI select
@@ -3735,17 +3714,99 @@
                 const res = await fetch(`/api/orders?range=${range}`);
                 const j = await res.json();
                 if (j.success) {
-                    const colPending = document.getElementById('pos-col-pending');
-                    const colProcessing = document.getElementById('pos-col-processing');
-                    const colCompleted = document.getElementById('pos-col-completed');
-                    const colCancelled = document.getElementById('pos-col-cancelled');
+                    // Dựng container cột động nếu tab thay đổi
+                    const container = document.getElementById('pos-columns-container');
+                    if (container) {
+                        if (window.posRenderedTab !== window.posCurrentTab) {
+                            if (window.posCurrentTab === 'local') {
+                                container.innerHTML = `
+                                <div class="flex flex-wrap gap-6 pb-4 pr-2 w-full">
+                                    <!-- Column 1: Chờ xử lý -->
+                                    <div class="border-[3px] border-black bg-yellow-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                                        <div class="bg-yellow-400 border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                                            <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">pending_actions</span> CHỜ XỬ LÝ</span>
+                                            <span id="pos-count-pending" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
+                                        </div>
+                                        <div id="pos-col-pending" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                    </div>
+                                    
+                                    <!-- Column 2: Đang làm -->
+                                    <div class="border-[3px] border-black bg-blue-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                                        <div class="bg-[#85C1E9] border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                                            <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">local_cafe</span> ĐANG PHA CHẾ</span>
+                                            <span id="pos-count-processing" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
+                                        </div>
+                                        <div id="pos-col-processing" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                    </div>
 
-                    if (!colPending || !colProcessing || !colCompleted || !colCancelled) return;
+                                    <!-- Column 3: Đã Xong -->
+                                    <div class="border-[3px] border-black bg-green-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                                        <div class="bg-[#58D68D] border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                                            <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">check_circle</span> HOÀN THÀNH</span>
+                                            <span id="pos-count-completed" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
+                                        </div>
+                                        <div id="pos-col-completed" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                    </div>
 
-                    colPending.innerHTML = '';
-                    colProcessing.innerHTML = '';
-                    colCompleted.innerHTML = '';
-                    colCancelled.innerHTML = '';
+                                    <!-- Column 4: Đã Hủy -->
+                                    <div class="border-[3px] border-black bg-gray-100 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] opacity-80 min-h-[400px]">
+                                        <div class="bg-gray-300 border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0 text-gray-700">
+                                            <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">cancel</span> ĐÃ HỦY</span>
+                                            <span id="pos-count-cancelled" class="w-8 h-8 rounded-full bg-gray-500 text-white flex items-center justify-center font-bold text-sm">0</span>
+                                        </div>
+                                        <div id="pos-col-cancelled" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3"></div>
+                                    </div>
+                                </div>
+                                `;
+                            } else {
+                                container.innerHTML = `
+                                <div class="flex flex-wrap lg:flex-nowrap gap-6 pb-4 pr-2 w-full">
+                                    <!-- Cột 1: ĐƠN ĐANG XỬ LÝ (Chờ xử lý + Đang pha chế) -->
+                                    <div class="border-[3px] border-black bg-yellow-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                                        <div class="bg-yellow-400 border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                                            <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">pending_actions</span> ĐƠN ĐANG XỬ LÝ</span>
+                                            <span id="pos-count-active" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
+                                        </div>
+                                        <div id="pos-col-active" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                    </div>
+                                    
+                                    <!-- Cột 2: ĐƠN ĐÃ HOÀN TẤT (Hoàn thành + Đã hủy) -->
+                                    <div class="border-[3px] border-black bg-green-50 flex flex-col shadow-[6px_6px_0_0_#000] flex-1 min-w-[320px] min-h-[400px]">
+                                        <div class="bg-[#58D68D] border-b-[3px] border-black p-3 font-heading text-lg font-black uppercase flex items-center justify-between shrink-0">
+                                            <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">check_circle</span> ĐƠN ĐÃ HOÀN TẤT</span>
+                                            <span id="pos-count-finished" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
+                                        </div>
+                                        <div id="pos-col-finished" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                    </div>
+                                </div>
+                                `;
+                            }
+                            window.posRenderedTab = window.posCurrentTab;
+                        }
+                    }
+
+                    let colPending, colProcessing, colCompleted, colCancelled;
+                    let colActive, colFinished;
+
+                    if (window.posCurrentTab === 'local') {
+                        colPending = document.getElementById('pos-col-pending');
+                        colProcessing = document.getElementById('pos-col-processing');
+                        colCompleted = document.getElementById('pos-col-completed');
+                        colCancelled = document.getElementById('pos-col-cancelled');
+                        if (!colPending || !colProcessing || !colCompleted || !colCancelled) return;
+
+                        colPending.innerHTML = '';
+                        colProcessing.innerHTML = '';
+                        colCompleted.innerHTML = '';
+                        colCancelled.innerHTML = '';
+                    } else {
+                        colActive = document.getElementById('pos-col-active');
+                        colFinished = document.getElementById('pos-col-finished');
+                        if (!colActive || !colFinished) return;
+
+                        colActive.innerHTML = '';
+                        colFinished.innerHTML = '';
+                    }
 
                     let allOrders = j.data;
                     window.currentOrders = allOrders;
@@ -3765,7 +3826,8 @@
 
                         if (hasNew) {
                             if (window.playNotificationSound) window.playNotificationSound();
-                            const pendingColWrapper = colPending.parentElement;
+                            const colElement = window.posCurrentTab === 'local' ? colPending : colActive;
+                            const pendingColWrapper = colElement ? colElement.parentElement : null;
                             if (pendingColWrapper) {
                                 pendingColWrapper.classList.add('ring-8', 'ring-red-500', 'animate-pulse');
                                 setTimeout(() => {
@@ -3785,6 +3847,11 @@
                         orders = orders.filter(o => o.platform && o.platform !== 'local');
                     }
 
+                    let countPending = 0;
+                    let countProcessing = 0;
+                    let countCompleted = 0;
+                    let countCancelled = 0;
+
                     orders.forEach(order => {
                         const isApp = order.platform && order.platform !== 'local';
                         let itemsHtml = '';
@@ -3800,7 +3867,7 @@
                                             <div class="flex justify-between text-sm items-center">
                                                 <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.name}</span> (${oi.size || 'M'})</span>
                                                 <!-- Nút in lẻ món online này -->
-                                                <button onclick="printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center font-bold" title="In riêng tem món này">
+                                                <button onclick="event.stopPropagation(); printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center font-bold" title="In riêng tem món này">
                                                     <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
                                                 </button>
                                             </div>
@@ -3819,7 +3886,7 @@
                                         <div class="flex justify-between text-sm items-center">
                                             <span class="font-bold text-base flex-1">x${oi.quantity} <span class="uppercase">${oi.recipes?.name || 'Món Đã Xóa'}</span> (${oi.recipes?.size || '-'})</span>
                                             <!-- Nút in lẻ món này -->
-                                            <button onclick="printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center" title="In riêng tem món này">
+                                            <button onclick="event.stopPropagation(); printSingleLabel(${order.id}, ${oiIdx})" class="p-1 border-2 border-black hover:bg-gray-200 active:scale-95 bg-white shadow-[1px_1px_0_0_#000] ml-2 shrink-0 flex items-center justify-center" title="In riêng tem món này">
                                                 <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
                                             </button>
                                         </div>
@@ -3852,7 +3919,6 @@
                             }
                         }
 
-
                         // Cấu hình Nút bấm dựa trên trạng thái hóa đơn
                         if (isApp) {
                             // Giao diện cho Đơn từ App (Grab/Shopee)
@@ -3868,13 +3934,13 @@
                                 grabInteractiveButtons = `
                                 <div class="grid grid-cols-3 gap-2 mb-3 bg-[#E8F8F5] border-[3px] border-black p-2 shadow-[3px_3px_0_0_#000] relative">
                                     <span class="absolute -top-3.5 left-2 px-1 text-[8px] font-black uppercase text-white bg-black border-2 border-black tracking-wider">Đồng bộ Grab</span>
-                                    <button onclick="sendGrabCommand(${order.id}, 'ACCEPT')" class="bg-[#2ECC71] text-black font-black border-2 border-black hover:bg-[#27AE60] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Chấp nhận đơn hàng trên Grab">
+                                    <button onclick="event.stopPropagation(); sendGrabCommand(${order.id}, 'ACCEPT')" class="bg-[#2ECC71] text-black font-black border-2 border-black hover:bg-[#27AE60] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Chấp nhận đơn hàng trên Grab">
                                         <span class="material-symbols-outlined font-black text-base">check_circle</span> XÁC NHẬN
                                     </button>
-                                    <button onclick="sendGrabCommand(${order.id}, 'CHANGE_PREP_TIME', { minutes: 10 })" class="bg-[#F1C40F] text-black font-black border-2 border-black hover:bg-[#D68910] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Tăng thêm 10 phút chuẩn bị món">
+                                    <button onclick="event.stopPropagation(); sendGrabCommand(${order.id}, 'CHANGE_PREP_TIME', { minutes: 10 })" class="bg-[#F1C40F] text-black font-black border-2 border-black hover:bg-[#D68910] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Tăng thêm 10 phút chuẩn bị món">
                                         <span class="material-symbols-outlined font-black text-base">add_alarm</span> +10 PHÚT
                                     </button>
-                                    <button onclick="sendGrabCommand(${order.id}, 'CANCEL')" class="bg-[#E74C3C] text-white font-black border-2 border-black hover:bg-[#C0392B] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Từ chối/Hủy đơn hàng trên Grab">
+                                    <button onclick="event.stopPropagation(); sendGrabCommand(${order.id}, 'CANCEL')" class="bg-[#E74C3C] text-white font-black border-2 border-black hover:bg-[#C0392B] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Từ chối/Hủy đơn hàng trên Grab">
                                         <span class="material-symbols-outlined font-black text-base">cancel</span> HỦY ĐƠN
                                     </button>
                                 </div>
@@ -3884,18 +3950,17 @@
                             actionBtn = `
                             ${grabInteractiveButtons}
                             <div class="flex gap-2 mt-3">
-                               <button onclick="printOrderLabel(${order.id})" class="flex-1 bg-white text-black font-black font-heading py-2 text-sm border-2 border-black hover:bg-gray-200 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center gap-1" title="In Tem dán từng ly (50x30mm)">
+                               <button onclick="event.stopPropagation(); printOrderLabel(${order.id})" class="flex-1 bg-white text-black font-black font-heading py-2 text-sm border-2 border-black hover:bg-gray-200 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center gap-1" title="In Tem dán từng ly (50x30mm)">
                                    <span class="material-symbols-outlined font-bold text-xl">label</span> IN TEM
                                </button>
-                               <button onclick="printReceipt(${order.id})" class="flex-1 bg-[#D1F2EB] text-[#0E6251] font-black font-heading py-2 text-sm border-2 border-black hover:bg-[#A3E4D7] active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center gap-1" title="In Hóa đơn tổng (58mm)">
+                               <button onclick="event.stopPropagation(); printReceipt(${order.id})" class="flex-1 bg-[#D1F2EB] text-[#0E6251] font-black font-heading py-2 text-sm border-2 border-black hover:bg-[#A3E4D7] active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center gap-1" title="In Hóa đơn tổng (58mm)">
                                    <span class="material-symbols-outlined font-bold text-xl">receipt_long</span> HÓA ĐƠN
                                </button>
-                               <button onclick="updateOrderStatus(${order.id}, 'completed')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Xóa khỏi màn hình (Xong)">X</button>
+                               <button onclick="event.stopPropagation(); updateOrderStatus(${order.id}, 'completed')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Xóa khỏi màn hình (Xong)">X</button>
                             </div>
                             `;
                             verifyBtn = ''; // App tự xử lý thanh toán
                         } else {
-
                             // Giao diện cho Đơn Tại Quán
                             if (order.status === 'pending') {
                                 actionBtn = `
@@ -3993,15 +4058,15 @@
                             }
 
                             // Xác định màu sắc nhấp nháy cho badge Grab Realtime
-                            let grabBadgeColor = 'bg-yellow-300 text-black'; // Đang chuẩn bị / Đang tìm tài xế
+                            let grabBadgeColor = 'bg-yellow-300 text-black'; 
                             const grabStatusUpper = grabRealtimeStatus.toUpperCase();
                             
                             if (grabStatusUpper.includes('GIAO THÀNH CÔNG') || grabStatusUpper.includes('HOÀN THÀNH')) {
-                                grabBadgeColor = 'bg-emerald-400 text-black'; // Xong
+                                grabBadgeColor = 'bg-emerald-400 text-black'; 
                             } else if (grabStatusUpper.includes('HỦY')) {
-                                grabBadgeColor = 'bg-red-400 text-white'; // Hủy
+                                grabBadgeColor = 'bg-red-400 text-white'; 
                             } else if (grabStatusUpper.includes('ĐANG GIAO') || grabStatusUpper.includes('ĐẾN QUÁN')) {
-                                grabBadgeColor = 'bg-blue-400 text-white'; // Đang giao
+                                grabBadgeColor = 'bg-blue-400 text-white'; 
                             }
 
                             extraInfoHtml = `
@@ -4072,12 +4137,112 @@
                             `;
                         }
 
+                        // --- MÃ HÓA HTML CARD ĐƠN HÀNG ONLINE THU GỌN / MỞ RỘNG ---
+                        if (isApp && !window.expandedOrderIds.has(order.id)) {
+                            // 1. Dạng Thu Gọn (Collapsed Card)
+                            let totalQty = 0;
+                            if (order.note) {
+                                try {
+                                    const parsed = JSON.parse(order.note);
+                                    const onlineItems = parsed.items || [];
+                                    totalQty = onlineItems.reduce((acc, oi) => acc + (oi.quantity || 0), 0);
+                                } catch(e) {}
+                            }
+                            if (totalQty === 0 && order.order_items) {
+                                totalQty = order.order_items.reduce((acc, oi) => acc + (oi.quantity || 0), 0);
+                            }
+
+                            let eaterPhone = 'Không có số';
+                            let customerName = 'Khách App';
+                            let grabRealtimeStatus = 'Đang xử lý';
+
+                            if (rawPayload) {
+                                eaterPhone = rawPayload.eaterPhone || rawPayload.customerPhone || eaterPhone;
+                                customerName = rawPayload.eaterName || rawPayload.customerName || customerName;
+                                grabRealtimeStatus = rawPayload.grabStatus || grabRealtimeStatus;
+                            } else {
+                                try {
+                                    const parsed = JSON.parse(order.note);
+                                    customerName = parsed.customerName || customerName;
+                                    grabRealtimeStatus = parsed.grabStatus || grabRealtimeStatus;
+                                } catch (e) {}
+                            }
+
+                            // Xác định màu sắc nhấp nháy cho badge Grab Realtime
+                            let grabBadgeColor = 'bg-yellow-300 text-black'; 
+                            const grabStatusUpper = grabRealtimeStatus.toUpperCase();
+                            if (grabStatusUpper.includes('GIAO THÀNH CÔNG') || grabStatusUpper.includes('HOÀN THÀNH')) {
+                                grabBadgeColor = 'bg-emerald-400 text-black';
+                            } else if (grabStatusUpper.includes('HỦY')) {
+                                grabBadgeColor = 'bg-red-400 text-white';
+                            } else if (grabStatusUpper.includes('ĐANG GIAO') || grabStatusUpper.includes('ĐẾN QUÁN')) {
+                                grabBadgeColor = 'bg-blue-400 text-white';
+                            }
+
+                            const isGrab = order.platform === 'grab';
+                            const badgeBg = isGrab ? 'bg-[#00B14F]' : 'bg-[#EE4D2D]';
+                            const badgeLabel = isGrab ? 'GRABFOOD' : 'SHOPEEFOOD';
+                            const appBadgeHtml = `<span class="px-2 py-0.5 text-[8px] font-black uppercase text-white ${badgeBg} border-2 border-black rotate-3 shadow-[2px_2px_0_0_#000] tracking-widest">${badgeLabel}</span>`;
+
+                            const cardHtml = `
+                            <div onclick="window.toggleOrderExpand(${order.id})" class="${bgColor} border-[3px] border-black p-3.5 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none cursor-pointer hover:bg-slate-50 transition-colors animate-slide-up">
+                                <div class="flex justify-between items-center mb-2.5">
+                                    <div class="flex items-center gap-2">
+                                        ${appBadgeHtml}
+                                        <span class="font-black text-lg bg-black text-white px-2 py-0.5 leading-none">#${order.external_short_id || order.id}</span>
+                                    </div>
+                                    <span class="px-2 py-0.5 text-[9px] font-black uppercase border-2 border-black ${grabBadgeColor} shadow-[1px_1px_0_0_#000] truncate max-w-[150px]">${grabRealtimeStatus.toUpperCase()}</span>
+                                </div>
+
+                                <div class="flex flex-col gap-1 text-left text-xs font-bold text-slate-700 bg-amber-50/50 border-2 border-black p-2 mb-2">
+                                    <div class="flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-sm font-black text-black">person</span>
+                                        <span class="truncate">KHÁCH: <span class="font-black text-black uppercase">${customerName}</span> - ${eaterPhone}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-[10px] text-gray-500 border-t border-dashed border-gray-300 pt-1 mt-0.5">
+                                        <span>🛒 ${totalQty} sản phẩm</span>
+                                        <span>⏰ Giờ đặt: ${timeStr}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between items-center mt-1">
+                                    <span class="font-black text-xl text-green-600 drop-shadow-[0.5px_0.5px_0_#000]">${Number(order.total_amount).toLocaleString('vi-VN')}đ</span>
+                                    <div class="flex gap-2">
+                                        <button onclick="event.stopPropagation(); printReceipt(${order.id})" class="bg-black text-white hover:bg-gray-800 font-black px-3 py-1.5 text-xs border-2 border-black shadow-[2px_2px_0_0_#ccc] hover:shadow-none transition-all flex items-center gap-1" title="In Hóa đơn nhanh">
+                                            <span class="material-symbols-outlined text-xs font-bold">print</span> IN ĐƠN
+                                        </button>
+                                        <span class="material-symbols-outlined text-gray-400 font-bold text-lg select-none self-center">unfold_more</span>
+                                    </div>
+                                </div>
+                            </div>
+                            `;
+
+                            if (order.status === 'pending' || order.status === 'processing') {
+                                colActive.innerHTML += cardHtml;
+                                if (order.status === 'pending') countPending++;
+                                else countProcessing++;
+                            } else {
+                                colFinished.innerHTML += cardHtml;
+                                if (order.status === 'completed') countCompleted++;
+                                else countCancelled++;
+                            }
+                            return;
+                        }
+
+                        // 2. Dạng Mở Rộng (Expanded Card cho Online) hoặc Đơn Tại Quán (Local)
                         const cardHtml = `
-                        <div class="${bgColor} border-[3px] border-black p-3 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none">
+                        <div class="${bgColor} border-[3px] border-black p-3 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none animate-slide-up">
                             ${appBadge}
                             <div class="flex justify-between items-start mb-2">
                                 <div class="flex flex-col gap-1 items-start">
-                                    <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${isApp ? (order.external_short_id || order.id) : order.id}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${isApp ? (order.external_short_id || order.id) : order.id}</span>
+                                        ${isApp ? `
+                                        <button onclick="window.toggleOrderExpand(${order.id})" class="bg-gray-100 hover:bg-gray-200 text-black font-black border-2 border-black px-1.5 py-0.5 text-[10px] shadow-[1px_1px_0_0_#000] flex items-center gap-0.5" title="Thu gọn đơn">
+                                            <span class="material-symbols-outlined text-xs font-black">unfold_less</span> THU GỌN
+                                        </button>
+                                        ` : ''}
+                                    </div>
                                     ${isApp ? statusBadgeHtml : ''}
                                 </div>
                                 <span class="font-bold text-xs bg-white border-2 border-black px-1 pb-1 pt-0.5 flex flex-col items-end"><span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>${timeStr}</span>
@@ -4092,7 +4257,7 @@
                             ${noteDisplayHtml}
                             ${pricingHtml}
 
-                            <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-black border-dashed">
+                             <div class="flex justify-between items-end mt-auto pt-2 border-t-2 border-black border-dashed">
                                 <div class="flex flex-col">
                                     <span class="text-[10px] font-bold uppercase text-gray-500">Hình thức</span>
                                     <span class="text-[10px] font-black uppercase border-2 p-1 ${paymentBadgeBorder}">${paymentText}</span>
@@ -4105,11 +4270,49 @@
                         </div>
                         `;
 
-                        if (order.status === 'pending') colPending.innerHTML += cardHtml;
-                        else if (order.status === 'processing') colProcessing.innerHTML += cardHtml;
-                        else if (order.status === 'completed') colCompleted.innerHTML += cardHtml;
-                        else if (order.status === 'cancelled') colCancelled.innerHTML += cardHtml;
+                        if (window.posCurrentTab === 'local') {
+                            if (order.status === 'pending') {
+                                colPending.innerHTML += cardHtml;
+                                countPending++;
+                            } else if (order.status === 'processing') {
+                                colProcessing.innerHTML += cardHtml;
+                                countProcessing++;
+                            } else if (order.status === 'completed') {
+                                colCompleted.innerHTML += cardHtml;
+                                countCompleted++;
+                            } else if (order.status === 'cancelled') {
+                                colCancelled.innerHTML += cardHtml;
+                                countCancelled++;
+                            }
+                        } else {
+                            if (order.status === 'pending' || order.status === 'processing') {
+                                colActive.innerHTML += cardHtml;
+                                if (order.status === 'pending') countPending++;
+                                else countProcessing++;
+                            } else {
+                                colFinished.innerHTML += cardHtml;
+                                if (order.status === 'completed') countCompleted++;
+                                else countCancelled++;
+                            }
+                        }
                     });
+
+                    // Cập nhật số lượng trên các Badge cột
+                    if (window.posCurrentTab === 'local') {
+                        const badgPending = document.getElementById('pos-count-pending');
+                        const badgProcessing = document.getElementById('pos-count-processing');
+                        const badgCompleted = document.getElementById('pos-count-completed');
+                        const badgCancelled = document.getElementById('pos-count-cancelled');
+                        if (badgPending) badgPending.innerText = countPending;
+                        if (badgProcessing) badgProcessing.innerText = countProcessing;
+                        if (badgCompleted) badgCompleted.innerText = countCompleted;
+                        if (badgCancelled) badgCancelled.innerText = countCancelled;
+                    } else {
+                        const badgActive = document.getElementById('pos-count-active');
+                        const badgFinished = document.getElementById('pos-count-finished');
+                        if (badgActive) badgActive.innerText = countPending + countProcessing;
+                        if (badgFinished) badgFinished.innerText = countCompleted + countCancelled;
+                    }
                 }
             } catch (e) { console.error("Poll POS Error:", e) }
         }
