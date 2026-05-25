@@ -20,6 +20,15 @@ let lastScanTime = '';
 let lastPageUrl = '';
 let sessionScrapedCount = 0;
 let activePage = null; // Lưu tham chiếu page của Playwright để chụp màn hình từ Telegram
+let globalBrowser = null;
+let globalContext = null;
+let isBotSleeping = false;
+
+function getVietnamHour() {
+    const options = { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', hour12: false };
+    const hourStr = new Intl.DateTimeFormat('en-US', options).format(new Date());
+    return parseInt(hourStr, 10);
+}
 
 function addToLogs(message) {
     const timeStr = new Date().toLocaleTimeString('vi-VN');
@@ -207,6 +216,7 @@ async function handleTelegramCommand(text) {
         
         let statusMsg = `📊 <b>TRẠNG THÁI RÔM RẢ BOT</b>\n\n` +
             `• <b>Uptime:</b> ${uptimeStr}\n` +
+            `• <b>Trạng thái:</b> ${isBotSleeping ? '💤 Đang ngủ đêm (23:00 - 06:00)' : '🟢 Đang hoạt động bình thường'}\n` +
             `• <b>Trình duyệt:</b> Playwright Chromium (Headless)\n` +
             `• <b>Grab Session:</b> ${grabSessionExists ? '🟢 Đang hoạt động' : '🔴 Chưa đăng nhập'}\n` +
             `• <b>Lần cuối quét:</b> ${lastScanTime || 'Chưa quét lần nào'}\n` +
@@ -1068,6 +1078,171 @@ function setupBotCommandsListener(page) {
         });
 }
 
+// Thiết lập lắng nghe phản hồi API của Grab ngầm
+function setupPageResponseListener(pageInstance) {
+    pageInstance.on('response', async response => {
+        try {
+            const url = response.url();
+            const status = response.status();
+            
+            // Debug mọi request API Grab nhận được để phát hiện chính xác URL ở local
+            if (url.includes('api.grab.com') || url.includes('merchant') || url.includes('orders') || url.includes('paginator')) {
+                addToLogs(`🔍 [API DEBUG] Bắt URL: ${url.substring(0, 150)}... | Status: ${status}`);
+            }
+            
+            // 1. Lắng nghe API danh sách đơn hàng Grab (Active & Lịch sử)
+            if (url.includes('/orders-pagination') || url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders') || url.includes('daily-paginator')) {
+                if (status === 200) {
+                    try {
+                        const headers = response.headers();
+                        const contentType = headers['content-type'] || headers['Content-Type'] || '';
+                        if (contentType.includes('application/json')) {
+                            const json = await response.json();
+                            
+                            let ordersArray = [];
+                            
+                            if (json.orders && Array.isArray(json.orders)) {
+                                ordersArray = json.orders;
+                            } else if (Array.isArray(json)) {
+                                ordersArray = json;
+                            } else if (json.data && Array.isArray(json.data)) {
+                                ordersArray = json.data;
+                            } else if (json.data && json.data.orders && Array.isArray(json.data.orders)) {
+                                ordersArray = json.data.orders;
+                            }
+                            
+                            if (ordersArray.length > 0) {
+                                addToLogs(`📡 [API Intercept] Bắt được danh sách đơn hàng: ${url.split('?')[0]} | Số lượng: ${ordersArray.length} đơn`);
+                                syncGrabOrders(ordersArray).catch(err => {
+                                    addToLogs(`❌ Lỗi đồng bộ danh sách đơn từ API: ${err.message}`);
+                                });
+                            }
+                        }
+                    } catch (jsonErr) {
+                        addToLogs(`⚠️ Lỗi parse JSON danh sách đơn hàng: ${jsonErr.message}`);
+                    }
+                }
+            }
+            
+            // 2. Lắng nghe API CHI TIẾT đơn hàng (Chứa 100% Tên và SĐT thật của khách hàng & tài xế)
+            if (url.includes('/food/merchant/v3/orders/')) {
+                if (status === 200) {
+                    try {
+                        const headers = response.headers();
+                        const contentType = headers['content-type'] || headers['Content-Type'] || '';
+                        if (contentType.includes('application/json')) {
+                            const json = await response.json();
+                            if (json.order) {
+                                addToLogs(`📡 [API Intercept] Bắt được chi tiết đơn hàng ${json.order.displayID || json.order.orderID} chứa Tên & SĐT thật!`);
+                                syncGrabOrders([json.order]).catch(err => {
+                                    addToLogs(`❌ Lỗi đồng bộ chi tiết đơn từ API: ${err.message}`);
+                                });
+                            }
+                        }
+                    } catch (jsonErr) {
+                        addToLogs(`⚠️ Lỗi parse JSON chi tiết đơn hàng: ${jsonErr.message}`);
+                    }
+                }
+            }
+        } catch (e) {
+            addToLogs(`❌ Lỗi trong page.on('response'): ${e.message}`);
+        }
+    });
+}
+
+// Khởi tạo trình duyệt Playwright ngầm và đăng nhập Grab
+async function initPlaywright() {
+    addToLogs('🌐 Đang khởi tạo trình duyệt Playwright ngầm...');
+    
+    // Đảm bảo session cookie tồn tại
+    if (!fs.existsSync(STORAGE_STATE)) {
+        if (grabConfig && grabConfig.username && grabConfig.password) {
+            addToLogs('🔐 Chưa có session. Bắt đầu tự động đăng nhập ngầm bằng tài khoản...');
+            const tempBrowser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+            const tempContext = await tempBrowser.newContext({
+                viewport: { width: 1280, height: 720 },
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            });
+            const tempPage = await tempContext.newPage();
+            const loginSuccess = await autoLoginGrab(tempPage, grabConfig);
+            if (loginSuccess) {
+                await tempContext.storageState({ path: STORAGE_STATE });
+                addToLogs('💾 Đã lưu session tự động đăng nhập thành công!');
+            } else {
+                addToLogs('❌ Tự động đăng nhập ngầm khởi tạo thất bại. Vui lòng kiểm tra lại tài khoản mật khẩu.');
+                await tempBrowser.close();
+                throw new Error('Tự động đăng nhập ngầm khởi tạo thất bại');
+            }
+            await tempBrowser.close();
+        } else {
+            addToLogs('❌ KHÔNG TÌM THẤY PHIÊN ĐĂNG NHẬP VÀ CẤU HÌNH TÀI KHOẢN!');
+            throw new Error('Chưa cấu hình phiên đăng nhập hoặc tài khoản Grab');
+        }
+    }
+
+    const browserInstance = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const contextInstance = await browserInstance.newContext({
+        storageState: STORAGE_STATE,
+        viewport: { width: 1280, height: 720 },
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    });
+
+    const pageInstance = await contextInstance.newPage();
+    
+    try {
+        addToLogs('Đang truy cập trang Quản lý đơn hàng Grab Merchant...');
+        await pageInstance.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+        await pageInstance.waitForTimeout(5000);
+        
+        if (pageInstance.url().includes('login') || pageInstance.url().includes('auth')) {
+            addToLogs('⚠️ Phát hiện phiên đăng nhập (Session Cookie) của Grab đã hết hạn!');
+            if (grabConfig && grabConfig.username && grabConfig.password) {
+                addToLogs('🔐 Đang tiến hành tự động gia hạn đăng nhập ngầm bằng tài khoản...');
+                
+                await contextInstance.clearCookies().catch(() => {});
+                await pageInstance.evaluate(() => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                }).catch(() => {});
+
+                const loginSuccess = await autoLoginGrab(pageInstance, grabConfig);
+                if (loginSuccess) {
+                    await contextInstance.storageState({ path: STORAGE_STATE });
+                    addToLogs('💾 Đã gia hạn và lưu session tự động đăng nhập thành công!');
+                    await pageInstance.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+                    await pageInstance.waitForTimeout(5000);
+                } else {
+                    const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nTự động gia hạn đăng nhập ngầm thất bại! Vui lòng kiểm tra lại tài khoản mật khẩu.';
+                    await sendTelegramAlert(errorMsg);
+                    await browserInstance.close();
+                    throw new Error('Gia hạn đăng nhập tự động thất bại');
+                }
+            } else {
+                const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nPhiên đăng nhập Grab Merchant đã hết hạn! Bot quét đơn đã dừng hoạt động.\nVui lòng truy cập VPS và chạy lại lệnh <code>node romra_scraper.js --login</code> để đăng nhập lại.';
+                addToLogs('❌ PHIÊN ĐĂNG NHẬP ĐÃ HẾT HẠN!');
+                await sendTelegramAlert(errorMsg);
+                await browserInstance.close();
+                throw new Error('Phiên đăng nhập hết hạn và thiếu grab_config.json');
+            }
+        }
+        addToLogs('✅ Truy cập thành công. Bắt đầu theo dõi đơn hàng...');
+
+        // Đăng ký các listener
+        setupBotCommandsListener(pageInstance);
+        setupPageResponseListener(pageInstance);
+
+        return { browser: browserInstance, context: contextInstance, page: pageInstance };
+    } catch (err) {
+        addToLogs(`❌ Lỗi khi tải trang hoặc khởi tạo: ${err.message}`);
+        await browserInstance.close().catch(() => {});
+        throw err;
+    }
+}
+
 // Hàm thực thi lệnh giả lập Playwright từ POS gửi xuống
 async function executeBotCommand(cmd, page) {
     const { id, booking_id, short_id, command_type, payload } = cmd;
@@ -1273,159 +1448,22 @@ async function runScraper() {
 
     // --- CHẾ ĐỘ CHẠY QUÉT ĐƠN 24/7 ---
     addToLogs('🚀 [BOT MODE] Bắt đầu khởi động Bot quét đơn Grab 24/7...');
-    if (!fs.existsSync(STORAGE_STATE)) {
-        if (grabConfig && grabConfig.username && grabConfig.password) {
-            addToLogs('🔐 Chưa có session. Bắt đầu tự động đăng nhập ngầm bằng tài khoản...');
-            const tempBrowser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-            const tempContext = await tempBrowser.newContext({
-                viewport: { width: 1280, height: 720 },
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            });
-            const tempPage = await tempContext.newPage();
-            const loginSuccess = await autoLoginGrab(tempPage, grabConfig);
-            if (loginSuccess) {
-                await tempContext.storageState({ path: STORAGE_STATE });
-                addToLogs('💾 Đã lưu session tự động đăng nhập thành công!');
-            } else {
-                addToLogs('❌ Tự động đăng nhập ngầm khởi tạo thất bại. Vui lòng kiểm tra lại tài khoản mật khẩu.');
-                await tempBrowser.close();
-                process.exit(1);
-            }
-            await tempBrowser.close();
-        } else {
-            addToLogs('❌ KHÔNG TÌM THẤY PHIÊN ĐĂNG NHẬP VÀ CẤU HÌNH TÀI KHOẢN!');
-            console.error('Vui lòng tạo file grab_config.json chứa tài khoản hoặc chạy --login để đăng nhập thủ công.');
-            process.exit(1);
+    
+    // Kiểm tra xem có nên bật chế độ ngủ đêm ngay lập tức không (khi bot start trong khung giờ ngủ)
+    const initHour = getVietnamHour();
+    if (initHour >= 23 || initHour < 6) {
+        isBotSleeping = true;
+        addToLogs('💤 Đang trong khoảng thời gian nghỉ đêm (23:00 - 06:00). Bot sẽ khởi động ở chế độ ngủ (Sleep Mode)...');
+        await sendTelegramAlert('🤖 <b>[RÔM RẢ BOT]</b> Bot vừa được khởi động lại nhưng đang trong khung giờ nghỉ đêm (23:00 - 06:00). Trạng thái ngủ 💤 đã được bật để tiết kiệm tài nguyên VPS.');
+    } else {
+        try {
+            const instances = await initPlaywright();
+            globalBrowser = instances.browser;
+            globalContext = instances.context;
+            activePage = instances.page;
+        } catch (e) {
+            addToLogs(`❌ Khởi tạo bot thất bại: ${e.message}. Bot sẽ thử khởi tạo lại ở chu kỳ quét tiếp theo.`);
         }
-    }
-
-    const browser = await chromium.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const context = await browser.newContext({
-        storageState: STORAGE_STATE,
-        viewport: { width: 1280, height: 720 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    });
-
-    const page = await context.newPage();
-    activePage = page; // Lưu tham chiếu page toàn cục
-
-    try {
-        addToLogs('Đang truy cập trang Quản lý đơn hàng Grab Merchant...');
-        await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
-        await page.waitForTimeout(5000);
-        
-        if (page.url().includes('login') || page.url().includes('auth')) {
-            addToLogs('⚠️ Phát hiện phiên đăng nhập (Session Cookie) của Grab đã hết hạn!');
-            if (grabConfig && grabConfig.username && grabConfig.password) {
-                addToLogs('🔐 Đang tiến hành tự động gia hạn đăng nhập ngầm bằng tài khoản...');
-                
-                await context.clearCookies().catch(() => {});
-                await page.evaluate(() => {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                }).catch(() => {});
-
-                const loginSuccess = await autoLoginGrab(page, grabConfig);
-                if (loginSuccess) {
-                    await context.storageState({ path: STORAGE_STATE });
-                    addToLogs('💾 Đã gia hạn và lưu session tự động đăng nhập thành công!');
-                    await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
-                    await page.waitForTimeout(5000);
-                } else {
-                    const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nTự động gia hạn đăng nhập ngầm thất bại! Vui lòng kiểm tra lại tài khoản mật khẩu.';
-                    await sendTelegramAlert(errorMsg);
-                    await browser.close();
-                    process.exit(1);
-                }
-            } else {
-                const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nPhiên đăng nhập Grab Merchant đã hết hạn! Bot quét đơn đã dừng hoạt động.\nVui lòng truy cập VPS và chạy lại lệnh <code>node romra_scraper.js --login</code> để đăng nhập lại.';
-                addToLogs('❌ PHIÊN ĐĂNG NHẬP ĐÃ HẾT HẠN!');
-                await sendTelegramAlert(errorMsg);
-                await browser.close();
-                process.exit(1);
-            }
-        }
-        addToLogs('✅ Truy cập thành công. Bắt đầu theo dõi đơn hàng...');
-
-        // Đăng ký lắng nghe lệnh Realtime từ Web POS
-        setupBotCommandsListener(page);
-
-        page.on('response', async response => {
-            try {
-                const url = response.url();
-                const status = response.status();
-                
-                // Debug mọi request API Grab nhận được để phát hiện chính xác URL ở local
-                if (url.includes('api.grab.com') || url.includes('merchant') || url.includes('orders') || url.includes('paginator')) {
-                    addToLogs(`🔍 [API DEBUG] Bắt URL: ${url.substring(0, 150)}... | Status: ${status}`);
-                }
-                
-                // 1. Lắng nghe API danh sách đơn hàng Grab (Active & Lịch sử)
-                if (url.includes('/orders-pagination') || url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders') || url.includes('daily-paginator')) {
-                    if (status === 200) {
-                        try {
-                            const headers = response.headers();
-                            const contentType = headers['content-type'] || headers['Content-Type'] || '';
-                            if (contentType.includes('application/json')) {
-                                const json = await response.json();
-                                
-
-
-                                let ordersArray = [];
-                                
-                                if (json.orders && Array.isArray(json.orders)) {
-                                    ordersArray = json.orders;
-                                } else if (Array.isArray(json)) {
-                                    ordersArray = json;
-                                } else if (json.data && Array.isArray(json.data)) {
-                                    ordersArray = json.data;
-                                } else if (json.data && json.data.orders && Array.isArray(json.data.orders)) {
-                                    ordersArray = json.data.orders;
-                                }
-                                
-                                if (ordersArray.length > 0) {
-                                    addToLogs(`📡 [API Intercept] Bắt được danh sách đơn hàng: ${url.split('?')[0]} | Số lượng: ${ordersArray.length} đơn`);
-                                    syncGrabOrders(ordersArray).catch(err => {
-                                        addToLogs(`❌ Lỗi đồng bộ danh sách đơn từ API: ${err.message}`);
-                                    });
-                                }
-                            }
-                        } catch (jsonErr) {
-                            addToLogs(`⚠️ Lỗi parse JSON danh sách đơn hàng: ${jsonErr.message}`);
-                        }
-                    }
-                }
-                
-                // 2. Lắng nghe API CHI TIẾT đơn hàng (Chứa 100% Tên và SĐT thật của khách hàng & tài xế)
-                if (url.includes('/food/merchant/v3/orders/')) {
-                    if (status === 200) {
-                        try {
-                            const headers = response.headers();
-                            const contentType = headers['content-type'] || headers['Content-Type'] || '';
-                            if (contentType.includes('application/json')) {
-                                const json = await response.json();
-                                if (json.order) {
-                                    addToLogs(`📡 [API Intercept] Bắt được chi tiết đơn hàng ${json.order.displayID || json.order.orderID} chứa Tên & SĐT thật!`);
-                                    syncGrabOrders([json.order]).catch(err => {
-                                        addToLogs(`❌ Lỗi đồng bộ chi tiết đơn từ API: ${err.message}`);
-                                    });
-                                }
-                            }
-                        } catch (jsonErr) {
-                            addToLogs(`⚠️ Lỗi parse JSON chi tiết đơn hàng: ${jsonErr.message}`);
-                        }
-                    }
-                }
-            } catch (e) {
-                addToLogs(`❌ Lỗi trong page.on('response'): ${e.message}`);
-            }
-        });
-    } catch (err) {
-        addToLogs(`❌ Lỗi khi tải trang: ${err.message}`);
     }
 
     // Khởi chạy Telegram Bot điều khiển 2 chiều ngầm song song
@@ -1434,93 +1472,149 @@ async function runScraper() {
     // Chạy quét đơn định kỳ mỗi 20 giây
     setInterval(async () => {
         try {
-            lastScanTime = new Date().toLocaleTimeString('vi-VN');
-            lastPageUrl = page.url();
-            
-            // Kiểm tra xem bot có bị đá về trang đăng nhập ngầm không
-            if (lastPageUrl.includes('/login') || lastPageUrl.includes('/auth')) {
-                addToLogs('⚠️ Phát hiện phiên làm việc hết hạn (bị đá về trang Login)! Đang tự động đăng nhập ngầm lại...');
-                if (grabConfig && grabConfig.username && grabConfig.password) {
-                    const loginSuccess = await autoLoginGrab(page, grabConfig);
-                    if (loginSuccess) {
-                        await context.storageState({ path: STORAGE_STATE });
-                        addToLogs('💾 Đã gia hạn session tự động thành công sau khi bị logout ngầm!');
-                        await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
-                        await page.waitForTimeout(5000);
-                        lastPageUrl = page.url(); // Cập nhật lại URL
-                    } else {
-                        addToLogs('❌ Tự động đăng nhập ngầm lại thất bại. Sẽ thử lại ở chu kỳ tiếp theo.');
+            const localHour = getVietnamHour();
+            const shouldSleep = (localHour >= 23 || localHour < 6);
+
+            if (shouldSleep) {
+                // CHẾ ĐỘ NGỦ ĐÊM
+                if (!isBotSleeping) {
+                    isBotSleeping = true;
+                    addToLogs('💤 [Sleep Mode] Đến giờ nghỉ đêm (23:00 - 06:00). Đang đóng trình duyệt ngầm Playwright...');
+                    if (globalBrowser) {
+                        await globalBrowser.close().catch(e => addToLogs(`⚠️ Lỗi khi đóng browser: ${e.message}`));
+                        globalBrowser = null;
+                        globalContext = null;
+                        activePage = null;
+                    }
+                    await sendTelegramAlert('🤖 <b>[RÔM RẢ BOT]</b> Đã chuyển sang chế độ ngủ đêm an toàn (23:00 - 06:00) 💤\n• Trình duyệt Playwright đã đóng để giải phóng RAM & CPU VPS.\n• Tài khoản Grab được bảo vệ tránh quét hoạt động 24/7.');
+                }
+                // Trong khi ngủ, bỏ qua hoàn toàn các thao tác quét đơn
+                return;
+            } else {
+                // CHẾ ĐỘ THỨC GIẤC & QUÉT ĐƠN BÌNH THƯỜNG
+                if (isBotSleeping) {
+                    isBotSleeping = false;
+                    addToLogs('☀️ [Wake Up] Đã đến 06:00 sáng. Đang đánh thức bot quét đơn Grab...');
+                    await sendTelegramAlert('🤖 <b>[RÔM RẢ BOT]</b> Chào buổi sáng! Đã đến 06:00 sáng, Bot đang tự động thức dậy... ☀️\n• Đang khởi động lại trình duyệt ngầm Playwright...\n• Tự động khôi phục phiên đăng nhập và tiếp tục quét đơn Grab.');
+                    
+                    try {
+                        const instances = await initPlaywright();
+                        globalBrowser = instances.browser;
+                        globalContext = instances.context;
+                        activePage = instances.page;
+                    } catch (e) {
+                        addToLogs(`❌ Không thể đánh thức trình duyệt: ${e.message}. Sẽ thử lại ở chu kỳ tiếp theo.`);
+                        isBotSleeping = true; // Set lại là sleeping để chu kỳ sau chạy lại logic đánh thức
                         return;
                     }
-                } else {
-                    addToLogs('❌ Không thể tự động đăng nhập lại do thiếu cấu hình tài khoản/mật khẩu.');
-                    return;
                 }
-            }
-            
-            addToLogs('Đang làm mới trang để kích hoạt API quét đơn hàng Grab...');
-            await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
-            await page.waitForTimeout(4000);
 
-            // Kiểm tra lại URL sau khi reload để phòng hờ bị redirect sau reload
-            const postReloadUrl = page.url();
-            if (postReloadUrl.includes('/login') || postReloadUrl.includes('/auth')) {
-                addToLogs('⚠️ Phát hiện bị đá về trang Login sau khi reload! Bỏ qua chu kỳ quét này để chờ chu kỳ sau tự động login.');
-                return;
-            }
+                // Nếu vì lý do gì đó trình duyệt chưa được khởi tạo (ví dụ khởi động bot lúc có lỗi mạng)
+                if (!globalBrowser || !activePage) {
+                    addToLogs('⚠️ Phát hiện trình duyệt chưa được khởi tạo. Đang tiến hành khởi tạo lại...');
+                    try {
+                        const instances = await initPlaywright();
+                        globalBrowser = instances.browser;
+                        globalContext = instances.context;
+                        activePage = instances.page;
+                    } catch (e) {
+                        addToLogs(`❌ Khởi tạo lại trình duyệt thất bại: ${e.message}. Sẽ thử lại ở chu kỳ tiếp theo.`);
+                        return;
+                    }
+                }
 
-            // Tự động tìm và click vào các thẻ đơn hàng đang hiển thị trên giao diện để trigger gọi API chi tiết
-            try {
-                const orderSelectors = [
-                    'text="Đang chuẩn bị"',
-                    'text="Preparing"',
-                    'text="Sắp tới"',
-                    'text="Upcoming"',
-                    'text="Sẵn sàng"',
-                    'text="Ready"',
-                    'text="Chờ lấy hàng"',
-                    'text="Chờ lấy"',
-                    'text="Chờ tài xế"',
-                    'text="Đang tìm tài xế"',
-                    'text="Chuẩn bị xong"',
-                    'text="Đã chuẩn bị xong"',
-                    'text="Đang giao"',
-                    'text="Đang giao hàng"',
-                    'text="Delivering"',
-                    'text="Đang xử lý"',
-                    'text="Processing"',
-                    'text="Đã giao"',
-                    'text="Đã hoàn thành"',
-                    'text="Hoàn thành"',
-                    'text="Completed"',
-                    'text="Đã hủy"',
-                    'text="Cancelled"',
-                    'text=/^[A-Z0-9]+-[A-Z0-9]+$/'
-                ];
+                // Thực hiện quét đơn hàng bình thường
+                const page = activePage;
+                const context = globalContext;
+
+                lastScanTime = new Date().toLocaleTimeString('vi-VN');
+                lastPageUrl = page.url();
                 
-                let foundCards = false;
-                for (const selector of orderSelectors) {
-                    const cards = page.locator(selector).locator('..').locator('..');
-                    const count = await cards.count().catch(() => 0);
-                    if (count > 0) {
-                        addToLogs(`🔘 Phát hiện ${count} thẻ đơn hàng trên UI. Tiến hành click tuần tự để trigger API chi tiết...`);
-                        for (let i = 0; i < count; i++) {
-                            await cards.nth(i).click().catch(() => {});
-                            await page.waitForTimeout(1500); // Chờ 1.5 giây giữa mỗi lần click để trigger API tải
+                // Kiểm tra xem bot có bị đá về trang đăng nhập ngầm không
+                if (lastPageUrl.includes('/login') || lastPageUrl.includes('/auth')) {
+                    addToLogs('⚠️ Phát hiện phiên làm việc hết hạn (bị đá về trang Login)! Đang tự động đăng nhập ngầm lại...');
+                    if (grabConfig && grabConfig.username && grabConfig.password) {
+                        const loginSuccess = await autoLoginGrab(page, grabConfig);
+                        if (loginSuccess) {
+                            await context.storageState({ path: STORAGE_STATE });
+                            addToLogs('💾 Đã gia hạn session tự động thành công sau khi bị logout ngầm!');
+                            await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+                            await page.waitForTimeout(5000);
+                            lastPageUrl = page.url(); // Cập nhật lại URL
+                        } else {
+                            addToLogs('❌ Tự động đăng nhập ngầm lại thất bại. Sẽ thử lại ở chu kỳ tiếp theo.');
+                            return;
                         }
-                        foundCards = true;
-                        break;
+                    } else {
+                        addToLogs('❌ Không thể tự động đăng nhập lại do thiếu cấu hình tài khoản/mật khẩu.');
+                        return;
                     }
                 }
                 
-                if (!foundCards) {
-                    addToLogs('ℹ️ Hiện tại không có đơn hàng active nào hiển thị trên màn hình.');
-                }
-            } catch (clickErr) {
-                addToLogs(`⚠️ Lỗi khi click thẻ đơn hàng để trigger API: ${clickErr.message}`);
-            }
+                addToLogs('Đang làm mới trang để kích hoạt API quét đơn hàng Grab...');
+                await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
+                await page.waitForTimeout(4000);
 
-            addToLogs('Chu kỳ làm mới hoàn tất. Hệ thống API Interception tự động bắt và đồng bộ đơn hàng.');
+                // Kiểm tra lại URL sau khi reload để phòng hờ bị redirect sau reload
+                const postReloadUrl = page.url();
+                if (postReloadUrl.includes('/login') || postReloadUrl.includes('/auth')) {
+                    addToLogs('⚠️ Phát hiện bị đá về trang Login sau khi reload! Bỏ qua chu kỳ quét này để chờ chu kỳ sau tự động login.');
+                    return;
+                }
+
+                // Tự động tìm và click vào các thẻ đơn hàng đang hiển thị trên giao diện để trigger gọi API chi tiết
+                try {
+                    const orderSelectors = [
+                        'text="Đang chuẩn bị"',
+                        'text="Preparing"',
+                        'text="Sắp tới"',
+                        'text="Upcoming"',
+                        'text="Sẵn sàng"',
+                        'text="Ready"',
+                        'text="Chờ lấy hàng"',
+                        'text="Chờ lấy"',
+                        'text="Chờ tài xế"',
+                        'text="Đang tìm tài xế"',
+                        'text="Chuẩn bị xong"',
+                        'text="Đã chuẩn bị xong"',
+                        'text="Đang giao"',
+                        'text="Đang giao hàng"',
+                        'text="Delivering"',
+                        'text="Đang xử lý"',
+                        'text="Processing"',
+                        'text="Đã giao"',
+                        'text="Đã hoàn thành"',
+                        'text="Hoàn thành"',
+                        'text="Completed"',
+                        'text="Đã hủy"',
+                        'text="Cancelled"',
+                        'text=/^[A-Z0-9]+-[A-Z0-9]+$/'
+                    ];
+                    
+                    let foundCards = false;
+                    for (const selector of orderSelectors) {
+                        const cards = page.locator(selector).locator('..').locator('..');
+                        const count = await cards.count().catch(() => 0);
+                        if (count > 0) {
+                            addToLogs(`🔘 Phát hiện ${count} thẻ đơn hàng trên UI. Tiến hành click tuần tự để trigger API chi tiết...`);
+                            for (let i = 0; i < count; i++) {
+                                await cards.nth(i).click().catch(() => {});
+                                await page.waitForTimeout(1500); // Chờ 1.5 giây giữa mỗi lần click để trigger API tải
+                            }
+                            foundCards = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!foundCards) {
+                        addToLogs('ℹ️ Hiện tại không có đơn hàng active nào hiển thị trên màn hình.');
+                    }
+                } catch (clickErr) {
+                    addToLogs(`⚠️ Lỗi khi click thẻ đơn hàng để trigger API: ${clickErr.message}`);
+                }
+
+                addToLogs('Chu kỳ làm mới hoàn tất. Hệ thống API Interception tự động bắt và đồng bộ đơn hàng.');
+            }
         } catch (e) {
             addToLogs(`❌ Lỗi trong chu kỳ quét đơn: ${e.message}`);
         }
