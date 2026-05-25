@@ -3694,12 +3694,37 @@
         window.expandedOrderIds = window.expandedOrderIds || new Set();
 
         window.toggleOrderExpand = function (id) {
-            if (window.expandedOrderIds.has(id)) {
-                window.expandedOrderIds.delete(id);
-            } else {
+            const detailEl = document.getElementById(`order-detail-${id}`);
+            const footerEl = document.getElementById(`order-collapsed-footer-${id}`);
+            const indicatorEl = document.getElementById(`order-toggle-indicator-${id}`);
+            if (!detailEl) return;
+
+            const isHidden = detailEl.classList.contains('hidden');
+            if (isHidden) {
+                // Mở rộng ra
+                detailEl.classList.remove('hidden');
+                detailEl.classList.add('flex');
+                if (footerEl) {
+                    footerEl.classList.remove('flex');
+                    footerEl.classList.add('hidden');
+                }
+                if (indicatorEl) {
+                    indicatorEl.innerHTML = 'Thu gọn <span class="material-symbols-outlined text-xs font-black">unfold_less</span>';
+                }
                 window.expandedOrderIds.add(id);
+            } else {
+                // Thu gọn lại
+                detailEl.classList.remove('flex');
+                detailEl.classList.add('hidden');
+                if (footerEl) {
+                    footerEl.classList.remove('hidden');
+                    footerEl.classList.add('flex');
+                }
+                if (indicatorEl) {
+                    indicatorEl.innerHTML = 'Xem chi tiết <span class="material-symbols-outlined text-xs font-black">unfold_more</span>';
+                }
+                window.expandedOrderIds.delete(id);
             }
-            loadPOSData(); // Render lại giao diện ngay lập tức
         };
 
         async function loadPOSData() {
@@ -4137,9 +4162,8 @@
                             `;
                         }
 
-                        // --- MÃ HÓA HTML CARD ĐƠN HÀNG ONLINE THU GỌN / MỞ RỘNG ---
-                        if (isApp && !window.expandedOrderIds.has(order.id)) {
-                            // 1. Dạng Thu Gọn (Collapsed Card)
+                        // --- MÃ HÓA HTML CARD ĐƠN HÀNG ONLINE THU GỌN / MỞ RỘNG GỘP (CLIENT TOGGLE) ---
+                        if (isApp) {
                             let totalQty = 0;
                             if (order.note) {
                                 try {
@@ -4184,8 +4208,13 @@
                             const badgeLabel = isGrab ? 'GRABFOOD' : 'SHOPEEFOOD';
                             const appBadgeHtml = `<span class="px-2 py-0.5 text-[8px] font-black uppercase text-white ${badgeBg} border-2 border-black rotate-3 shadow-[2px_2px_0_0_#000] tracking-widest">${badgeLabel}</span>`;
 
-                            const cardHtml = `
-                            <div onclick="window.toggleOrderExpand(${order.id})" class="${bgColor} border-[3px] border-black p-3.5 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none cursor-pointer hover:bg-slate-50 transition-colors animate-slide-up">
+                            const isExpanded = window.expandedOrderIds.has(order.id);
+                            const detailClass = isExpanded ? 'flex' : 'hidden';
+                            const footerClass = isExpanded ? 'hidden' : 'flex';
+
+                            const appCardHtml = `
+                            <div id="order-card-${order.id}" onclick="window.toggleOrderExpand(${order.id})" class="${bgColor} border-[3px] border-black p-3.5 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none cursor-pointer hover:bg-slate-50 transition-colors animate-slide-up">
+                                <!-- PHẦN HEADER LUÔN HIỂN THỊ -->
                                 <div class="flex justify-between items-center mb-2.5">
                                     <div class="flex items-center gap-2">
                                         ${appBadgeHtml}
@@ -4195,34 +4224,64 @@
                                 </div>
 
                                 <div class="flex flex-col gap-1 text-left text-xs font-bold text-slate-700 bg-amber-50/50 border-2 border-black p-2 mb-2">
-                                    <div class="flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-sm font-black text-black">person</span>
-                                        <span class="truncate">KHÁCH: <span class="font-black text-black uppercase">${customerName}</span> - ${eaterPhone}</span>
+                                    <div class="flex items-center gap-1.5 justify-between">
+                                        <span class="flex items-center gap-1 truncate">
+                                            <span class="material-symbols-outlined text-sm font-black text-black">person</span>
+                                            <span class="truncate">KHÁCH: <span class="font-black text-black uppercase">${customerName}</span> - ${eaterPhone}</span>
+                                        </span>
+                                        <!-- Số lượng sản phẩm SIÊU NỔI BẬT Neo-Brutalism -->
+                                        <span class="bg-yellow-400 text-black border-2 border-black px-2.5 py-1 font-black text-xs uppercase shadow-[2px_2px_0_0_#000] shrink-0 animate-pulse tracking-wide">🛒 ${totalQty} MÓN</span>
                                     </div>
                                     <div class="flex justify-between items-center text-[10px] text-gray-500 border-t border-dashed border-gray-300 pt-1 mt-0.5">
-                                        <span>🛒 ${totalQty} sản phẩm</span>
                                         <span>⏰ Giờ đặt: ${timeStr}</span>
+                                        <span id="order-toggle-indicator-${order.id}" class="flex items-center gap-0.5 text-black font-extrabold select-none">${isExpanded ? 'Thu gọn <span class="material-symbols-outlined text-xs font-black">unfold_less</span>' : 'Xem chi tiết <span class="material-symbols-outlined text-xs font-black">unfold_more</span>'}</span>
                                     </div>
                                 </div>
 
-                                <div class="flex justify-between items-center mt-1">
-                                    <span class="font-black text-xl text-green-600 drop-shadow-[0.5px_0.5px_0_#000]">${Number(order.total_amount).toLocaleString('vi-VN')}đ</span>
-                                    <div class="flex gap-2">
-                                        <button onclick="event.stopPropagation(); printReceipt(${order.id})" class="bg-black text-white hover:bg-gray-800 font-black px-3 py-1.5 text-xs border-2 border-black shadow-[2px_2px_0_0_#ccc] hover:shadow-none transition-all flex items-center gap-1" title="In Hóa đơn nhanh">
-                                            <span class="material-symbols-outlined text-xs font-bold">print</span> IN ĐƠN
-                                        </button>
-                                        <span class="material-symbols-outlined text-gray-400 font-bold text-lg select-none self-center">unfold_more</span>
+                                <!-- PHẦN CHI TIẾT MỞ RỘNG (Ẩn/Hiện bằng class) -->
+                                <div id="order-detail-${order.id}" class="${detailClass} flex-col pt-3 border-t-2 border-black border-dashed mt-2" onclick="event.stopPropagation()">
+                                    ${extraInfoHtml}
+                                    
+                                    <div class="mb-3 mt-1 px-1">
+                                        ${itemsHtml}
                                     </div>
+                                    
+                                    ${noteDisplayHtml}
+                                    ${pricingHtml}
+
+                                    <div class="flex justify-between items-end pb-3 mb-3 border-b-2 border-black border-dashed">
+                                        <div class="flex flex-col">
+                                            <span class="text-[10px] font-bold uppercase text-gray-500">Hình thức</span>
+                                            <span class="text-[10px] font-black uppercase border-2 p-1 ${paymentBadgeBorder}">${paymentText}</span>
+                                        </div>
+                                        <span class="font-black text-2xl text-primary drop-shadow-[1px_1px_0_0_#000]" style="line-height:1;">${Number(order.total_amount).toLocaleString('vi-VN')} đ</span>
+                                    </div>
+                                    
+                                    ${verifyBtn}
+                                    ${actionBtn}
+                                    
+                                    <!-- Nút thu gọn nhanh ở cuối -->
+                                    <button onclick="event.stopPropagation(); window.toggleOrderExpand(${order.id})" class="w-full bg-gray-100 hover:bg-gray-200 text-black font-black border-2 border-black py-1.5 text-xs shadow-[2px_2px_0_0_#000] flex items-center justify-center gap-1 mt-2" title="Thu gọn đơn">
+                                        <span class="material-symbols-outlined text-xs font-black">unfold_less</span> THU GỌN ĐƠN HÀNG
+                                    </button>
+                                </div>
+
+                                <!-- PHẦN BOTTOM BAR CỦA CARD THU GỌN (Ẩn khi mở rộng) -->
+                                <div id="order-collapsed-footer-${order.id}" class="${footerClass} justify-between items-center mt-1 pt-2 border-t-2 border-black border-dashed">
+                                    <span class="font-black text-xl text-green-600 drop-shadow-[0.5px_0.5px_0_#000]">${Number(order.total_amount).toLocaleString('vi-VN')}đ</span>
+                                    <button onclick="event.stopPropagation(); printReceipt(${order.id})" class="bg-black text-white hover:bg-gray-800 font-black px-3 py-1.5 text-xs border-2 border-black shadow-[2px_2px_0_0_#ccc] hover:shadow-none transition-all flex items-center gap-1" title="In Hóa đơn nhanh">
+                                        <span class="material-symbols-outlined text-xs font-bold">print</span> IN ĐƠN
+                                    </button>
                                 </div>
                             </div>
                             `;
 
                             if (order.status === 'pending' || order.status === 'processing') {
-                                colActive.innerHTML += cardHtml;
+                                colActive.innerHTML += appCardHtml;
                                 if (order.status === 'pending') countPending++;
                                 else countProcessing++;
                             } else {
-                                colFinished.innerHTML += cardHtml;
+                                colFinished.innerHTML += appCardHtml;
                                 if (order.status === 'completed') countCompleted++;
                                 else countCancelled++;
                             }
