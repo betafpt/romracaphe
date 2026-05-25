@@ -1,6 +1,6 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 02:15)
+**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 08:35)
 
 ## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
 Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
@@ -62,6 +62,13 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 - **Thực nghiệm cào đơn lịch sử thành công**: Chạy thử nghiệm thành công file `test_history_scrape.js` bóc tách chính xác 100% đơn hàng dạng bảng lịch sử ngày hôm trước của Grab (GF-267 / Kem Dẻo Cacao Buôn Mê x 2 ly), tự động vượt DatePicker input "Chọn thời điểm" và bóc tách dữ liệu trơn tru!
 
 - **Tích hợp Telegram Bot điều khiển 2 chiều (Mới nhất - 25/05/2026)**: Tích hợp hoàn tất module lắng nghe Telegram Bot 2 chiều zero-dependency ngầm song song vào `romra_scraper.js` sử dụng REST HTTP Long Polling. Hỗ trợ Whitelist Chat ID an toàn và 6 lệnh nhanh `/help`, `/status`, `/restart`, `/logs`, `/scrape`, `/revenue` hoạt động vô cùng ổn định.
+
+### D. Bản vá lỗi Tự động Phục hồi Đăng nhập ngầm & Chống treo Telegram Bot trên VPS (Mới nhất - 25/05/2026)
+- **Phát hiện lỗi logic hết hạn session ngầm:** Bot chạy 24/7 bị logout ngầm dẫn đến chuyển hướng về trang `/login`, nhưng bot vẫn reload trang login và tìm nút "Đã làm xong", dẫn đến im lặng báo "Không phát hiện đơn hàng mới" mà không tự động login lại.
+- **Khắc phục lỗi treo Telegram Bot:** Lệnh `/screenshot` bị treo do không có timeout bất đồng bộ khi trình duyệt Chromium ngầm bị kẹt. Đã giới hạn timeout chụp ảnh màn hình Playwright tối đa là 5 giây (`activePage.screenshot({ path, timeout: 5000 })`).
+- **Thêm cơ chế AbortController cho Telegram fetch:** Tất cả các fetch kết nối đến API Telegram gửi tin nhắn (`sendMessage`) và ảnh (`sendPhoto`) được gắn `AbortController` tự hủy sau 8-12 giây nếu mạng VPS bị nghẽn, giúp Telegram Bot luôn hoạt động độc lập và không bị kẹt.
+- **Tích hợp Auto-Login liên tục realtime:** Trong mỗi chu kỳ quét 20 giây, nếu phát hiện URL hiện tại bị đá về `/login` hoặc `/auth`, bot sẽ lập tức tự động gọi `autoLoginGrab` để phục hồi phiên làm việc bằng tài khoản cấu hình và cập nhật lại `storageState`.
+- **Trạng thái:** Kiểm tra cú pháp cục bộ thành công 100% và đã đẩy (push) code thành công lên GitHub repo nhánh `main` để anh cập nhật lên VPS.
 
 ---
 
