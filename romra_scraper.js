@@ -1294,6 +1294,17 @@ async function runScraper() {
                     'text="Đang tìm tài xế"',
                     'text="Chuẩn bị xong"',
                     'text="Đã chuẩn bị xong"',
+                    'text="Đang giao"',
+                    'text="Đang giao hàng"',
+                    'text="Delivering"',
+                    'text="Đang xử lý"',
+                    'text="Processing"',
+                    'text="Đã giao"',
+                    'text="Đã hoàn thành"',
+                    'text="Hoàn thành"',
+                    'text="Completed"',
+                    'text="Đã hủy"',
+                    'text="Cancelled"',
                     'text=/^[A-Z0-9]+-[A-Z0-9]+$/'
                 ];
                 
