@@ -745,6 +745,7 @@ async function testHistoryScrape() {
     } finally {
         await browser.close();
         console.log('Trình duyệt đóng. Hoàn tất kiểm thử.');
+        process.exit(0);
     }
 }
 
