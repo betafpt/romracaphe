@@ -1184,7 +1184,15 @@ async function runScraper() {
                                 
                                 // Ghi file dump để xem cấu trúc JSON thật 100%
                                 if (url.includes('/orders-pagination')) {
-                                    fs.writeFileSync(path.join(__dirname, 'scratch', 'orders_pagination_dump.json'), JSON.stringify(json, null, 2), 'utf-8');
+                                    try {
+                                        const scratchDir = path.join(__dirname, 'scratch');
+                                        if (!fs.existsSync(scratchDir)) {
+                                            fs.mkdirSync(scratchDir, { recursive: true });
+                                        }
+                                        fs.writeFileSync(path.join(scratchDir, 'orders_pagination_dump.json'), JSON.stringify(json, null, 2), 'utf-8');
+                                    } catch (dumpErr) {
+                                        addToLogs(`⚠️ Không thể ghi file dump (vẫn tiếp tục xử lý đơn): ${dumpErr.message}`);
+                                    }
                                 }
 
                                 let ordersArray = [];
