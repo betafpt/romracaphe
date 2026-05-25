@@ -711,6 +711,33 @@ async function startTelegramBot() {
     })();
 }
 
+function getGrabRealtimeStatus(order) {
+    const state = String(order.state || order.orderState || order.status || '').toUpperCase();
+    const delivery = String(order.deliveryTaskpoolStatus || '').toUpperCase();
+
+    if (state === 'CANCELLED') return 'Đã hủy đơn';
+    if (state === 'COMPLETED' || state === 'DELIVERED') return 'Đã giao thành công';
+    
+    if (delivery === 'ALLOCATING' || delivery === 'UNALLOCATED') {
+        return 'Đang tìm tài xế';
+    }
+    if (delivery === 'ALLOCATED' || delivery === 'ASSIGNED') {
+        return 'Tài xế đang đến quán';
+    }
+    if (delivery === 'ARRIVED') {
+        return 'Tài xế đã đến quán';
+    }
+    if (delivery === 'PICKED_UP' || delivery === 'DELIVERING') {
+        return 'Tài xế đang giao hàng';
+    }
+
+    if (state === 'ACCEPTED') return 'Đã nhận đơn';
+    if (state === 'PREPARING') return 'Đang chuẩn bị món';
+    if (state === 'READY') return 'Món ăn đã sẵn sàng';
+
+    return 'Đang xử lý';
+}
+
 // --- CÁC HÀM HELPER XỬ LÝ API GRABFOOD (API INTERCEPTION) ---
 
 // Hàm bóc tách đơn hàng thích ứng từ JSON API của Grab (tương thích cả đơn đang chạy và đơn lịch sử)
@@ -869,19 +896,58 @@ async function syncGrabOrders(ordersArray) {
             }
 
             if (existingOrder) {
-                // Đơn đã tồn tại -> Kiểm tra trạng thái xem có thay đổi không
+                // Đơn đã tồn tại -> Cập nhật thông tin tài xế và trạng thái Grab Realtime mới nhất
+                const grabRealtimeStatus = getGrabRealtimeStatus(rawOrder);
+                const updatedRawPayload = {
+                    orderID: bookingId,
+                    shortOrderNumber: shortId,
+                    bookingCode: orderData.bookingCode || bookingId,
+                    customerName: orderData.customerName || customerName,
+                    customerAddress: customerAddress,
+                    eaterName: orderData.eaterName || customerName,
+                    eaterPhone: orderData.eaterPhone || 'Không có số',
+                    driverName: orderData.driverName || '',
+                    driverPhone: orderData.driverPhone || '',
+                    grabStatus: grabRealtimeStatus,
+                    subtotal: subtotalAmount,
+                    totalDiscount: discountAmount,
+                    items: items.map(i => {
+                        let size = '-';
+                        if (i.note && i.note.includes('Size')) {
+                            const match = i.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || i.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                            if (match) {
+                                size = (match[1] || match[0]).trim();
+                            }
+                        }
+                        return {
+                            name: i.name,
+                            quantity: i.quantity,
+                            size: size,
+                            note: i.note
+                        };
+                    })
+                };
+
+                const updatePayload = {
+                    raw_payload: updatedRawPayload,
+                    note: JSON.stringify(updatedRawPayload)
+                };
+
+                // Kiểm tra trạng thái POS
                 if (existingOrder.status !== status) {
-                    addToLogs(`🔄 Cập nhật trạng thái đơn ${shortId} (${bookingId}): "${existingOrder.status}" -> "${status}"`);
-                    const { error: updateErr } = await supabase
-                        .from('orders')
-                        .update({ status: status })
-                        .eq('id', existingOrder.id);
-                    
-                    if (updateErr) {
-                        addToLogs(`❌ Lỗi cập nhật trạng thái đơn ${shortId}: ${updateErr.message}`);
-                    } else {
-                        addToLogs(`🎉 Đã cập nhật trạng thái đơn ${shortId} thành công lên Supabase!`);
-                    }
+                    addToLogs(`🔄 Cập nhật trạng thái POS đơn ${shortId} (${bookingId}): "${existingOrder.status}" -> "${status}"`);
+                    updatePayload.status = status;
+                }
+
+                const { error: updateErr } = await supabase
+                    .from('orders')
+                    .update(updatePayload)
+                    .eq('id', existingOrder.id);
+                
+                if (updateErr) {
+                    addToLogs(`❌ Lỗi cập nhật thông tin đơn ${shortId}: ${updateErr.message}`);
+                } else {
+                    addToLogs(`🎉 Đã cập nhật realtime (Tài xế: "${orderData.driverName}", Trạng thái: "${grabRealtimeStatus}") cho đơn ${shortId}`);
                 }
                 continue;
             }
@@ -899,6 +965,7 @@ async function syncGrabOrders(ordersArray) {
                 eaterPhone: orderData.eaterPhone || 'Không có số',
                 driverName: orderData.driverName || '',
                 driverPhone: orderData.driverPhone || '',
+                grabStatus: getGrabRealtimeStatus(rawOrder),
                 subtotal: subtotalAmount,
                 totalDiscount: discountAmount,
                 items: items.map(i => {

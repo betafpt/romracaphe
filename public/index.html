@@ -3911,6 +3911,18 @@
                         // Xử lý hiển thị ghi chú online đẹp mắt không bị json thô
                         let noteDisplayHtml = '';
                         let customerNameHtml = '';
+                        let extraInfoHtml = '';
+
+                        // Phân tích raw_payload của đơn hàng từ Supabase nếu có
+                        let rawPayload = null;
+                        if (order.raw_payload) {
+                            try {
+                                rawPayload = typeof order.raw_payload === 'string' ? JSON.parse(order.raw_payload) : order.raw_payload;
+                            } catch (e) {
+                                console.error("Lỗi parse raw_payload:", e);
+                            }
+                        }
+
                         if (order.note) {
                             if (isApp) {
                                 try {
@@ -3928,6 +3940,83 @@
                                 noteDisplayHtml = `<div class="mb-3 px-1 text-sm font-bold text-red-600 border-l-4 border-red-600 pl-2">Ghi chú: ${order.note}</div>`;
                             }
                         }
+
+                        // Xây dựng khối thông tin khách hàng và tài xế nâng cao kèm trạng thái Grab Realtime
+                        if (isApp) {
+                            let eaterPhone = 'Không có số';
+                            let driverName = 'Chưa có tài xế';
+                            let driverPhone = 'Không có số';
+                            let customerName = 'Khách App';
+                            let grabRealtimeStatus = 'Đang xử lý';
+
+                            if (rawPayload) {
+                                eaterPhone = rawPayload.eaterPhone || rawPayload.customerPhone || eaterPhone;
+                                driverName = rawPayload.driverName || driverName;
+                                driverPhone = rawPayload.driverPhone || driverPhone;
+                                customerName = rawPayload.eaterName || rawPayload.customerName || customerName;
+                                grabRealtimeStatus = rawPayload.grabStatus || grabRealtimeStatus;
+                            } else {
+                                // Dự phòng từ note JSON
+                                try {
+                                    const parsed = JSON.parse(order.note);
+                                    customerName = parsed.customerName || customerName;
+                                    grabRealtimeStatus = parsed.grabStatus || grabRealtimeStatus;
+                                } catch (e) {}
+                            }
+
+                            // Xác định màu sắc nhấp nháy cho badge Grab Realtime
+                            let grabBadgeColor = 'bg-yellow-300 text-black'; // Đang chuẩn bị / Đang tìm tài xế
+                            const grabStatusUpper = grabRealtimeStatus.toUpperCase();
+                            
+                            if (grabStatusUpper.includes('GIAO THÀNH CÔNG') || grabStatusUpper.includes('HOÀN THÀNH')) {
+                                grabBadgeColor = 'bg-emerald-400 text-black'; // Xong
+                            } else if (grabStatusUpper.includes('HỦY')) {
+                                grabBadgeColor = 'bg-red-400 text-white'; // Hủy
+                            } else if (grabStatusUpper.includes('ĐANG GIAO') || grabStatusUpper.includes('ĐẾN QUÁN')) {
+                                grabBadgeColor = 'bg-blue-400 text-white'; // Đang giao
+                            }
+
+                            extraInfoHtml = `
+                            <div class="text-[11px] font-bold text-slate-700 bg-amber-50 border-[3px] border-black p-2 mb-3 text-left flex flex-col gap-1.5 shadow-[2px_2px_0_0_#000] relative">
+                                <!-- Huy hiệu Grab Realtime Status nổi bật phong cách Neo-Brutalism -->
+                                <div class="flex justify-between items-center border-b-2 border-dashed border-black pb-1.5 mb-0.5">
+                                    <span class="flex items-center gap-1 font-black text-black text-[10px]"><span class="material-symbols-outlined text-xs font-black">monitoring</span> TRẠNG THÁI GRAB:</span>
+                                    <span class="px-2 py-0.5 text-[9px] font-black uppercase border-[2px] border-black ${grabBadgeColor} shadow-[1px_1px_0_0_#000] animate-pulse whitespace-nowrap">${grabRealtimeStatus.toUpperCase()}</span>
+                                </div>
+                                <div class="flex items-center gap-1 border-b-[1px] border-dashed border-gray-400 pb-1">
+                                    <span class="material-symbols-outlined text-sm font-black text-black">person</span>
+                                    <span>KHÁCH: <span class="font-black text-black uppercase">${customerName}</span></span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px]">
+                                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs font-black">phone_iphone</span> SĐT KHÁCH:</span>
+                                    <span class="font-black text-black">${eaterPhone}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] border-t-[1px] border-dashed border-gray-400 pt-1.5">
+                                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs font-black">sports_motorsports</span> TÀI XẾ:</span>
+                                    <span class="font-black text-black uppercase text-xs">${driverName}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px]">
+                                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs font-black">call</span> SĐT TÀI XẾ:</span>
+                                    <span class="font-black text-black">${driverPhone}</span>
+                                </div>
+                            </div>
+                            `;
+                        }
+
+                        // Xử lý Huy hiệu trạng thái đơn hàng trên card
+                        let statusText = 'CHỜ XỬ LÝ';
+                        let statusBadgeColor = 'bg-yellow-400 text-black';
+                        if (order.status === 'processing') {
+                            statusText = 'ĐANG PHA CHẾ';
+                            statusBadgeColor = 'bg-blue-500 text-white';
+                        } else if (order.status === 'completed') {
+                            statusText = 'HOÀN THÀNH';
+                            statusBadgeColor = 'bg-green-500 text-white';
+                        } else if (order.status === 'cancelled') {
+                            statusText = 'ĐÃ HỦY';
+                            statusBadgeColor = 'bg-red-500 text-white';
+                        }
+                        const statusBadgeHtml = `<span class="px-2 py-0.5 text-[9px] font-black uppercase border-2 border-black ${statusBadgeColor} w-max tracking-wider" style="line-height: 1.2;">${statusText}</span>`;
 
                         // Tính toán chiết khấu và thực nhận ước tính dựa theo tỷ lệ cấu hình
                         let pricingHtml = '';
@@ -3959,11 +4048,14 @@
                         <div class="${bgColor} border-[3px] border-black p-3 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none">
                             ${appBadge}
                             <div class="flex justify-between items-start mb-2">
-                                <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${isApp ? (order.external_short_id || order.id) : order.id}</span>
+                                <div class="flex flex-col gap-1 items-start">
+                                    <span class="font-black text-xl bg-black text-white px-2 py-0.5" style="line-height:1;">#${isApp ? (order.external_short_id || order.id) : order.id}</span>
+                                    ${isApp ? statusBadgeHtml : ''}
+                                </div>
                                 <span class="font-bold text-xs bg-white border-2 border-black px-1 pb-1 pt-0.5 flex flex-col items-end"><span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>${timeStr}</span>
                             </div>
                             
-                            ${customerNameHtml}
+                            ${isApp ? extraInfoHtml : customerNameHtml}
                             
                             <div class="mb-3 mt-1 px-1">
                                 ${itemsHtml}
