@@ -1042,7 +1042,194 @@ async function syncGrabOrders(ordersArray) {
     }
 }
 
+// Thiết lập lắng nghe lệnh tương tác từ Web POS qua Supabase Realtime
+function setupBotCommandsListener(page) {
+    addToLogs('📡 Đang thiết lập kênh lắng nghe lệnh Realtime từ POS...');
+    
+    // Hủy channel cũ nếu có để tránh trùng lặp
+    try {
+        supabase.removeAllChannels();
+    } catch(e) {}
+
+    supabase.channel('grab-bot-commands')
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'bot_commands' 
+        }, async (payload) => {
+            const cmd = payload.new;
+            if (cmd && cmd.status === 'pending') {
+                addToLogs(`📣 Nhận được lệnh mới từ Web POS: ${cmd.command_type} cho đơn ${cmd.short_id}`);
+                await executeBotCommand(cmd, page);
+            }
+        })
+        .subscribe((status) => {
+            addToLogs(`🔌 Trạng thái kết nối kênh lệnh Realtime: ${status}`);
+        });
+}
+
+// Hàm thực thi lệnh giả lập Playwright từ POS gửi xuống
+async function executeBotCommand(cmd, page) {
+    const { id, booking_id, short_id, command_type, payload } = cmd;
+    addToLogs(`⚙️ Bắt đầu thực thi lệnh ${command_type} cho đơn ${short_id || booking_id}...`);
+    
+    // 1. Cập nhật trạng thái thành processing
+    await supabase.from('bot_commands').update({ status: 'processing', updated_at: new Date().toISOString() }).eq('id', id);
+    
+    try {
+        // 2. Định vị đơn hàng trên UI
+        // Chúng ta cần tìm thẻ đơn hàng có chứa mã đơn ngắn (ví dụ GF-557 hoặc #GF-557)
+        let orderSelector = '';
+        if (short_id) {
+            orderSelector = `text="${short_id}"`;
+        } else {
+            orderSelector = `text="${booking_id.substring(0, 8)}"` ; // Dự phòng
+        }
+        
+        addToLogs(`🔍 Đang tìm đơn hàng trên màn hình: ${orderSelector}`);
+        
+        // Thử tìm thẻ đơn hàng dựa trên text mã đơn
+        const orderCard = page.locator(orderSelector).locator('..').locator('..').first();
+        const cardCount = await orderCard.count().catch(() => 0);
+        
+        if (cardCount === 0) {
+            throw new Error(`Không tìm thấy thẻ đơn hàng trên màn hình cho mã đơn: ${short_id}`);
+        }
+        
+        addToLogs(`🔘 Đã tìm thấy thẻ đơn hàng. Click để mở chi tiết đơn hàng...`);
+        await orderCard.click();
+        await page.waitForTimeout(3000); // Chờ 3 giây để Details Panel load
+        
+        // 3. Thực thi hành động cụ thể
+        if (command_type === 'ACCEPT') {
+            addToLogs(`👉 Thực hiện lệnh CHẤP NHẬN ĐƠN (ACCEPT)...`);
+            
+            // Tìm nút Xác nhận/Chấp nhận/Nhận đơn
+            const acceptBtn = page.locator('button:has-text("Xác nhận"), button:has-text("Nhận đơn"), button:has-text("Accept"), button:has-text("Accept order")').filter({ visible: true }).first();
+            const btnCount = await acceptBtn.count().catch(() => 0);
+            
+            if (btnCount === 0) {
+                throw new Error("Không tìm thấy nút Xác nhận (Accept) trên Details Panel. Có thể đơn đã được xác nhận trước đó.");
+            }
+            
+            await acceptBtn.click();
+            addToLogs('🔘 Đã click nút Xác nhận. Chờ xác nhận popup nếu có...');
+            await page.waitForTimeout(2000);
+            
+            // Nếu có popup xác nhận thời gian (Ví dụ nút "Xác nhận", "Confirm", "Tiếp tục" trong popup thời gian)
+            const confirmPopupBtn = page.locator('button:has-text("Xác nhận"), button:has-text("Confirm"), button:has-text("Đồng ý"), button:has-text("Tiếp tục")').filter({ visible: true });
+            const popupCount = await confirmPopupBtn.count().catch(() => 0);
+            if (popupCount > 0) {
+                addToLogs('🔘 Phát hiện popup xác nhận thời gian. Click xác nhận...');
+                await confirmPopupBtn.first().click();
+                await page.waitForTimeout(3000);
+            }
+            
+        } else if (command_type === 'CANCEL') {
+            addToLogs(`👉 Thực hiện lệnh HỦY ĐƠN (CANCEL)...`);
+            
+            // Tìm nút Hủy đơn/Từ chối
+            const cancelBtn = page.locator('button:has-text("Từ chối"), button:has-text("Hủy đơn"), button:has-text("Cancel"), button:has-text("Reject"), button:has-text("Decline")').filter({ visible: true }).first();
+            const btnCount = await cancelBtn.count().catch(() => 0);
+            
+            if (btnCount === 0) {
+                throw new Error("Không tìm thấy nút Từ chối/Hủy đơn trên Details Panel.");
+            }
+            
+            await cancelBtn.click();
+            addToLogs('🔘 Đã click nút Hủy đơn. Chờ popup chọn lý do hủy...');
+            await page.waitForTimeout(2500);
+            
+            // Chọn lý do hủy đơn (Radio button đầu tiên hoặc lý do chỉ định)
+            const radioOption = page.locator('input[type="radio"], .dui-radio, text="Hết món", text="Hết nguyên liệu", text="Quán đóng cửa"').first();
+            await radioOption.click();
+            addToLogs('🔘 Đã chọn lý do hủy đơn.');
+            await page.waitForTimeout(1000);
+            
+            // Click nút xác nhận hủy cuối cùng trong popup
+            const confirmCancelBtn = page.locator('button:has-text("Hủy đơn"), button:has-text("Xác nhận hủy"), button:has-text("Xác nhận từ chối"), button:has-text("Confirm cancel"), button:has-text("Confirm reject")').filter({ visible: true }).first();
+            await confirmCancelBtn.click();
+            addToLogs('🔘 Đã click xác nhận hủy đơn hoàn tất.');
+            await page.waitForTimeout(4000);
+            
+        } else if (command_type === 'CHANGE_PREP_TIME') {
+            const minutes = payload.minutes || 10;
+            addToLogs(`👉 Thực hiện lệnh TĂNG THỜI GIAN CHUẨN BỊ (CHANGE_PREP_TIME) thêm ${minutes} phút...`);
+            
+            // Tìm nút sửa/tăng thời gian chuẩn bị món (Ví dụ: nút "Tăng thời gian", "Sửa thời gian", hoặc nút "+" / "Edit")
+            const editTimeBtn = page.locator('button:has-text("Tăng thời gian"), button:has-text("Sửa thời gian"), button:has-text("Edit time"), button:has-text("Prep time")').filter({ visible: true }).first();
+            const btnCount = await editTimeBtn.count().catch(() => 0);
+            
+            if (btnCount === 0) {
+                throw new Error("Không tìm thấy nút Tăng/Sửa thời gian trên Details Panel.");
+            }
+            
+            await editTimeBtn.click();
+            await page.waitForTimeout(2000);
+            
+            // Chọn thời gian tăng thêm (thường là click vào nút + hoặc chọn option)
+            const plusBtn = page.locator('button:has-text("+"), button:has-text("+ 5"), button:has-text("+ 10")').first();
+            await plusBtn.click();
+            await page.waitForTimeout(1000);
+            
+            // Bấm nút lưu lại
+            const saveTimeBtn = page.locator('button:has-text("Xác nhận"), button:has-text("Lưu"), button:has-text("Save"), button:has-text("Confirm")').filter({ visible: true }).first();
+            await saveTimeBtn.click();
+            addToLogs('🔘 Đã click xác nhận tăng thời gian thành công.');
+            await page.waitForTimeout(3000);
+        } else {
+            throw new Error(`Loại lệnh không hỗ trợ: ${command_type}`);
+        }
+        
+        // 4. Chụp ảnh màn hình làm bằng chứng
+        const screenshotDir = path.join(__dirname, 'scratch');
+        if (!fs.existsSync(screenshotDir)) {
+            fs.mkdirSync(screenshotDir, { recursive: true });
+        }
+        const screenshotPath = path.join(screenshotDir, `grab_action_${id}.png`);
+        await page.screenshot({ path: screenshotPath });
+        
+        // 5. Cập nhật DB thành success
+        await supabase.from('bot_commands').update({ status: 'success', updated_at: new Date().toISOString() }).eq('id', id);
+        addToLogs(`🎉 Thực thi lệnh ${command_type} cho đơn ${short_id} THÀNH CÔNG!`);
+        
+        // 6. Gửi báo cáo kèm screenshot qua Telegram cho chủ quán
+        const caption = `✅ <b>[GRAB BOT COMMAND SUCCESS]</b>\n\n• Loại lệnh: <code>${command_type}</code>\n• Mã đơn: <b>${short_id || 'N/A'}</b>\n• ID ngoại sàn: <code>${booking_id}</code>\n• Trạng thái: <b>THÀNH CÔNG</b>`;
+        await sendTelegramPhoto(screenshotPath, caption);
+        
+        // Reload lại trang sau 3 giây để cập nhật lại danh sách sạch sẽ
+        setTimeout(async () => {
+            await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
+        }, 3000);
+
+    } catch (err) {
+        addToLogs(`❌ Thực thi lệnh ${command_type} thất bại: ${err.message}`);
+        
+        // Cập nhật DB thành failed kèm error_message
+        await supabase.from('bot_commands').update({ 
+            status: 'failed', 
+            error_message: err.message,
+            updated_at: new Date().toISOString() 
+        }).eq('id', id);
+        
+        // Chụp ảnh màn hình lỗi
+        try {
+            const screenshotDir = path.join(__dirname, 'scratch');
+            const screenshotPath = path.join(screenshotDir, `grab_error_${id}.png`);
+            await page.screenshot({ path: screenshotPath });
+            
+            const caption = `❌ <b>[GRAB BOT COMMAND FAILED]</b>\n\n• Loại lệnh: <code>${command_type}</code>\n• Mã đơn: <b>${short_id || 'N/A'}</b>\n• Lỗi: <code>${err.message}</code>\n• Trạng thái: <b>THẤT BẠI</b>`;
+            await sendTelegramPhoto(screenshotPath, caption);
+        } catch (screenErr) {
+            console.error("Lỗi chụp ảnh lỗi:", screenErr);
+            // Gửi alert text nếu chụp ảnh lỗi thất bại
+            await sendTelegramAlert(`❌ <b>[GRAB BOT COMMAND FAILED]</b>\n\n• Loại lệnh: <code>${command_type}</code>\n• Mã đơn: <b>${short_id || 'N/A'}</b>\n• Lỗi: <code>${err.message}</code>`);
+        }
+    }
+}
+
 const isLoginMode = process.argv.includes('--login');
+
 
 async function runScraper() {
     if (isLoginMode) {
@@ -1163,6 +1350,9 @@ async function runScraper() {
             }
         }
         addToLogs('✅ Truy cập thành công. Bắt đầu theo dõi đơn hàng...');
+
+        // Đăng ký lắng nghe lệnh Realtime từ Web POS
+        setupBotCommandsListener(page);
 
         page.on('response', async response => {
             try {

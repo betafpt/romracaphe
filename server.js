@@ -1310,6 +1310,56 @@ app.put('/api/orders/:id/status', async (req, res) => {
     }
 });
 
+// Gửi lệnh tương tác ngược tới Bot Grab ngầm qua bảng bot_commands
+app.post('/api/grab/command', async (req, res) => {
+    try {
+        const { orderId, commandType, payload } = req.body;
+        if (!orderId || !commandType) {
+            return res.status(400).json({ success: false, error: 'Thiếu orderId hoặc commandType' });
+        }
+
+        // 1. Lấy thông tin đơn hàng từ DB
+        const { data: order, error: orderErr } = await supabase
+            .from('orders')
+            .select('external_order_id, external_short_id')
+            .eq('id', orderId)
+            .single();
+            
+        if (orderErr || !order) {
+            return res.status(400).json({ success: false, error: 'Không tìm thấy đơn hàng trong hệ thống.' });
+        }
+
+        if (!order.external_order_id) {
+            return res.status(400).json({ success: false, error: 'Đơn hàng không có mã ID ngoại sàn Grab.' });
+        }
+
+        // 2. Chèn lệnh vào bảng bot_commands
+        const { data: cmd, error: cmdErr } = await supabase
+            .from('bot_commands')
+            .insert([{
+                booking_id: order.external_order_id,
+                short_id: order.external_short_id || '',
+                command_type: commandType,
+                payload: payload || {},
+                status: 'pending'
+            }])
+            .select()
+            .single();
+
+        if (cmdErr) {
+            console.error('Lỗi insert bot_commands:', cmdErr);
+            return res.status(500).json({ success: false, error: cmdErr.message });
+        }
+
+        console.log(`[API server] Đã chèn lệnh ${commandType} cho đơn Grab ${order.external_short_id} thành công.`);
+        res.json({ success: true, command: cmd });
+    } catch (err) {
+        console.error('Lỗi trong /api/grab/command:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+
 // --- Reports ---
 app.get('/api/reports/dashboard', async (req, res) => {
     try {

@@ -3842,11 +3842,48 @@
                             paymentText = 'CK PAYOS';
                         }
 
+                        // Phân tích raw_payload của đơn hàng từ Supabase nếu có trước để cấu hình nút
+                        let rawPayload = null;
+                        if (order.raw_payload) {
+                            try {
+                                rawPayload = typeof order.raw_payload === 'string' ? JSON.parse(order.raw_payload) : order.raw_payload;
+                            } catch (e) {
+                                console.error("Lỗi parse raw_payload:", e);
+                            }
+                        }
+
+
                         // Cấu hình Nút bấm dựa trên trạng thái hóa đơn
                         if (isApp) {
                             // Giao diện cho Đơn từ App (Grab/Shopee)
+                            const isGrab = order.platform === 'grab';
+                            let grabRealtimeStatus = 'Đang xử lý';
+                            if (rawPayload) {
+                                grabRealtimeStatus = rawPayload.grabStatus || 'Đang xử lý';
+                            }
+
+                            let grabInteractiveButtons = '';
+                            if (isGrab && order.status === 'pending') {
+                                // Nếu là đơn Grab và đang ở cột "Chờ xử lý"
+                                grabInteractiveButtons = `
+                                <div class="grid grid-cols-3 gap-2 mb-3 bg-[#E8F8F5] border-[3px] border-black p-2 shadow-[3px_3px_0_0_#000] relative">
+                                    <span class="absolute -top-3.5 left-2 px-1 text-[8px] font-black uppercase text-white bg-black border-2 border-black tracking-wider">Đồng bộ Grab</span>
+                                    <button onclick="sendGrabCommand(${order.id}, 'ACCEPT')" class="bg-[#2ECC71] text-black font-black border-2 border-black hover:bg-[#27AE60] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Chấp nhận đơn hàng trên Grab">
+                                        <span class="material-symbols-outlined font-black text-base">check_circle</span> XÁC NHẬN
+                                    </button>
+                                    <button onclick="sendGrabCommand(${order.id}, 'CHANGE_PREP_TIME', { minutes: 10 })" class="bg-[#F1C40F] text-black font-black border-2 border-black hover:bg-[#D68910] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Tăng thêm 10 phút chuẩn bị món">
+                                        <span class="material-symbols-outlined font-black text-base">add_alarm</span> +10 PHÚT
+                                    </button>
+                                    <button onclick="sendGrabCommand(${order.id}, 'CANCEL')" class="bg-[#E74C3C] text-white font-black border-2 border-black hover:bg-[#C0392B] active:translate-y-0.5 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all py-2 text-xs flex flex-col items-center justify-center gap-0.5" title="Từ chối/Hủy đơn hàng trên Grab">
+                                        <span class="material-symbols-outlined font-black text-base">cancel</span> HỦY ĐƠN
+                                    </button>
+                                </div>
+                                `;
+                            }
+
                             actionBtn = `
-                           <div class="flex gap-2 mt-3">
+                            ${grabInteractiveButtons}
+                            <div class="flex gap-2 mt-3">
                                <button onclick="printOrderLabel(${order.id})" class="flex-1 bg-white text-black font-black font-heading py-2 text-sm border-2 border-black hover:bg-gray-200 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex flex-col items-center justify-center gap-1" title="In Tem dán từng ly (50x30mm)">
                                    <span class="material-symbols-outlined font-bold text-xl">label</span> IN TEM
                                </button>
@@ -3854,10 +3891,11 @@
                                    <span class="material-symbols-outlined font-bold text-xl">receipt_long</span> HÓA ĐƠN
                                </button>
                                <button onclick="updateOrderStatus(${order.id}, 'completed')" class="bg-red-500 text-white font-black font-heading px-3 border-2 border-black hover:bg-red-600 active:translate-y-1 shadow-[2px_2px_0_0_#000] active:shadow-none transition-all flex items-center justify-center" title="Xóa khỏi màn hình (Xong)">X</button>
-                           </div>
-                           `;
+                            </div>
+                            `;
                             verifyBtn = ''; // App tự xử lý thanh toán
                         } else {
+
                             // Giao diện cho Đơn Tại Quán
                             if (order.status === 'pending') {
                                 actionBtn = `
@@ -4113,6 +4151,39 @@
                 showToast("Lỗi cập nhật", "error");
             }
         }
+
+        window.sendGrabCommand = async function(orderId, commandType, payload = {}) {
+            const btn = event?.currentTarget;
+            const originalText = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `⏳...`;
+            }
+            try {
+                const res = await fetch('/api/grab/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId, commandType, payload })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast(`🎉 Đã gửi lệnh ${commandType} tới Bot Grab!`);
+                } else {
+                    showToast(`❌ Lỗi: ${json.error}`, "error");
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
+            } catch (e) {
+                showToast(`❌ Lỗi kết nối: ${e.message}`, "error");
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }
+        };
+
 
         window.drawLabelFrontend = function (order, oi, itemLayout, labelIndex, totalLabels, ctx, offsetY, fontName) {
             try {
