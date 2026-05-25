@@ -929,6 +929,7 @@ async function syncGrabOrders(ordersArray) {
                 };
 
                 const updatePayload = {
+                    total_amount: totalAmount,
                     raw_payload: updatedRawPayload,
                     note: JSON.stringify(updatedRawPayload)
                 };
@@ -1287,6 +1288,12 @@ async function runScraper() {
                     'text="Upcoming"',
                     'text="Sẵn sàng"',
                     'text="Ready"',
+                    'text="Chờ lấy hàng"',
+                    'text="Chờ lấy"',
+                    'text="Chờ tài xế"',
+                    'text="Đang tìm tài xế"',
+                    'text="Chuẩn bị xong"',
+                    'text="Đã chuẩn bị xong"',
                     'text=/^[A-Z0-9]+-[A-Z0-9]+$/'
                 ];
                 
