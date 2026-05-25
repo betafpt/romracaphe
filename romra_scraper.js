@@ -103,6 +103,9 @@ async function sendTelegramAlert(message, customChatId = null) {
         return;
     }
     
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // Hủy fetch nếu quá 8 giây
+    
     try {
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
         const response = await fetch(url, {
@@ -112,12 +115,15 @@ async function sendTelegramAlert(message, customChatId = null) {
                 chat_id: chatId,
                 text: message,
                 parse_mode: 'HTML'
-            })
+            }),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         if (!response.ok) {
             console.error('❌ Lỗi phản hồi từ Telegram API, status:', response.status);
         }
     } catch (e) {
+        clearTimeout(timeoutId);
         console.error('❌ Lỗi kết nối gửi Telegram Alert:', e.message);
     }
 }
@@ -131,6 +137,9 @@ async function sendTelegramPhoto(photoPath, caption = '') {
     const chatId = process.env.TELEGRAM_CHAT_ID || (grabConfig && grabConfig.telegram_chat_id);
     
     if (!botToken || !chatId || !fs.existsSync(photoPath)) return;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 giây cho gửi ảnh
     
     try {
         const formData = new FormData();
@@ -147,12 +156,15 @@ async function sendTelegramPhoto(photoPath, caption = '') {
         const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
         const response = await fetch(url, {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         if (!response.ok) {
             console.error('❌ Lỗi phản hồi gửi ảnh Telegram, status:', response.status);
         }
     } catch (e) {
+        clearTimeout(timeoutId);
         console.error('❌ Lỗi gửi ảnh Telegram:', e.message);
     }
 }
@@ -575,9 +587,8 @@ async function handleTelegramCommand(text) {
         await sendTelegramAlert('📸 <b>[RÔM RẢ BOT]</b> Đang tiến hành chụp ảnh màn hình Chromium ngầm thực tế... Vui lòng đợi trong 3 giây.');
         try {
             const screenshotPath = path.join(__dirname, 'screenshot.png');
-            await activePage.screenshot({ path: screenshotPath, timeout: 10000 }).catch((e) => {
-                addToLogs(`❌ Lỗi Playwright chụp màn hình: ${e.message}`);
-            });
+            // Giảm timeout xuống 5000ms để tránh treo vô hạn nếu trình duyệt bị đơ
+            await activePage.screenshot({ path: screenshotPath, timeout: 5000 });
             
             if (fs.existsSync(screenshotPath)) {
                 await sendTelegramPhoto(screenshotPath, '📷 Giao diện làm việc thực tế của Grab Portal trên VPS!');
@@ -586,6 +597,7 @@ async function handleTelegramCommand(text) {
                 await sendTelegramAlert('❌ Không thể chụp được màn hình Chromium. Có thể trang đang reload hoặc kẹt mạng.');
             }
         } catch (err) {
+            addToLogs(`❌ Lỗi chụp ảnh VPS: ${err.message}`);
             await sendTelegramAlert(`❌ Lỗi chụp ảnh VPS: <code>${err.message}</code>`);
         }
     }
@@ -838,9 +850,37 @@ async function runScraper() {
             lastScanTime = new Date().toLocaleTimeString('vi-VN');
             lastPageUrl = page.url();
             
+            // Kiểm tra xem bot có bị đá về trang đăng nhập ngầm không
+            if (lastPageUrl.includes('/login') || lastPageUrl.includes('/auth')) {
+                addToLogs('⚠️ Phát hiện phiên làm việc hết hạn (bị đá về trang Login)! Đang tự động đăng nhập ngầm lại...');
+                if (grabConfig && grabConfig.username && grabConfig.password) {
+                    const loginSuccess = await autoLoginGrab(page, grabConfig);
+                    if (loginSuccess) {
+                        await context.storageState({ path: STORAGE_STATE });
+                        addToLogs('💾 Đã gia hạn session tự động thành công sau khi bị logout ngầm!');
+                        await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+                        await page.waitForTimeout(5000);
+                        lastPageUrl = page.url(); // Cập nhật lại URL
+                    } else {
+                        addToLogs('❌ Tự động đăng nhập ngầm lại thất bại. Sẽ thử lại ở chu kỳ tiếp theo.');
+                        return;
+                    }
+                } else {
+                    addToLogs('❌ Không thể tự động đăng nhập lại do thiếu cấu hình tài khoản/mật khẩu.');
+                    return;
+                }
+            }
+            
             addToLogs('Đang làm mới trang và quét đơn hàng...');
             await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
             await page.waitForTimeout(3000);
+
+            // Kiểm tra lại URL sau khi reload để phòng hờ bị redirect sau reload
+            const postReloadUrl = page.url();
+            if (postReloadUrl.includes('/login') || postReloadUrl.includes('/auth')) {
+                addToLogs('⚠️ Phát hiện bị đá về trang Login sau khi reload! Bỏ qua chu kỳ quét này để chờ chu kỳ sau tự động login.');
+                return;
+            }
 
             const orderCards = page.locator('text="Đã làm xong"').locator('..').locator('..');
             const count = await orderCards.count().catch(() => 0);
