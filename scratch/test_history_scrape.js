@@ -1,6 +1,12 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
+
+// Cấu hình Supabase (fallback về giá trị mặc định của hệ thống Rôm Rả)
+const supabaseUrl = process.env.SUPABASE_URL || 'https://mjyldmkdcoiyrolggpje.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_B8Y5rZc4yiHAtmjCXC9C5A_Qt5rZqsM';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Tự động tìm kiếm file session cookie tồn tại thực tế
 const pathsToTry = [
@@ -364,6 +370,87 @@ async function testHistoryScrape() {
         console.log('🎉 KẾT QUẢ CÀO ĐƠN HÀNG LỊCH SỬ THỰC TẾ THÀNH CÔNG!');
         console.log(JSON.stringify(result, null, 4));
         console.log('========================================================\n');
+
+        console.log(`📡 Đang chuẩn bị đồng bộ đơn lịch sử ${shortId} từ VPS vào Supabase...`);
+
+        // Kiểm tra xem đơn đã tồn tại trong DB chưa
+        const { data: existingOrder } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('external_order_id', bookingId)
+            .maybeSingle();
+
+        if (existingOrder) {
+            console.log(`ℹ️ Đơn hàng ${shortId} (${bookingId}) đã tồn tại trong database POS. Tiến hành xóa đi chèn lại để test chuông báo...`);
+            await supabase.from('order_items').delete().eq('order_id', existingOrder.id);
+            await supabase.from('orders').delete().eq('id', existingOrder.id);
+        }
+
+        const rawPayload = {
+            shortOrderNumber: shortId,
+            customerName: customerName,
+            customerAddress: customerAddress,
+            subtotal: subtotalAmount,
+            totalDiscount: discountAmount,
+            items: itemsList.map(i => {
+                let size = '-';
+                if (i.note && i.note.includes('Size')) {
+                    const match = i.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                    if (match) {
+                        size = match[1];
+                    }
+                }
+                return {
+                    name: i.name,
+                    quantity: i.quantity,
+                    size: size,
+                    note: i.note
+                };
+            })
+        };
+
+        const { data: insertedOrder, error: insertErr } = await supabase
+            .from('orders')
+            .insert({
+                payment_method: 'grab_pay',
+                total_amount: totalAmount,
+                status: 'pending', // để pending để POS reo chuông và hiển thị Popup
+                platform: 'grab',
+                external_order_id: bookingId,
+                external_short_id: shortId,
+                raw_payload: rawPayload,
+                note: JSON.stringify(rawPayload)
+            })
+            .select()
+            .single();
+
+        if (insertErr) {
+            console.error('❌ Lỗi khi chèn đơn lịch sử vào database:', insertErr.message);
+        } else {
+            console.log(`🎉 Đã đồng bộ đơn hàng ${shortId} thành công! ID Đơn POS: ${insertedOrder.id}`);
+            
+            for (const item of itemsList) {
+                try {
+                    const { data: recipe } = await supabase
+                        .from('recipes')
+                        .select('id')
+                        .eq('name', item.name)
+                        .maybeSingle();
+
+                    await supabase
+                        .from('order_items')
+                        .insert({
+                            order_id: insertedOrder.id,
+                            recipe_id: recipe ? recipe.id : null,
+                            quantity: item.quantity,
+                            price: item.price
+                        });
+                } catch (itemErr) {
+                    console.error(`❌ Lỗi khi chèn món ${item.name}:`, itemErr.message);
+                }
+            }
+            console.log('👉 Web POS của quán sẽ reo chuông báo đơn mới!');
+        }
 
     } catch (e) {
         console.error('❌ Lỗi xảy ra trong quá trình cào thử đơn lịch sử:', e.message);
