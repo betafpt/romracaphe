@@ -302,20 +302,7 @@ async function testHistoryScrape() {
                         console.log(`\n📡 [API DETECTED #${dumpCount}] URL: ${url}`);
                         console.log(`🔑 JSON Keys: ${Object.keys(json).join(', ')}`);
                         
-                        // Lưu toàn bộ JSON ra file riêng biệt
-                        const savePathDetail = path.join(__dirname, `grab_api_dump_${dumpCount}.json`);
-                        fs.writeFileSync(savePathDetail, JSON.stringify(json, null, 2), 'utf-8');
-                        
-                        // Nếu là daily-paginator chứa danh sách đơn hàng thì lưu vào grab_history_api_dump.json
-                        const hasOrders = json.orders || json.data || json.dailyReport || Array.isArray(json);
-                        const savePath = path.join(__dirname, 'grab_history_api_dump.json');
-                        
-                        if (url.includes('daily-paginator') && hasOrders) {
-                            fs.writeFileSync(savePath, JSON.stringify(json, null, 2), 'utf-8');
-                            console.log(`⭐ [MAIN DATA] Đã cập nhật file chính tại: ${savePath}`);
-                        } else if (!fs.existsSync(savePath)) {
-                            fs.writeFileSync(savePath, JSON.stringify(json, null, 2), 'utf-8');
-                        }
+                        // Xử lý trực tiếp trong bộ nhớ RAM, không ghi file rác ra đĩa
                     }
                 }
             }
@@ -330,9 +317,7 @@ async function testHistoryScrape() {
                         
                         console.log(`\n📡 [API DETECTED #${dumpCount}] Bắt được API chi tiết đơn hàng: ${url}`);
                         
-                        // Lưu file dump JSON thật
-                        const savePathDetail = path.join(__dirname, `grab_api_dump_${dumpCount}.json`);
-                        fs.writeFileSync(savePathDetail, JSON.stringify(json, null, 2), 'utf-8');
+                        // Xử lý trực tiếp trong bộ nhớ RAM, không ghi file rác ra đĩa
                         
                         if (json.order) {
                             console.log(`📡 [API Sync] Đang chuẩn bị đồng bộ đơn hàng thật ${json.order.displayID || json.order.orderID} qua API...`);
@@ -509,15 +494,15 @@ async function testHistoryScrape() {
         } catch (err) {}
 
         // Định vị các card đơn hàng trong danh sách lịch sử
-        // Đơn hàng đã hoàn thành thường có text trạng thái là "Đã giao", "Đã hoàn thành", "Delivered", "Completed" hoặc "Đã hủy", "Cancelled"
+        // Đơn hàng đã hoàn thành thường có text trạng thái là "Đã hoàn tất", "Đã giao", "Đã hoàn thành", "Delivered", "Completed" hoặc "Đã hủy", "Cancelled"
         const orderSelectors = [
+            'text="Đã hoàn tất"',
             'text="Đã giao"',
             'text="Đã hoàn thành"',
             'text="Delivered"',
             'text="Completed"',
             'text="Đã hủy"',
-            'text="Cancelled"',
-            'text=/^[A-Z0-9]+-[A-Z0-9]+$/'
+            'text="Cancelled"'
         ];
 
         let clickedOrder = false;
@@ -526,8 +511,12 @@ async function testHistoryScrape() {
                 const cards = page.locator(selector).locator('..').locator('..');
                 const count = await cards.count().catch(() => 0);
                 if (count > 0) {
-                    console.log(`🎯 Phát hiện ${count} đơn hàng lịch sử bằng selector: ${selector}. Tiến hành cào đơn đầu tiên...`);
-                    await cards.first().click();
+                    console.log(`🎯 Phát hiện ${count} đơn hàng lịch sử bằng selector: ${selector}. Tiến hành cào tuần tự TOÀN BỘ đơn hàng...`);
+                    for (let i = 0; i < count; i++) {
+                        console.log(`🔘 Đang cào đơn thứ ${i + 1}/${count}...`);
+                        await cards.nth(i).click().catch(() => {});
+                        await page.waitForTimeout(4000); // Chờ 4 giây giữa mỗi lần click để API tải chi tiết và đồng bộ
+                    }
                     clickedOrder = true;
                     break;
                 }
@@ -535,27 +524,7 @@ async function testHistoryScrape() {
         }
 
         if (!clickedOrder) {
-            console.log('❌ Không phát hiện bất kỳ đơn hàng nào trong lịch sử để cào thử.');
-            
-            // Quét và in ra danh sách tất cả phần tử có khả năng tương tác trên trang để tìm DatePicker thực sự
-            try {
-                const elementsInfo = await page.evaluate(() => {
-                    const elms = Array.from(document.querySelectorAll('button, div[role="button"], input, a'));
-                    return elms.map(el => ({
-                        tag: el.tagName,
-                        text: (el.innerText || '').trim().substring(0, 100),
-                        class: el.className || '',
-                        placeholder: el.placeholder || '',
-                        type: el.type || '',
-                        role: el.getAttribute('role') || ''
-                    }));
-                });
-                console.log('\n📝 --- DANH SÁCH PHẦN TỬ CLICKABLE TRÊN TRANG (DEBUG) ---');
-                console.log(JSON.stringify(elementsInfo, null, 2));
-                console.log('-----------------------------------------------------------\n');
-            } catch (err) {
-                console.warn('⚠️ Lỗi khi quét phần tử:', err.message);
-            }
+            console.log('❌ Không phát hiện bất kỳ đơn hàng nào trong lịch sử để cào.');
             
             // Lưu screenshot để debug nếu cần
             await page.screenshot({ path: path.join(__dirname, 'history_error.png') });
@@ -564,10 +533,7 @@ async function testHistoryScrape() {
             return;
         }
 
-        console.log('⏳ Đang chờ 10 giây để API tải chi tiết đơn hàng và bộ lắng nghe tự động đồng bộ...');
-        await page.waitForTimeout(10000);
-        
-        console.log('🎉 Hoàn tất kiểm thử đồng bộ API thật đơn lịch sử.');
+        console.log('🎉 Hoàn tất cào và đồng bộ toàn bộ đơn hàng lịch sử thành công!');
         await browser.close();
         return;
 
