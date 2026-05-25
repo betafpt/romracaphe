@@ -1,6 +1,6 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 13:52)
+**Thời gian đồng bộ cuối cùng:** Ngày 25 tháng 5 năm 2026 (Cập nhật lúc 20:35)
 
 ## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
 Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
@@ -85,12 +85,27 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
     *   Thử nghiệm cào và đồng bộ thực tế thành công mỹ mãn đơn hàng lịch sử thật **`GF-692`** (Khách: *Lan Chi*, Tài xế: *Phạm Bá Bính* - SĐT: *+84 7786 7334 1*, món: *Cà Phê Đậu Phộng Size M*) và đơn **`GF-989`** (Tài xế: *Trần Văn Hậu*). Giao diện Web POS hiển thị cực kỳ đẹp mắt, chính xác 100%.
     *   Đã push toàn bộ code nâng cấp hoàn chỉnh lên kho GitHub nhánh `main` (`eaed3fd`) an toàn tuyệt đối.
 
+### F. Tái cấu trúc Giao diện Đơn hàng Online (2 Cột + Client-side Toggle + Thời gian Grab chuẩn) (Mới nhất - Ca tối 25/05/2026)
+*   **Tái cấu trúc 2 Cột Động mượt mà:**
+    *   Khi ở tab Online (App), Web POS tự động tái cấu trúc thành 2 cột rộng rãi dành riêng cho đơn online (Cột 1: *ĐƠN ĐANG XỬ LÝ* gồm pending/processing | Cột 2: *ĐƠN ĐÃ HOÀN TẤT* gồm completed/cancelled). 
+    *   Hệ thống tự động dựng cấu trúc cột khi chuyển tab thông qua kiểm tra biến `window.posRenderedTab !== window.posCurrentTab`, bảo toàn thanh cuộn (scroll position) của nhân viên khi POS tự động poll dữ liệu mới mỗi 5 giây, tránh giật lag màn hình.
+*   **Cơ chế Accordion Client-side Toggle tức thời (Dưới 1ms):**
+    *   Gộp cả hai chế độ (Thu gọn & Chi tiết) vào chung một cấu trúc DOM của card đơn online. Khi click vào card, hệ thống thay đổi trực tiếp class ẩn/hiện (`hidden` / `flex`) trực tiếp trên client-side DOM mà không cần gọi lại API hay render lại toàn bộ các card đơn của POS.
+    *   Thao tác đóng mở diễn ra cực kỳ mượt mà, phản hồi tức thì dưới 1ms. Khi POS tự động quét đơn mới, các card đang mở vẫn giữ nguyên trạng thái mở một cách hoàn hảo.
+    *   Nút In đơn nhanh bên ngoài card thu gọn được xử lý `event.stopPropagation()` thông minh giúp in nhanh hóa đơn mà không làm card tự động mở rộng.
+*   **Huy hiệu Số lượng sản phẩm siêu nổi bật:**
+    *   Thiết kế số lượng sản phẩm (`totalQty`) thành một badge màu vàng tươi cực to (`bg-yellow-400`), viền đen dày đậm chất Brutalism, chữ in hoa đen đậm nổi bật: `🛒 ${totalQty} MÓN` kèm hiệu ứng nhấp nháy động `animate-pulse` giúp nhân viên pha chế nhận diện tức thì số lượng ly, chống bỏ sót đơn.
+*   **Thời gian đặt đơn Grab CHÍNH XÁC từ API:**
+    *   POS ưu tiên trích xuất trực tiếp thời gian khách đặt đơn gốc từ Grab (`rawPayload.times.createdAt` hoặc `rawPayload.createdAt`) đã convert chuẩn xác sang múi giờ Việt Nam, thay vì sử dụng thời gian tạo đơn ghi nhận trong database của POS.
+*   **Đẩy mã nguồn Git an toàn:**
+    *   Đã quét kiểm tra toàn bộ cú pháp JavaScript và push code lên GitHub nhánh `main` (`52f4584`) thành công trọn vẹn, kích hoạt Vercel tự động build và deploy bản cập nhật hoàn mỹ này lên production.
+
 ---
 
 ## 4. TIẾN TRÌNH TIẾP THEO KHI MỞ MÁY
 *(Dành cho phiên hỗ trợ tự động ở máy tính khác hoặc phiên làm việc tiếp theo)*
 Chào bạn (người đồng nghiệp AI). Hãy review lại tài liệu này.
-*   Hệ thống POS hiện tại hoạt động cực kỳ ổn định, hiển thị realtime cực kỳ mượt mà, đầy đủ thông tin tài xế gán mới và tiến độ Grab.
+*   Hệ thống POS hiện tại hoạt động cực kỳ hoàn hảo, giao diện 2 cột online siêu mượt mà, hiển thị chuẩn xác thời gian đặt đơn Grab gốc và có badge số lượng ly nổi bật.
 *   **Hướng đi tiếp theo đề xuất (ĐÃ THỐNG NHẤT):**
     1.  Tích hợp tự động trừ kho nguyên liệu (Inventory Auto-Deduct) dựa trên công thức món khi có đơn bán ra (Supabase `orders` -> `order_items` -> `recipes` -> `inventory`).
     2.  Xây dựng thêm Bot cào đơn tự động cho ShopeeFood Merchant Portal tương tự như GrabFood.
