@@ -711,6 +711,221 @@ async function startTelegramBot() {
     })();
 }
 
+// --- CÁC HÀM HELPER XỬ LÝ API GRABFOOD (API INTERCEPTION) ---
+
+// Hàm bóc tách đơn hàng thích ứng từ JSON API của Grab (tương thích nhiều phiên bản API)
+function parseGrabOrder(order) {
+    const shortId = order.shortOrderNumber || order.shortId || order.displayId || order.id || 'GF-UNKNOWN';
+    const bookingId = order.orderID || order.bookingID || order.id || shortId;
+    
+    // Tên khách hàng
+    let customerName = 'Khách Grab';
+    if (order.customer && order.customer.name) {
+        customerName = order.customer.name;
+    } else if (order.customerName) {
+        customerName = order.customerName;
+    }
+    
+    // Địa chỉ khách hàng
+    let customerAddress = 'Giao qua App';
+    if (order.customer && order.customer.address) {
+        customerAddress = order.customer.address;
+    } else if (order.address) {
+        customerAddress = order.address;
+    }
+    
+    // Tài chính
+    let totalAmount = 0;
+    let subtotalAmount = 0;
+    let discountAmount = 0;
+    
+    if (order.price) {
+        totalAmount = order.price.total || order.price.totalAmount || 0;
+        subtotalAmount = order.price.subtotal || order.price.subtotalAmount || totalAmount;
+        discountAmount = order.price.discount || order.price.discountAmount || 0;
+    } else {
+        totalAmount = order.totalAmount || order.total || 0;
+        subtotalAmount = order.subtotal || totalAmount;
+        discountAmount = order.discount || order.discountAmount || 0;
+    }
+    
+    // Trạng thái đơn hàng
+    let status = 'pending'; // mặc định
+    const orderState = order.orderState || order.status || '';
+    const stateStr = String(orderState).toLowerCase();
+    if (stateStr.includes('preparing') || stateStr.includes('upcoming') || stateStr.includes('accepted')) {
+        status = 'pending';
+    } else if (stateStr.includes('shipping') || stateStr.includes('delivering') || stateStr.includes('driver')) {
+        status = 'shipping';
+    } else if (stateStr.includes('completed') || stateStr.includes('delivered') || stateStr.includes('finished') || stateStr.includes('done')) {
+        status = 'completed';
+    } else if (stateStr.includes('cancelled') || stateStr.includes('canceled')) {
+        status = 'cancelled';
+    }
+
+    // Danh sách món ăn
+    const itemsList = [];
+    const items = order.items || [];
+    for (const item of items) {
+        const name = item.name || '';
+        const qty = item.quantity || 1;
+        const price = item.price || 0;
+        
+        let note = item.notes || item.note || '';
+        let optionsStr = '';
+        if (item.modifiers && item.modifiers.length > 0) {
+            optionsStr = item.modifiers.map(m => m.name).join(', ');
+        }
+        
+        const fullNote = `${optionsStr} | ${note}`.replace(/^ \| | \| $/g, '').trim();
+        
+        itemsList.push({
+            name: name,
+            quantity: qty,
+            price: price,
+            note: fullNote
+        });
+    }
+
+    return {
+        shortId,
+        bookingId,
+        customerName,
+        customerAddress,
+        totalAmount,
+        subtotalAmount,
+        discountAmount,
+        status,
+        items: itemsList
+    };
+}
+
+// Hàm đồng bộ danh sách đơn hàng GrabFood từ JSON vào Supabase
+async function syncGrabOrders(ordersArray) {
+    if (!ordersArray || !Array.isArray(ordersArray) || ordersArray.length === 0) {
+        return;
+    }
+
+    addToLogs(`📡 Bắt đầu đồng bộ ${ordersArray.length} đơn hàng Grab từ JSON API...`);
+    
+    let processedCount = 0;
+    for (const rawOrder of ordersArray) {
+        try {
+            const orderData = parseGrabOrder(rawOrder);
+            const { shortId, bookingId, customerName, customerAddress, totalAmount, subtotalAmount, discountAmount, status, items } = orderData;
+
+            // Kiểm tra xem đơn hàng đã tồn tại trong database chưa
+            const { data: existingOrder, error: checkErr } = await supabase
+                .from('orders')
+                .select('id, status')
+                .eq('external_order_id', bookingId)
+                .maybeSingle();
+
+            if (checkErr) {
+                addToLogs(`❌ Lỗi kiểm tra database cho đơn ${shortId}: ${checkErr.message}`);
+                continue;
+            }
+
+            if (existingOrder) {
+                // Đơn đã tồn tại -> Kiểm tra trạng thái xem có thay đổi không
+                if (existingOrder.status !== status) {
+                    addToLogs(`🔄 Cập nhật trạng thái đơn ${shortId} (${bookingId}): "${existingOrder.status}" -> "${status}"`);
+                    const { error: updateErr } = await supabase
+                        .from('orders')
+                        .update({ status: status })
+                        .eq('id', existingOrder.id);
+                    
+                    if (updateErr) {
+                        addToLogs(`❌ Lỗi cập nhật trạng thái đơn ${shortId}: ${updateErr.message}`);
+                    } else {
+                        addToLogs(`🎉 Đã cập nhật trạng thái đơn ${shortId} thành công lên Supabase!`);
+                    }
+                }
+                continue;
+            }
+
+            // Đơn mới chưa tồn tại -> Chèn vào database
+            addToLogs(`📣 PHÁT HIỆN ĐƠN MỚI CỦA GRABFOOD (API): ${shortId}! Đang chèn vào database...`);
+            
+            const rawPayload = {
+                shortOrderNumber: shortId,
+                customerName: customerName,
+                customerAddress: customerAddress,
+                subtotal: subtotalAmount,
+                totalDiscount: discountAmount,
+                items: items.map(i => {
+                    let size = '-';
+                    if (i.note && i.note.includes('Size')) {
+                        const match = i.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                        if (match) {
+                            size = match[1];
+                        }
+                    }
+                    return {
+                        name: i.name,
+                        quantity: i.quantity,
+                        size: size,
+                        note: i.note
+                    };
+                })
+            };
+
+            const { data: insertedOrder, error: insertErr } = await supabase
+                .from('orders')
+                .insert({
+                    payment_method: 'grab_pay',
+                    total_amount: totalAmount,
+                    status: status,
+                    platform: 'grab',
+                    external_order_id: bookingId,
+                    external_short_id: shortId,
+                    raw_payload: rawPayload,
+                    note: JSON.stringify(rawPayload)
+                })
+                .select()
+                .single();
+
+            if (insertErr) {
+                addToLogs(`❌ Lỗi khi chèn đơn mới ${shortId} vào database: ${insertErr.message}`);
+                continue;
+            }
+
+            addToLogs(`🎉 Đã chèn đơn hàng ${shortId} thành công! ID Đơn POS: ${insertedOrder.id}`);
+            sessionScrapedCount++;
+            processedCount++;
+
+            // Chèn các món ăn chi tiết
+            for (const item of items) {
+                try {
+                    const { data: recipe } = await supabase
+                        .from('recipes')
+                        .select('id')
+                        .eq('name', item.name)
+                        .maybeSingle();
+
+                    await supabase
+                        .from('order_items')
+                        .insert({
+                            order_id: insertedOrder.id,
+                            recipe_id: recipe ? recipe.id : null,
+                            quantity: item.quantity,
+                            price: item.price
+                        });
+                } catch (itemErr) {
+                    addToLogs(`❌ Lỗi khi chèn món ${item.name} của đơn ${shortId}: ${itemErr.message}`);
+                }
+            }
+            addToLogs(`Đơn hàng ${shortId} đã sẵn sàng trên Web POS.`);
+
+        } catch (orderErr) {
+            addToLogs(`❌ Lỗi xử lý một đơn hàng trong mảng API: ${orderErr.message}`);
+        }
+    }
+    if (processedCount > 0) {
+        addToLogs(`✅ Hoàn thành đồng bộ ${processedCount} đơn hàng mới!`);
+    }
+}
+
 const isLoginMode = process.argv.includes('--login');
 
 async function runScraper() {
@@ -832,8 +1047,39 @@ async function runScraper() {
         page.on('response', async response => {
             try {
                 const url = response.url();
-                if (url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders')) {
-                    addToLogs(`📡 [API Intercept] Phát hiện phản hồi API đơn hàng: ${url}`);
+                
+                // Lắng nghe API danh sách đơn hàng Grab
+                if (url.includes('/orders-pagination') || url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders')) {
+                    const status = response.status();
+                    if (status === 200) {
+                        try {
+                            const json = await response.json();
+                            let ordersArray = [];
+                            
+                            // Các API khác nhau có thể trả về định dạng mảng đơn hàng khác nhau
+                            if (json.orders && Array.isArray(json.orders)) {
+                                ordersArray = json.orders;
+                            } else if (Array.isArray(json)) {
+                                ordersArray = json;
+                            } else if (json.data && Array.isArray(json.data)) {
+                                ordersArray = json.data;
+                            } else if (json.data && json.data.orders && Array.isArray(json.data.orders)) {
+                                ordersArray = json.data.orders;
+                            }
+                            
+                            if (ordersArray.length > 0) {
+                                addToLogs(`📡 [API Intercept] Bắt được API đơn hàng: ${url} | Trạng thái: ${status} | Số lượng: ${ordersArray.length} đơn`);
+                                // Gọi hàm đồng bộ ngầm
+                                syncGrabOrders(ordersArray).catch(err => {
+                                    addToLogs(`❌ Lỗi đồng bộ đơn hàng từ API: ${err.message}`);
+                                });
+                            }
+                        } catch (jsonErr) {
+                            // Bỏ qua nếu không parse được json
+                        }
+                    } else if (status === 401 || status === 403) {
+                        addToLogs(`⚠️ API báo lỗi auth: ${url} | Status: ${status}`);
+                    }
                 }
             } catch (e) {}
         });
@@ -871,7 +1117,7 @@ async function runScraper() {
                 }
             }
             
-            addToLogs('Đang làm mới trang và quét đơn hàng...');
+            addToLogs('Đang làm mới trang để kích hoạt API quét đơn hàng Grab...');
             await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
             await page.waitForTimeout(3000);
 
@@ -882,182 +1128,9 @@ async function runScraper() {
                 return;
             }
 
-            const orderCards = page.locator('text="Đã làm xong"').locator('..').locator('..');
-            const count = await orderCards.count().catch(() => 0);
-
-            if (count === 0) {
-                addToLogs('Không phát hiện đơn hàng mới.');
-                return;
-            }
-
-            addToLogs(`Phát hiện ${count} đơn hàng trên màn hình!`);
-
-            for (let i = 0; i < count; i++) {
-                const card = orderCards.nth(i);
-
-                const shortId = await card.locator('text=/^[A-Z0-9]+-[A-Z0-9]+$/').first().innerText().catch(() => '');
-                if (!shortId) continue;
-
-                await card.click().catch(() => {});
-                await page.waitForTimeout(2000);
-
-                const detailsPanel = page.locator('body');
-
-                const bookingIdStr = await detailsPanel.locator('text="Mã đặt hàng"').locator('..').innerText().catch(() => '');
-                const bookingId = bookingIdStr.replace('Mã đặt hàng', '').trim() || shortId;
-
-                const { data: existingOrder, error: checkErr } = await supabase
-                    .from('orders')
-                    .select('id, status')
-                    .eq('external_order_id', bookingId)
-                    .maybeSingle();
-
-                if (checkErr) {
-                    addToLogs(`❌ Lỗi check DB: ${checkErr.message}`);
-                    continue;
-                }
-
-                const grabStatusText = await detailsPanel.locator('text="Đang chuẩn bị", text="Sẵn sàng", text="Tài xế đang đến", text="Đang giao", text="Đã giao", text="Đã hoàn tất", text="Đã hủy", text="Cancelled"').first().innerText().catch(() => '');
-                
-                let mappedStatus = 'pending';
-                if (grabStatusText.includes('Đang giao') || grabStatusText.includes('Tài xế đang đến')) {
-                    mappedStatus = 'shipping';
-                } else if (grabStatusText.includes('Đã giao') || grabStatusText.includes('Đã hoàn tất')) {
-                    mappedStatus = 'completed';
-                } else if (grabStatusText.includes('Đã hủy') || grabStatusText.includes('Cancelled')) {
-                    mappedStatus = 'cancelled';
-                }
-
-                if (existingOrder) {
-                    if (existingOrder.status !== mappedStatus) {
-                        addToLogs(`🔄 Phát hiện thay đổi trạng thái đơn ${shortId}: "${existingOrder.status}" -> "${mappedStatus}" (Grab: "${grabStatusText}")`);
-                        const { error: updateErr } = await supabase
-                            .from('orders')
-                            .update({ status: mappedStatus })
-                            .eq('id', existingOrder.id);
-                        
-                        if (updateErr) {
-                            addToLogs(`❌ Lỗi cập nhật trạng thái đơn ${shortId}: ${updateErr.message}`);
-                        } else {
-                            addToLogs(`🎉 Đã cập nhật trạng thái đơn ${shortId} thành công lên Supabase!`);
-                        }
-                    } else {
-                        addToLogs(`Đơn hàng ${shortId} (${bookingId}) đã đồng bộ và trạng thái không đổi ("${existingOrder.status}").`);
-                    }
-                    continue;
-                }
-
-                addToLogs(`📣 PHÁT HIỆN ĐƠN MỚI CỦA GRABFOOD: ${shortId}! Đang bóc tách chi tiết...`);
-
-                const headerText = await detailsPanel.locator('text=/món cho /').first().innerText().catch(() => '');
-                const customerName = headerText.split(' cho ')[1] || 'Khách Grab';
-
-                const itemsList = [];
-                const itemBlocks = detailsPanel.locator('text=/^[0-9]+ x /');
-                const itemCount = await itemBlocks.count().catch(() => 0);
-
-                for (let j = 0; j < itemCount; j++) {
-                    const itemText = await itemBlocks.nth(j).innerText().catch(() => '');
-                    const match = itemText.match(/^(\d+)\s*x\s*(.*?)\s*([\d\.]+)$/);
-                    let qty = 1;
-                    let name = itemText;
-                    let price = 0;
-
-                    if (match) {
-                        qty = parseInt(match[1]);
-                        name = match[2].trim();
-                        price = parseInt(match[3].replace(/\./g, ''));
-                    }
-
-                    const itemParent = itemBlocks.nth(j).locator('..').locator('..');
-                    const allTextUnderItem = await itemParent.innerText().catch(() => '');
-
-                    let noteStr = '';
-                    const noteMatch = allTextUnderItem.match(/'(.*?)'/);
-                    if (noteMatch) noteStr = noteMatch[1].trim();
-
-                    let optionsStr = '';
-                    if (allTextUnderItem.includes('Chọn Size')) optionsStr += 'Size: ' + allTextUnderItem.split('Chọn Size')[1].split('\n')[1] + ' ';
-                    if (allTextUnderItem.includes('Chọn Đá')) optionsStr += 'Đá: ' + allTextUnderItem.split('Chọn Đá')[1].split('\n')[1] + ' ';
-
-                    itemsList.push({
-                        name: name,
-                        quantity: qty,
-                        price: price,
-                        note: `${optionsStr.trim()} | ${noteStr}`.replace(/^ \| | \| $/g, '')
-                    });
-                }
-
-                const totalText = await detailsPanel.locator('text="Tổng cộng"').locator('..').innerText().catch(() => '0');
-                const totalAmount = parseInt(totalText.replace(/\D/g, '')) || 0;
-
-                const subtotalText = await detailsPanel.locator('text="Tạm tính"').or(detailsPanel.locator('text="Tổng tiền món"')).locator('..').innerText().catch(() => '');
-                const subtotalAmount = parseInt(subtotalText.replace(/\D/g, '')) || totalAmount;
-
-                const discountText = await detailsPanel.locator('text="Khuyến mại"').or(detailsPanel.locator('text="Giảm giá"')).locator('..').innerText().catch(() => '');
-                const discountAmount = parseInt(discountText.replace(/\D/g, '')) || 0;
-
-                const addressText = await detailsPanel.locator('text="Địa chỉ giao hàng"').or(detailsPanel.locator('text="Giao đến"')).locator('..').innerText().catch(() => '');
-                const customerAddress = addressText.replace('Địa chỉ giao hàng', '').replace('Giao đến', '').trim() || 'Giao qua App';
-
-                addToLogs(`Đang đẩy đơn ${shortId} vào Supabase...`);
-
-                const rawPayload = {
-                    shortOrderNumber: shortId,
-                    customerName: customerName || 'Khách Grab',
-                    customerAddress: customerAddress,
-                    subtotal: subtotalAmount,
-                    totalDiscount: discountAmount,
-                    items: itemsList.map(i => ({
-                        name: i.name,
-                        quantity: i.quantity,
-                        size: i.note.includes('Size') ? i.note.split('Size: ')[1].split(' ')[0] : '-',
-                        note: i.note
-                    }))
-                };
-
-                const { data: insertedOrder, error: insertErr } = await supabase
-                    .from('orders')
-                    .insert({
-                        payment_method: 'grab_pay',
-                        total_amount: totalAmount,
-                        status: 'pending',
-                        platform: 'grab',
-                        external_order_id: bookingId,
-                        external_short_id: shortId,
-                        raw_payload: rawPayload,
-                        note: JSON.stringify(rawPayload)
-                    })
-                    .select()
-                    .single();
-
-                if (insertErr) {
-                    addToLogs(`❌ Lỗi khi chèn đơn mới vào database: ${insertErr.message}`);
-                } else {
-                    addToLogs(`🎉 Đã đồng bộ đơn hàng ${shortId} thành công! ID Đơn POS: ${insertedOrder.id}`);
-                    sessionScrapedCount++;
-                    
-                    for (const item of itemsList) {
-                        const { data: recipe } = await supabase
-                            .from('recipes')
-                            .select('id')
-                            .eq('name', item.name)
-                            .maybeSingle();
-
-                        await supabase
-                            .from('order_items')
-                            .insert({
-                                order_id: insertedOrder.id,
-                                recipe_id: recipe ? recipe.id : null,
-                                quantity: item.quantity,
-                                price: item.price
-                            }).catch(() => {});
-                    }
-                    addToLogs(`Đơn hàng ${shortId} đã sẵn sàng trên Web POS.`);
-                }
-            }
+            addToLogs('Chu kỳ làm mới hoàn tất. Hệ thống API Interception tự động bắt và đồng bộ đơn hàng.');
         } catch (e) {
-            addToLogs(`❌ Lỗi trong vòng lặp quét đơn: ${e.message}`);
+            addToLogs(`❌ Lỗi trong chu kỳ quét đơn: ${e.message}`);
         }
     }, 20000);
 }
