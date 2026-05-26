@@ -430,7 +430,7 @@ async function testSpecificOrderScrape() {
 
     try {
         console.log('🌐 Đang kết nối tới Grab Merchant Portal...');
-        await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+        await page.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
         await page.waitForTimeout(5000);
         
         if (page.url().includes('login') || page.url().includes('auth')) {
