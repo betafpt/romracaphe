@@ -885,12 +885,12 @@ function parseGrabOrder(order) {
 }
 
 // Hàm đồng bộ danh sách đơn hàng GrabFood từ JSON vào Supabase
-async function syncGrabOrders(ordersArray) {
+async function syncGrabOrders(ordersArray, isDetail = false) {
     if (!ordersArray || !Array.isArray(ordersArray) || ordersArray.length === 0) {
         return;
     }
 
-    addToLogs(`📡 Bắt đầu đồng bộ ${ordersArray.length} đơn hàng Grab từ JSON API...`);
+    addToLogs(`📡 Bắt đầu đồng bộ ${ordersArray.length} đơn hàng Grab từ JSON API (Detail: ${isDetail})...`);
     
     let processedCount = 0;
     for (const rawOrder of ordersArray) {
@@ -913,6 +913,35 @@ async function syncGrabOrders(ordersArray) {
             if (existingOrder) {
                 // Đơn đã tồn tại -> Cập nhật thông tin tài xế và trạng thái Grab Realtime mới nhất
                 const grabRealtimeStatus = getGrabRealtimeStatus(rawOrder);
+                
+                // Đọc dữ liệu hiện tại từ database để đối soát trước khi cập nhật
+                const { data: dbOrder } = await supabase
+                    .from('orders')
+                    .select('total_amount, raw_payload')
+                    .eq('id', existingOrder.id)
+                    .maybeSingle();
+                
+                const dbTotal = dbOrder ? parseFloat(dbOrder.total_amount) : 0;
+                const dbPayload = dbOrder?.raw_payload || {};
+                
+                // Quyết định số tiền cập nhật: Không ghi đè 0 lên số tiền thật đã có
+                let finalTotal = totalAmount;
+                if (!isDetail && dbTotal > 0 && totalAmount === 0) {
+                    finalTotal = dbTotal;
+                }
+                
+                // Quyết định SĐT khách: Không ghi đè "Không có số" lên SĐT thật đã có
+                let finalEaterPhone = orderData.eaterPhone || 'Không có số';
+                if (!isDetail && dbPayload.eaterPhone && dbPayload.eaterPhone !== 'Không có số' && finalEaterPhone === 'Không có số') {
+                    finalEaterPhone = dbPayload.eaterPhone;
+                }
+                
+                // Quyết định SĐT tài xế
+                let finalDriverPhone = orderData.driverPhone || '';
+                if (!isDetail && dbPayload.driverPhone && finalDriverPhone === '') {
+                    finalDriverPhone = dbPayload.driverPhone;
+                }
+
                 const updatedRawPayload = {
                     orderID: bookingId,
                     shortOrderNumber: shortId,
@@ -920,13 +949,13 @@ async function syncGrabOrders(ordersArray) {
                     customerName: orderData.customerName || customerName,
                     customerAddress: customerAddress,
                     eaterName: orderData.eaterName || customerName,
-                    eaterPhone: orderData.eaterPhone || 'Không có số',
-                    driverName: orderData.driverName || '',
-                    driverPhone: orderData.driverPhone || '',
+                    eaterPhone: finalEaterPhone,
+                    driverName: orderData.driverName || dbPayload.driverName || '',
+                    driverPhone: finalDriverPhone,
                     grabStatus: grabRealtimeStatus,
-                    subtotal: subtotalAmount,
-                    totalDiscount: discountAmount,
-                    items: items.map(i => {
+                    subtotal: subtotalAmount > 0 ? subtotalAmount : (dbPayload.subtotal || 0),
+                    totalDiscount: discountAmount > 0 ? discountAmount : (dbPayload.totalDiscount || 0),
+                    items: isDetail || items.length > 0 ? items.map(i => {
                         let size = '-';
                         if (i.note && i.note.includes('Size')) {
                             const match = i.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || i.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
@@ -940,51 +969,54 @@ async function syncGrabOrders(ordersArray) {
                             size: size,
                             note: i.note
                         };
-                    })
+                    }) : (dbPayload.items || [])
                 };
 
-                // Xóa chi tiết món ăn cũ và chèn lại món ăn mới đầy đủ thông tin giá tiền và recipe_id từ API chi tiết
-                await supabase.from('order_items').delete().eq('order_id', existingOrder.id).catch(() => {});
-                for (const item of items) {
-                    try {
-                        let itemSize = '-';
-                        if (item.note && item.note.includes('Size')) {
-                            const match = item.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || item.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
-                            if (match) {
-                                itemSize = (match[1] || match[0]).trim().toUpperCase();
+                // CHỈ cập nhật lại món ăn chi tiết nếu là API Chi tiết (isDetail === true)
+                if (isDetail) {
+                    addToLogs(`⚡ [API Detail] Tiến hành chèn lại chi tiết món ăn và giá tiền thực tế cho đơn ${shortId}...`);
+                    await supabase.from('order_items').delete().eq('order_id', existingOrder.id).catch(() => {});
+                    for (const item of items) {
+                        try {
+                            let itemSize = '-';
+                            if (item.note && item.note.includes('Size')) {
+                                const match = item.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || item.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                                if (match) {
+                                    itemSize = (match[1] || match[0]).trim().toUpperCase();
+                                }
                             }
-                        }
 
-                        const { data: recipesList, error: recipeErr } = await supabase
-                            .from('recipes')
-                            .select('id, size')
-                            .eq('name', item.name);
+                            const { data: recipesList, error: recipeErr } = await supabase
+                                .from('recipes')
+                                .select('id, size')
+                                .eq('name', item.name);
 
-                        let recipeId = null;
-                        if (!recipeErr && recipesList && recipesList.length > 0) {
-                            if (recipesList.length === 1) {
-                                recipeId = recipesList[0].id;
-                            } else {
-                                const matched = recipesList.find(r => String(r.size || '').trim().toUpperCase() === itemSize);
-                                recipeId = matched ? matched.id : recipesList[0].id;
+                            let recipeId = null;
+                            if (!recipeErr && recipesList && recipesList.length > 0) {
+                                if (recipesList.length === 1) {
+                                    recipeId = recipesList[0].id;
+                                } else {
+                                    const matched = recipesList.find(r => String(r.size || '').trim().toUpperCase() === itemSize);
+                                    recipeId = matched ? matched.id : recipesList[0].id;
+                                }
                             }
-                        }
 
-                        await supabase
-                            .from('order_items')
-                            .insert({
-                                order_id: existingOrder.id,
-                                recipe_id: recipeId,
-                                quantity: item.quantity,
-                                price: item.price
-                            });
-                    } catch (itemErr) {
-                        addToLogs(`❌ Lỗi khi chèn lại món ${item.name} của đơn ${shortId}: ${itemErr.message}`);
+                            await supabase
+                                .from('order_items')
+                                .insert({
+                                    order_id: existingOrder.id,
+                                    recipe_id: recipeId,
+                                    quantity: item.quantity,
+                                    price: item.price
+                                });
+                        } catch (itemErr) {
+                            addToLogs(`❌ Lỗi khi chèn lại món ${item.name} của đơn ${shortId}: ${itemErr.message}`);
+                        }
                     }
                 }
 
                 const updatePayload = {
-                    total_amount: totalAmount,
+                    total_amount: finalTotal,
                     raw_payload: updatedRawPayload,
                     note: JSON.stringify(updatedRawPayload)
                 };
@@ -1003,7 +1035,7 @@ async function syncGrabOrders(ordersArray) {
                 if (updateErr) {
                     addToLogs(`❌ Lỗi cập nhật thông tin đơn ${shortId}: ${updateErr.message}`);
                 } else {
-                    addToLogs(`🎉 Đã cập nhật realtime (Tài xế: "${orderData.driverName}", Trạng thái: "${grabRealtimeStatus}") cho đơn ${shortId}`);
+                    addToLogs(`🎉 Đã cập nhật realtime (Tài xế: "${orderData.driverName || dbPayload.driverName}", Trạng thái: "${grabRealtimeStatus}") cho đơn ${shortId}`);
                 }
                 continue;
             }
@@ -1178,7 +1210,7 @@ function setupPageResponseListener(pageInstance) {
                             
                             if (ordersArray.length > 0) {
                                 addToLogs(`📡 [API Intercept] Bắt được danh sách đơn hàng: ${url.split('?')[0]} | Số lượng: ${ordersArray.length} đơn`);
-                                syncGrabOrders(ordersArray).catch(err => {
+                                syncGrabOrders(ordersArray, false).catch(err => {
                                     addToLogs(`❌ Lỗi đồng bộ danh sách đơn từ API: ${err.message}`);
                                 });
                             }
@@ -1199,7 +1231,7 @@ function setupPageResponseListener(pageInstance) {
                             const json = await response.json();
                             if (json.order) {
                                 addToLogs(`📡 [API Intercept] Bắt được chi tiết đơn hàng ${json.order.displayID || json.order.orderID} chứa Tên & SĐT thật!`);
-                                syncGrabOrders([json.order]).catch(err => {
+                                syncGrabOrders([json.order], true).catch(err => {
                                     addToLogs(`❌ Lỗi đồng bộ chi tiết đơn từ API: ${err.message}`);
                                 });
                             }
