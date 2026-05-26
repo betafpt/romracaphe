@@ -3,6 +3,22 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
+// --- HÀM REDIRECT LOG DEBUG RA FILE TRÊN VPS ---
+const logPath = path.join(__dirname, 'history_debug.log');
+try { fs.writeFileSync(logPath, ''); } catch (e) {}
+const originalLog = console.log;
+function debugLog(...args) {
+    const msg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const formatted = `[${new Date().toLocaleTimeString('vi-VN')}] ${msg}`;
+    originalLog(formatted);
+    try {
+        fs.appendFileSync(logPath, formatted + '\n');
+    } catch (e) {}
+}
+console.log = debugLog;
+console.error = debugLog;
+
+
 // Cấu hình Supabase
 const supabaseUrl = process.env.SUPABASE_URL || 'https://mjyldmkdcoiyrolggpje.supabase.co';
 const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_B8Y5rZc4yiHAtmjCXC9C5A_Qt5rZqsM';
