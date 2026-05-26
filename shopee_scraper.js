@@ -119,7 +119,7 @@ async function autoLoginShopee(page, config) {
         });
 
         addToLogs('🌐 Đang điều hướng tới trang đăng nhập Shopee Partner...');
-        await page.goto('https://merchant.shopeefood.vn/account/login', { waitUntil: 'commit', timeout: 60000 });
+        await page.goto('https://partner.business.accounts.shopee.vn/', { waitUntil: 'commit', timeout: 60000 });
         await page.waitForTimeout(3000);
         
         // Điền tên đăng nhập
@@ -197,7 +197,7 @@ async function autoLoginShopee(page, config) {
         }
         
         // Chờ điều hướng vào trang quản lý chính
-        await page.waitForURL(url => url.href.includes('dashboard') || url.href.includes('order') || url.href.includes('merchant'), { timeout: 45000 });
+        await page.waitForURL(url => url.href.includes('dashboard') || url.href.includes('order') || url.href.includes('merchant') || url.href.includes('partner'), { timeout: 45000 });
         addToLogs('🎉 Tự động đăng nhập Shopee Partner thành công!');
         return true;
     } catch (e) {
@@ -446,7 +446,7 @@ async function initPlaywright() {
     
     try {
         addToLogs('Đang truy cập trang Quản lý Shopee Partner...');
-        await pageInstance.goto('https://merchant.shopeefood.vn/merchant/order', { waitUntil: 'networkidle', timeout: 60000 });
+        await pageInstance.goto('https://partner.shopee.vn/', { waitUntil: 'networkidle', timeout: 60000 });
         await pageInstance.waitForTimeout(5000);
         
         if (pageInstance.url().includes('login') || pageInstance.url().includes('account')) {
@@ -455,7 +455,7 @@ async function initPlaywright() {
             if (loginSuccess) {
                 await contextInstance.storageState({ path: STORAGE_STATE });
                 addToLogs('💾 Đã gia hạn session Shopee thành công!');
-                await pageInstance.goto('https://merchant.shopeefood.vn/merchant/order', { waitUntil: 'networkidle', timeout: 60000 });
+                await pageInstance.goto('https://partner.shopee.vn/', { waitUntil: 'networkidle', timeout: 60000 });
                 await pageInstance.waitForTimeout(5000);
             } else {
                 throw new Error('Gia hạn session Shopee thất bại');
