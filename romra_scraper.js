@@ -889,7 +889,7 @@ function parseGrabOrder(order) {
         let optionsStr = '';
         
         if (item.modifiers && item.modifiers.length > 0) {
-            optionsStr = item.modifiers.map(m => m.name).join(', ');
+            optionsStr = item.modifiers.map(m => m.name).join(' | ');
         } else if (item.modifierGroups && item.modifierGroups.length > 0) {
             const mods = [];
             for (const group of item.modifierGroups) {
@@ -899,7 +899,7 @@ function parseGrabOrder(order) {
                     }
                 }
             }
-            optionsStr = mods.join(', ');
+            optionsStr = mods.join(' | ');
         }
         
         const fullNote = `${optionsStr} | ${note}`.replace(/^ \| | \| $/g, '').trim();
@@ -1294,6 +1294,22 @@ function setupPageResponseListener(pageInstance) {
     });
 }
 
+async function dismissWelcomeTour(page) {
+    try {
+        const closeTourBtn = page.getByRole('button', { name: 'Đóng', exact: true })
+            .or(page.getByRole('button', { name: 'Close', exact: true }))
+            .filter({ visible: true })
+            .first();
+        if (await closeTourBtn.count() > 0) {
+            addToLogs('🎯 [Playwright] Phát hiện popup chào mừng (Welcome Tour). Đang click "Đóng" để tắt...');
+            await closeTourBtn.click();
+            await page.waitForTimeout(2000);
+        }
+    } catch (e) {
+        addToLogs(`⚠️ Lỗi khi tắt popup chào mừng: ${e.message}`);
+    }
+}
+
 // Khởi tạo trình duyệt Playwright ngầm và đăng nhập Grab
 async function initPlaywright() {
     addToLogs('🌐 Đang khởi tạo trình duyệt Playwright ngầm...');
@@ -1341,6 +1357,7 @@ async function initPlaywright() {
         addToLogs('Đang truy cập trang Quản lý đơn hàng Grab Merchant...');
         await pageInstance.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 });
         await pageInstance.waitForTimeout(5000);
+        await dismissWelcomeTour(pageInstance);
         
         if (pageInstance.url().includes('login') || pageInstance.url().includes('auth')) {
             addToLogs('⚠️ Phát hiện phiên đăng nhập (Session Cookie) của Grab đã hết hạn!');
@@ -1750,6 +1767,7 @@ async function runScraper() {
                             addToLogs('💾 Đã gia hạn session tự động thành công sau khi bị logout ngầm!');
                             await page.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 });
                             await page.waitForTimeout(5000);
+                            await dismissWelcomeTour(page);
                             lastPageUrl = page.url(); // Cập nhật lại URL
                         } else {
                             addToLogs('❌ Tự động đăng nhập ngầm lại thất bại. Sẽ thử lại ở chu kỳ tiếp theo.');

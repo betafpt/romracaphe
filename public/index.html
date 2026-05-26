@@ -3739,6 +3739,13 @@
                 const res = await fetch(`/api/orders?range=${range}`);
                 const j = await res.json();
                 if (j.success) {
+                    // Tránh re-render khi dữ liệu không đổi để chống nhấp nháy màn hình
+                    const stringifiedData = JSON.stringify(j.data);
+                    if (window.lastOrdersJson === stringifiedData && window.posRenderedTab === window.posCurrentTab) {
+                        return;
+                    }
+                    window.lastOrdersJson = stringifiedData;
+
                     // Dựng container cột động nếu tab thay đổi
                     const container = document.getElementById('pos-columns-container');
                     if (container) {
@@ -3887,6 +3894,8 @@
                                 const onlineItems = parsed.items || [];
                                 itemsHtml = onlineItems.map((oi, oiIdx) => {
                                     const cleanedNote = oi.note ? oi.note.replace(/^(chọn\s+)?size:\s*[^|]*\|\s*/i, '').replace(/^(chọn\s+)?size\s*[^|]*\|\s*/i, '').trim() : '';
+                                    const noteLines = cleanedNote ? cleanedNote.split(/\s*\|\s*/).map(l => l.trim()).filter(l => l.length > 0) : [];
+                                    const noteLinesHtml = noteLines.map(line => `<div class="pl-2 text-red-600 font-bold">• ${line}</div>`).join('');
                                     return `
                                         <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
                                             <div class="flex justify-between text-sm items-center">
@@ -3896,7 +3905,7 @@
                                                     <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
                                                 </button>
                                             </div>
-                                            ${cleanedNote ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú: ${cleanedNote}</div>` : ''}
+                                            ${cleanedNote ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú:${noteLinesHtml}</div>` : ''}
                                         </div>
                                     `;
                                 }).join('');
@@ -3906,6 +3915,8 @@
                         } else {
                             itemsHtml = (order.order_items || []).map((oi, oiIdx) => {
                                 const cleanedNote = oi.note ? oi.note.replace(/^(chọn\s+)?size:\s*[^|]*\|\s*/i, '').replace(/^(chọn\s+)?size\s*[^|]*\|\s*/i, '').trim() : '';
+                                const noteLines = cleanedNote ? cleanedNote.split(/\s*\|\s*/).map(l => l.trim()).filter(l => l.length > 0) : [];
+                                const noteLinesHtml = noteLines.map(line => `<div class="pl-2 text-red-600 font-bold">• ${line}</div>`).join('');
                                 return `
                                     <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
                                         <div class="flex justify-between text-sm items-center">
@@ -3915,7 +3926,7 @@
                                                 <span class="material-symbols-outlined text-sm align-middle font-bold">print</span>
                                             </button>
                                         </div>
-                                        ${cleanedNote ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú: ${cleanedNote}</div>` : ''}
+                                        ${cleanedNote ? `<div class="text-xs font-bold text-red-600 pl-4 mt-0.5">* Ghi chú:${noteLinesHtml}</div>` : ''}
                                     </div>
                                 `;
                             }).join('');

@@ -1,3 +1,4 @@
+global.WebSocket = require('ws');
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -106,7 +107,7 @@ function parseGrabOrder(order) {
         let optionsStr = '';
         
         if (item.modifiers && item.modifiers.length > 0) {
-            optionsStr = item.modifiers.map(m => m.name).join(', ');
+            optionsStr = item.modifiers.map(m => m.name).join(' | ');
         } else if (item.modifierGroups && item.modifierGroups.length > 0) {
             const mods = [];
             for (const group of item.modifierGroups) {
@@ -116,7 +117,7 @@ function parseGrabOrder(order) {
                     }
                 }
             }
-            optionsStr = mods.join(', ');
+            optionsStr = mods.join(' | ');
         }
         
         const fullNote = `${optionsStr} | ${note}`.replace(/^ \| | \| $/g, '').trim();
@@ -238,7 +239,7 @@ async function syncGrabOrders(ordersArray) {
                 .insert({
                     payment_method: 'grab_pay',
                     total_amount: totalAmount,
-                    status: 'pending', // Pending để Web POS reo chuông và hiển thị popup
+                    status: status, // Sử dụng trạng thái thực tế bóc tách được (pending/completed/cancelled)
                     platform: 'grab',
                     external_order_id: bookingId,
                     external_short_id: shortId,
@@ -305,6 +306,22 @@ for (const p of pathsToTry) {
 
 if (!STORAGE_STATE) {
     STORAGE_STATE = path.join(__dirname, 'grab_session.json');
+}
+
+async function dismissWelcomeTour(page) {
+    try {
+        const closeTourBtn = page.getByRole('button', { name: 'Đóng', exact: true })
+            .or(page.getByRole('button', { name: 'Close', exact: true }))
+            .filter({ visible: true })
+            .first();
+        if (await closeTourBtn.count() > 0) {
+            console.log('🎯 [Playwright] Phát hiện popup chào mừng (Welcome Tour). Đang click "Đóng" để tắt...');
+            await closeTourBtn.click();
+            await page.waitForTimeout(2000);
+        }
+    } catch (e) {
+        console.warn('⚠️ Lỗi khi tắt popup chào mừng:', e.message);
+    }
 }
 
 async function testSpecificOrderScrape() {
@@ -432,6 +449,7 @@ async function testSpecificOrderScrape() {
         console.log('🌐 Đang kết nối tới Grab Merchant Portal...');
         await page.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
         await page.waitForTimeout(5000);
+        await dismissWelcomeTour(page);
         
         if (page.url().includes('login') || page.url().includes('auth')) {
             console.error('❌ Lỗi: Phiên đăng nhập (Session Cookie) của Grab đã hết hạn! Vui lòng đăng nhập lại.');
@@ -474,64 +492,83 @@ async function testSpecificOrderScrape() {
         await page.waitForTimeout(5000);
         console.log('📷 Đang kiểm tra danh sách đơn lịch sử hiển thị...');
 
-        // Mở bộ lọc ngày để chắc chắn có đơn cũ hiển thị
-        try {
-            const dateInput = page.locator('input[placeholder="Chọn thời điểm"]').first();
-            if (await dateInput.count() > 0) {
-                console.log('🎯 Tìm thấy ô chọn ngày. Đang click để mở lịch chọn khoảng ngày rộng hơn...');
-                await dateInput.click().catch(() => {});
-                await dateInput.evaluate(el => el.click()).catch(() => {});
-                await page.waitForTimeout(2000);
-                
-                // Chọn "7 ngày qua"
-                const rangeSelectors = [
-                    'text="7 ngày qua"',
-                    'text="Last 7 days"',
-                    'text="Hôm qua"',
-                    'text="Yesterday"'
-                ];
-                
-                let clickedRange = false;
-                for (const selector of rangeSelectors) {
-                    const opt = page.locator(selector).filter({ visible: true }).first();
-                    if (await opt.count() > 0) {
-                        console.log(`🔘 Click chọn khoảng ngày nhanh: ${selector}`);
-                        await opt.click();
-                        clickedRange = true;
-                        break;
-                    }
-                }
-                
-                // Click nút Áp dụng
-                const applyBtn = page.locator('text="Áp dụng", text="Apply", button:has-text("Áp dụng"), button:has-text("Apply")').filter({ visible: true }).first();
-                if (await applyBtn.count() > 0) {
-                    await applyBtn.click();
-                }
-                await page.waitForTimeout(5000); // Chờ tải danh sách mới
-            }
-        } catch (err) {
-            console.warn('⚠️ Lỗi khi đổi bộ lọc ngày:', err.message);
-        }
-
-        // Định vị đơn hàng cụ thể theo display ID (ví dụ: "GF-692")
-        console.log(`🎯 Đang tìm kiếm đơn hàng chứa text "${targetShortId}"...`);
-        const orderLocator = page.locator(`text="${targetShortId}"`).first();
-        const orderCount = await orderLocator.count().catch(() => 0);
+        // BƯỚC 1: Quét xem đơn hàng có sẵn trên trang Hôm Nay không
+        console.log(`🎯 [Bước 1] Tìm kiếm đơn hàng chứa text "${targetShortId}" trong ngày hôm nay...`);
+        let orderLocator = page.locator(`text="${targetShortId}"`).first();
+        let orderCount = await orderLocator.count().catch(() => 0);
+        let foundAndClicked = false;
 
         if (orderCount > 0) {
-            console.log(`🎉 Tìm thấy đơn hàng ${targetShortId} trên giao diện! Đang tiến hành click...`);
-            
-            // Tìm phần tử click được ở cấp cao hơn hoặc click trực tiếp vào text
+            console.log(`🎉 Tìm thấy đơn hàng ${targetShortId} ngay trên trang Hôm Nay!`);
             await orderLocator.click().catch(async () => {
-                console.log('⚠️ Không click trực tiếp vào text được, thử click bằng evaluate...');
                 await orderLocator.evaluate(el => el.click()).catch(() => {});
             });
+            foundAndClicked = true;
+        } else {
+            console.log(`ℹ️ Không tìm thấy đơn hàng ${targetShortId} trong ngày hôm nay. Tiến hành chuyển sang ngày hôm qua...`);
+            
+            // BƯỚC 2: Mở DatePicker và chọn ngày Hôm Qua
+            try {
+                const dateInput = page.locator('input[placeholder="Chọn thời điểm"]').first();
+                if (await dateInput.count() > 0) {
+                    console.log('🎯 Tìm thấy ô chọn ngày. Đang click mở lịch...');
+                    await dateInput.click().catch(() => {});
+                    await dateInput.evaluate(el => el.click()).catch(() => {});
+                    await page.waitForTimeout(1000);
+                    
+                    // Click thêm vào thẻ cha của input để chắc chắn mở popup lịch
+                    await dateInput.locator('..').first().click().catch(() => {});
+                    await dateInput.locator('..').first().evaluate(el => el.click()).catch(() => {});
+                    await page.waitForTimeout(2000);
 
+                    // Tính ngày hôm qua
+                    const yesterdayDate = new Date();
+                    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                    const yesterdayDayNum = String(yesterdayDate.getDate());
+                    
+                    console.log(`🎯 Đang click chọn ngày hôm qua: ngày "${yesterdayDayNum}" trên popup lịch...`);
+                    
+                    // Sử dụng selector siêu chính xác nhắm thẳng vào cell-inner của cả dui-picker lẫn ant-picker, hỗ trợ fallback getByText visible
+                    const dayCellStart = page.locator('.dui-picker-dropdown .dui-picker-cell-in-view .dui-picker-cell-inner')
+                        .or(page.locator('.ant-picker-dropdown .ant-picker-cell-in-view .ant-picker-cell-inner'))
+                        .getByText(yesterdayDayNum, { exact: true }).first()
+                        .or(page.getByText(yesterdayDayNum, { exact: true }).filter({ visible: true }).first());
+                        
+                    if (await dayCellStart.count() > 0) {
+                        await dayCellStart.click().catch(() => {});
+                        console.log(`🔘 Đã click chọn ngày hôm qua (${yesterdayDayNum}) thành công!`);
+                        
+                        console.log('⏳ Chờ 5 giây để trang tải danh sách đơn ngày hôm qua...');
+                        await page.waitForTimeout(5000);
+                        
+                        // Quét lại danh sách đơn của ngày hôm qua
+                        console.log(`🎯 [Bước 2] Tìm kiếm đơn hàng chứa text "${targetShortId}" trong ngày hôm qua...`);
+                        orderLocator = page.locator(`text="${targetShortId}"`).first();
+                        orderCount = await orderLocator.count().catch(() => 0);
+                        
+                        if (orderCount > 0) {
+                            console.log(`🎉 Tìm thấy đơn hàng ${targetShortId} trong danh sách đơn ngày hôm qua!`);
+                            await orderLocator.click().catch(async () => {
+                                await orderLocator.evaluate(el => el.click()).catch(() => {});
+                            });
+                            foundAndClicked = true;
+                        }
+                    } else {
+                        console.log(`⚠️ Không tìm thấy ô chứa ngày hôm qua (${yesterdayDayNum}) trên lịch.`);
+                    }
+                }
+            } catch (err) {
+                console.warn('⚠️ Lỗi khi đổi bộ lọc sang ngày hôm qua:', err.message);
+            }
+        }
+
+        // BƯỚC 3: Đồng bộ đơn hàng nếu tìm thấy và click thành công
+        if (foundAndClicked) {
             // Nếu không phản hồi, thử click vào parent card của nó
             await page.waitForTimeout(1000);
             const parentCard = orderLocator.locator('..').locator('..').locator('..').first();
             if (await parentCard.count() > 0) {
-                console.log('🔘 Click vào thẻ bao chứa của đơn hàng...');
+                console.log('🔘 Click vào thẻ bao chứa của đơn hàng để kích hoạt tải chi tiết...');
                 await parentCard.click().catch(() => {});
                 await parentCard.evaluate(el => el.click()).catch(() => {});
             }
@@ -540,18 +577,18 @@ async function testSpecificOrderScrape() {
             await page.waitForTimeout(10000);
             
             if (syncedSuccess) {
+                console.log(`🎉 KẾT QUẢ CÀO ĐƠN HÀNG LỊCH SỬ THỰC TẾ THÀNH CÔNG!`);
                 console.log(`✅ Đồng bộ đơn hàng ${targetShortId} thành công mỹ mãn qua API!`);
             } else {
                 console.warn(`⚠️ Đã click nhưng không bắt được API chi tiết của đơn ${targetShortId}.`);
             }
         } else {
-            console.error(`❌ Không tìm thấy đơn hàng ${targetShortId} trong danh sách hiển thị.`);
+            console.error(`❌ Không phát hiện đơn hàng ${targetShortId} trong danh sách hiển thị của cả Hôm Nay và Hôm Qua.`);
             
             // In danh sách các đơn hàng hiện có để người dùng biết
             try {
                 const bodyText = await page.innerText('body').catch(() => '');
                 console.log('\n--- DANH SÁCH CHỮ TRÊN TRANG (ĐỂ KIỂM TRA MÃ ĐƠN CÓ SẴN) ---');
-                // Lọc các dòng chứa GF-
                 const lines = bodyText.split('\n').filter(l => l.includes('GF-') || l.includes('Đã'));
                 console.log(lines.slice(0, 20).join('\n'));
                 console.log('-----------------------------------------------------------\n');
@@ -566,8 +603,12 @@ async function testSpecificOrderScrape() {
     } catch (e) {
         console.error('❌ Lỗi xảy ra trong quá trình kiểm thử:', e.message);
     } finally {
-        await browser.close();
+        clearTimeout(safetyTimeout);
+        if (browser) {
+            await browser.close().catch(() => {});
+        }
         console.log('Trình duyệt đóng. Hoàn tất kiểm thử.');
+        process.exit(0);
     }
 }
 
