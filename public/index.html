@@ -3740,11 +3740,12 @@
                 const j = await res.json();
                 if (j.success) {
                     // Tránh re-render khi dữ liệu không đổi để chống nhấp nháy màn hình
-                    const stringifiedData = JSON.stringify(j.data);
-                    if (window.lastOrdersJson === stringifiedData && window.posRenderedTab === window.posCurrentTab) {
+                    // Sử dụng signature từ các trường cốt lõi ảnh hưởng tới giao diện (id, status, total_amount, note) để loại bỏ các timestamp hệ thống thay đổi liên tục
+                    const signature = j.data.map(o => `${o.id}-${o.status}-${o.total_amount}-${o.note || ''}`).join('|');
+                    if (window.lastOrdersSignature === signature && window.posRenderedTab === window.posCurrentTab) {
                         return;
                     }
-                    window.lastOrdersJson = stringifiedData;
+                    window.lastOrdersSignature = signature;
 
                     // Dựng container cột động nếu tab thay đổi
                     const container = document.getElementById('pos-columns-container');
@@ -3759,7 +3760,7 @@
                                             <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">pending_actions</span> CHỜ XỬ LÝ</span>
                                             <span id="pos-count-pending" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
                                         </div>
-                                        <div id="pos-col-pending" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                        <div id="pos-col-pending" class="p-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
                                     </div>
                                     
                                     <!-- Column 2: Đang làm -->
@@ -3768,7 +3769,7 @@
                                             <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">local_cafe</span> ĐANG PHA CHẾ</span>
                                             <span id="pos-count-processing" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
                                         </div>
-                                        <div id="pos-col-processing" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                        <div id="pos-col-processing" class="p-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
                                     </div>
 
                                     <!-- Column 3: Đã Xong -->
@@ -3777,7 +3778,7 @@
                                             <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">check_circle</span> HOÀN THÀNH</span>
                                             <span id="pos-count-completed" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
                                         </div>
-                                        <div id="pos-col-completed" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                        <div id="pos-col-completed" class="p-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
                                     </div>
 
                                     <!-- Column 4: Đã Hủy -->
@@ -3786,7 +3787,7 @@
                                             <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">cancel</span> ĐÃ HỦY</span>
                                             <span id="pos-count-cancelled" class="w-8 h-8 rounded-full bg-gray-500 text-white flex items-center justify-center font-bold text-sm">0</span>
                                         </div>
-                                        <div id="pos-col-cancelled" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent p-3"></div>
+                                        <div id="pos-col-cancelled" class="p-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent"></div>
                                     </div>
                                 </div>
                                 `;
@@ -3799,7 +3800,7 @@
                                             <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">pending_actions</span> ĐƠN ĐANG XỬ LÝ</span>
                                             <span id="pos-count-active" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
                                         </div>
-                                        <div id="pos-col-active" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                        <div id="pos-col-active" class="p-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
                                     </div>
                                     
                                     <!-- Cột 2: ĐƠN ĐÃ HOÀN TẤT (Hoàn thành + Đã hủy) -->
@@ -3808,7 +3809,7 @@
                                             <span class="flex items-center gap-2"><span class="material-symbols-outlined font-black">check_circle</span> ĐƠN ĐÃ HOÀN TẤT</span>
                                             <span id="pos-count-finished" class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">0</span>
                                         </div>
-                                        <div id="pos-col-finished" class="p-3 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
+                                        <div id="pos-col-finished" class="p-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 border-4 border-transparent max-h-[75vh]"></div>
                                     </div>
                                 </div>
                                 `;
@@ -4233,7 +4234,7 @@
                             const footerClass = isExpanded ? 'hidden' : 'flex';
 
                             const appCardHtml = `
-                            <div id="order-card-${order.id}" onclick="window.toggleOrderExpand(${order.id})" class="${bgColor} border-[3px] border-black p-3.5 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none cursor-pointer hover:bg-slate-50 transition-colors animate-slide-up">
+                            <div id="order-card-${order.id}" onclick="window.toggleOrderExpand(${order.id})" class="${bgColor} border-[3px] border-black p-4 shadow-[8px_8px_0_0_#000] flex flex-col relative select-none cursor-pointer hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[12px_12px_0_0_#000] hover:bg-slate-50 transition-all duration-200 animate-slide-up">
                                 <!-- PHẦN HEADER LUÔN HIỂN THỊ -->
                                 <div class="flex justify-between items-center mb-2.5">
                                     <div class="flex items-center gap-2">
@@ -4310,7 +4311,7 @@
 
                         // 2. Dạng Mở Rộng (Expanded Card cho Online) hoặc Đơn Tại Quán (Local)
                         const cardHtml = `
-                        <div class="${bgColor} border-[3px] border-black p-3 shadow-[4px_4px_0_0_#000] flex flex-col relative select-none animate-slide-up">
+                        <div class="${bgColor} border-[3px] border-black p-4 shadow-[8px_8px_0_0_#000] flex flex-col relative select-none hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[12px_12px_0_0_#000] transition-all duration-200 animate-slide-up">
                             ${appBadge}
                             <div class="flex justify-between items-start mb-2">
                                 <div class="flex flex-col gap-1 items-start">
