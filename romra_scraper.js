@@ -1222,7 +1222,8 @@ function setupPageResponseListener(pageInstance) {
             }
             
             // 2. Lắng nghe API CHI TIẾT đơn hàng (Chứa 100% Tên và SĐT thật của khách hàng & tài xế)
-            if (url.includes('/food/merchant/v3/orders/')) {
+            // Hỗ trợ tổng quát cho cả v3, v4 và các phiên bản tương lai của Grab API
+            if (url.includes('/orders/') && !url.includes('pagination') && !url.includes('paginator') && !url.includes('history') && !url.includes('summary')) {
                 if (status === 200) {
                     try {
                         const headers = response.headers();
