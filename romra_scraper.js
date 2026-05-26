@@ -1001,6 +1001,8 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                     grabStatus: grabRealtimeStatus,
                     subtotal: subtotalAmount > 0 ? subtotalAmount : (dbPayload.subtotal || 0),
                     totalDiscount: discountAmount > 0 ? discountAmount : (dbPayload.totalDiscount || 0),
+                    times: rawOrder.times || dbPayload.times || null,
+                    createdAt: rawOrder.times ? rawOrder.times.createdAt : (dbPayload.createdAt || null),
                     items: isDetail || items.length > 0 ? items.map(i => {
                         let size = '-';
                         if (i.note && i.note.includes('Size')) {
@@ -1102,6 +1104,8 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                 grabStatus: getGrabRealtimeStatus(rawOrder),
                 subtotal: subtotalAmount,
                 totalDiscount: discountAmount,
+                times: rawOrder.times || null,
+                createdAt: rawOrder.times ? rawOrder.times.createdAt : null,
                 items: items.map(i => {
                     let size = '-';
                     if (i.note && i.note.includes('Size')) {
