@@ -236,6 +236,24 @@ async function handleTelegramCommand(text) {
         const logsMsg = `📝 <b>15 DÒNG NHẬT KÝ GẦN NHẤT:</b>\n\n<pre>${logsToShow || 'Chưa có nhật ký nào.'}</pre>`;
         await sendTelegramAlert(logsMsg);
     } 
+    else if (command === '/debug') {
+        let debugLogPath = path.join(__dirname, 'scratch', 'history_debug.log');
+        if (!fs.existsSync(debugLogPath)) {
+            debugLogPath = path.join(__dirname, 'history_debug.log');
+        }
+        
+        if (fs.existsSync(debugLogPath)) {
+            try {
+                const content = fs.readFileSync(debugLogPath, 'utf8');
+                const lines = content.split('\n').filter(l => l.trim().length > 0).slice(-25).join('\n');
+                await sendTelegramAlert(`📋 <b>NHẬT KÝ DEBUG CÀO LỊCH SỬ GẦN NHẤT:</b>\n\n<pre>${lines || 'File log trống.'}</pre>`);
+            } catch (err) {
+                await sendTelegramAlert(`❌ Lỗi đọc file debug log: ${err.message}`);
+            }
+        } else {
+            await sendTelegramAlert(`ℹ️ Chưa có file debug log nào được tạo tại: <code>${debugLogPath}</code>.\nHãy thử chạy /scrape trước.`);
+        }
+    } 
     else if (command === '/scrape') {
         const dateArg = args[0];
         if (!dateArg) {

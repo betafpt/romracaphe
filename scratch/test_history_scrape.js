@@ -4,6 +4,22 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
+// --- HÀM REDIRECT LOG DEBUG RA FILE TRÊN VPS ---
+const logPath = path.join(__dirname, 'history_debug.log');
+try { fs.writeFileSync(logPath, ''); } catch (e) {}
+const originalLog = console.log;
+function debugLog(...args) {
+    const msg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const formatted = `[${new Date().toLocaleTimeString('vi-VN')}] ${msg}`;
+    originalLog(formatted);
+    try {
+        fs.appendFileSync(logPath, formatted + '\n');
+    } catch (e) {}
+}
+console.log = debugLog;
+console.error = debugLog;
+
+
 // Cấu hình Supabase (fallback về giá trị mặc định của hệ thống Rôm Rả)
 const supabaseUrl = process.env.SUPABASE_URL || 'https://mjyldmkdcoiyrolggpje.supabase.co';
 const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_B8Y5rZc4yiHAtmjCXC9C5A_Qt5rZqsM';
@@ -349,6 +365,8 @@ async function testHistoryScrape() {
         process.exit(1);
     }
 
+    let browser = null;
+
     // Tự động exit sau 90s để phòng ngừa treo tiến trình ngầm trên VPS 1GB
     const safetyTimeout = setTimeout(async () => {
         console.error('⚠️ Quá thời gian chờ (90 giây)! Tự động đóng trình duyệt và thoát để tránh treo VPS.');
@@ -367,11 +385,10 @@ async function testHistoryScrape() {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--single-process',
         '--disable-gpu'
     ];
 
-    const browser = await chromium.launch({
+    browser = await chromium.launch({
         headless: true, // Chạy ẩn để thực thi trên VPS
         args: launchArgs
     });
