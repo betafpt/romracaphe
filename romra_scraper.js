@@ -257,19 +257,32 @@ async function handleTelegramCommand(text) {
     else if (command === '/scrape') {
         const dateArg = args[0];
         if (!dateArg) {
-            await sendTelegramAlert('⚠️ Vui lòng cung cấp ngày cần cào lịch sử.\nVí dụ: <code>/scrape 23</code>');
+            await sendTelegramAlert('⚠️ Vui lòng cung cấp ngày hoặc mã đơn cần cào.\nVí dụ:\n• Cào ngày: <code>/scrape 26</code>\n• Cào đơn cụ thể: <code>/scrape GF-670</code>');
             return;
         }
         
-        await sendTelegramAlert(`⏳ <b>[RÔM RẢ BOT]</b> Đang cào đơn lịch sử ngày <b>${dateArg}</b> ngầm trên VPS... Vui lòng đợi trong giây lát.`);
-        
         const { exec } = require('child_process');
-        let scriptPath = path.join(__dirname, 'scratch', 'test_history_scrape.js');
-        if (!fs.existsSync(scriptPath)) {
-            scriptPath = path.join(__dirname, 'test_history_scrape.js');
+        let scriptPath;
+        let execCmd;
+        const argUpper = dateArg.toUpperCase();
+        
+        if (argUpper.startsWith('GF-')) {
+            scriptPath = path.join(__dirname, 'scratch', 'test_specific_order.js');
+            if (!fs.existsSync(scriptPath)) {
+                scriptPath = path.join(__dirname, 'test_specific_order.js');
+            }
+            execCmd = `node "${scriptPath}" ${argUpper}`;
+            await sendTelegramAlert(`⏳ <b>[RÔM RẢ BOT]</b> Đang cào cưỡng bức chi tiết đơn hàng <b>${argUpper}</b> ngầm trên VPS... Vui lòng đợi.`);
+        } else {
+            scriptPath = path.join(__dirname, 'scratch', 'test_history_scrape.js');
+            if (!fs.existsSync(scriptPath)) {
+                scriptPath = path.join(__dirname, 'test_history_scrape.js');
+            }
+            execCmd = `node "${scriptPath}" --date ${dateArg}`;
+            await sendTelegramAlert(`⏳ <b>[RÔM RẢ BOT]</b> Đang cào đơn lịch sử ngày <b>${dateArg}</b> ngầm trên VPS... Vui lòng đợi trong giây lát.`);
         }
         
-        exec(`node "${scriptPath}" --date ${dateArg}`, async (error, stdout, stderr) => {
+        exec(execCmd, async (error, stdout, stderr) => {
             if (error) {
                 console.error('Lỗi chạy cào lịch sử:', error.message);
                 await sendTelegramAlert(`❌ <b>Lỗi khi cào đơn lịch sử ngày ${dateArg}:</b>\n<code>${error.message}</code>`);
