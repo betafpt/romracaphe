@@ -3886,7 +3886,7 @@
                                 const parsed = JSON.parse(order.note);
                                 const onlineItems = parsed.items || [];
                                 itemsHtml = onlineItems.map((oi, oiIdx) => {
-                                    const cleanedNote = oi.note ? oi.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim() : '';
+                                    const cleanedNote = oi.note ? oi.note.replace(/^(chọn\s+)?size:\s*[^|]*\|\s*/i, '').replace(/^(chọn\s+)?size\s*[^|]*\|\s*/i, '').trim() : '';
                                     return `
                                         <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
                                             <div class="flex justify-between text-sm items-center">
@@ -3905,7 +3905,7 @@
                             }
                         } else {
                             itemsHtml = (order.order_items || []).map((oi, oiIdx) => {
-                                const cleanedNote = oi.note ? oi.note.replace(/size:\s*[a-zA-Z]\s*\|\s*/i, '').trim() : '';
+                                const cleanedNote = oi.note ? oi.note.replace(/^(chọn\s+)?size:\s*[^|]*\|\s*/i, '').replace(/^(chọn\s+)?size\s*[^|]*\|\s*/i, '').trim() : '';
                                 return `
                                     <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
                                         <div class="flex justify-between text-sm items-center">
@@ -4066,8 +4066,10 @@
                             }
                         }
 
-                        // Xây dựng khối thông tin khách hàng và tài xế nâng cao kèm trạng thái Grab Realtime
+                        // Xây dựng khối thông tin khách hàng và tài xế nâng cao kèm trạng thái Grab/Shopee Realtime
                         if (isApp) {
+                            const isGrab = order.platform === 'grab';
+                            const statusLabel = isGrab ? 'TRẠNG THÁI GRAB:' : 'TRẠNG THÁI SHOPEE:';
                             let eaterPhone = 'Không có số';
                             let driverName = 'Chưa có tài xế';
                             let driverPhone = 'Không có số';
@@ -4089,7 +4091,7 @@
                                 } catch (e) {}
                             }
 
-                            // Xác định màu sắc nhấp nháy cho badge Grab Realtime
+                            // Xác định màu sắc nhấp nháy cho badge Realtime
                             let grabBadgeColor = 'bg-yellow-300 text-black'; 
                             const grabStatusUpper = grabRealtimeStatus.toUpperCase();
                             
@@ -4103,9 +4105,9 @@
 
                             extraInfoHtml = `
                             <div class="text-[11px] font-bold text-slate-700 bg-amber-50 border-[3px] border-black p-2 mb-3 text-left flex flex-col gap-1.5 shadow-[2px_2px_0_0_#000] relative">
-                                <!-- Huy hiệu Grab Realtime Status nổi bật phong cách Neo-Brutalism -->
+                                <!-- Huy hiệu Realtime Status nổi bật phong cách Neo-Brutalism -->
                                 <div class="flex justify-between items-center border-b-2 border-dashed border-black pb-1.5 mb-0.5">
-                                    <span class="flex items-center gap-1 font-black text-black text-[10px]"><span class="material-symbols-outlined text-xs font-black">monitoring</span> TRẠNG THÁI GRAB:</span>
+                                    <span class="flex items-center gap-1 font-black text-black text-[10px]"><span class="material-symbols-outlined text-xs font-black">monitoring</span> ${statusLabel}</span>
                                     <span class="px-2 py-0.5 text-[9px] font-black uppercase border-[2px] border-black ${grabBadgeColor} shadow-[1px_1px_0_0_#000] animate-pulse whitespace-nowrap">${grabRealtimeStatus.toUpperCase()}</span>
                                 </div>
                                 <div class="flex items-center gap-1 border-b-[1px] border-dashed border-gray-400 pb-1">
