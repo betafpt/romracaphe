@@ -107,6 +107,17 @@ async function sendTelegramPhoto(photoPath, caption) {
 // --- ĐĂNG NHẬP SHOPEEFOOD WEB PORTAL TỰ ĐỘNG ---
 async function autoLoginShopee(page, config) {
     try {
+        // Thiết lập chặn ảnh, font và các file thừa để tiết kiệm RAM tối đa cho VPS 1GB
+        await page.route('**/*', (route) => {
+            const url = route.request().url();
+            const type = route.request().resourceType();
+            if (['image', 'font', 'media'].includes(type) || url.includes('analytics') || url.includes('doubleclick') || url.includes('facebook')) {
+                route.abort();
+            } else {
+                route.continue();
+            }
+        });
+
         addToLogs('🌐 Đang điều hướng tới trang đăng nhập Shopee Partner...');
         await page.goto('https://merchant.shopeefood.vn/account/login', { waitUntil: 'commit', timeout: 60000 });
         await page.waitForTimeout(3000);
@@ -376,10 +387,22 @@ function setupPageResponseListener(page) {
 async function initPlaywright() {
     addToLogs('🌐 Đang khởi tạo trình duyệt Playwright ngầm cho ShopeeFood...');
     
+    // Khởi chạy trình duyệt với các tham số tối ưu RAM tối đa cho VPS 1GB
+    const launchArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+    ];
+
     if (!fs.existsSync(STORAGE_STATE)) {
         if (shopeeConfig && shopeeConfig.username && shopeeConfig.password) {
             addToLogs('🔐 Chưa có session. Đăng nhập tự động bằng tài khoản Shopee Partner...');
-            const tempBrowser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+            const tempBrowser = await chromium.launch({ headless: true, args: launchArgs });
             const tempContext = await tempBrowser.newContext({
                 viewport: { width: 1280, height: 720 },
                 userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -399,7 +422,7 @@ async function initPlaywright() {
 
     const browserInstance = await chromium.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: launchArgs
     });
 
     const contextInstance = await browserInstance.newContext({
@@ -409,6 +432,17 @@ async function initPlaywright() {
     });
 
     const pageInstance = await contextInstance.newPage();
+    
+    // Thiết lập chặn ảnh, font và các file thừa để tiết kiệm RAM tối đa cho trang chính
+    await pageInstance.route('**/*', (route) => {
+        const url = route.request().url();
+        const type = route.request().resourceType();
+        if (['image', 'font', 'media'].includes(type) || url.includes('analytics') || url.includes('doubleclick') || url.includes('facebook')) {
+            route.abort();
+        } else {
+            route.continue();
+        }
+    });
     
     try {
         addToLogs('Đang truy cập trang Quản lý Shopee Partner...');
