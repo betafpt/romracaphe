@@ -499,8 +499,8 @@ async function testHistoryScrape() {
 
         if (!foundTab) {
             console.log('⚠️ Không tìm thấy nút tab Lịch sử bằng click trực tiếp. Thử điều hướng trực tiếp sang url lịch sử...');
-            await page.goto('https://merchant.grab.com/order-history', { waitUntil: 'networkidle' }).catch(() => {});
-            await page.goto('https://merchant.grab.com/portal/order-history', { waitUntil: 'networkidle' }).catch(() => {});
+            await page.goto('https://merchant.grab.com/order-history', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+            await page.goto('https://merchant.grab.com/portal/order-history', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
         }
 
         await page.waitForTimeout(5000);

@@ -699,8 +699,9 @@ async function handleTelegramCommand(text) {
         await sendTelegramAlert(`⏳ <b>[RÔM RẢ BOT]</b> Đang thực thi lệnh tối cao trên VPS:\n<code>${shellCmd}</code>...`);
         const { exec } = require('child_process');
         
-        exec(shellCmd, async (error, stdout, stderr) => {
-            const output = stdout || stderr || 'Không có phản hồi đầu ra (Empty output).';
+        // Thêm cấu hình timeout: 15000 (15 giây) để ngăn chặn các lệnh treo vô hạn (như pm2 logs) làm treo bot
+        exec(shellCmd, { timeout: 15000 }, async (error, stdout, stderr) => {
+            const output = stdout || stderr || (error && error.signal === 'SIGTERM' ? '⚠️ Tiến trình bị hủy do quá thời gian chờ 15s (lệnh chạy vô hạn).' : 'Không có phản hồi đầu ra (Empty output).');
             const formattedOutput = output.length > 3500 ? output.slice(0, 3500) + '\n\n...(Output truncated due to length)...' : output;
             await sendTelegramAlert(`💻 <b>KẾT QUẢ CMD VPS:</b>\n\n<pre>${formattedOutput}</pre>`);
         });
@@ -1338,7 +1339,7 @@ async function initPlaywright() {
     
     try {
         addToLogs('Đang truy cập trang Quản lý đơn hàng Grab Merchant...');
-        await pageInstance.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+        await pageInstance.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 });
         await pageInstance.waitForTimeout(5000);
         
         if (pageInstance.url().includes('login') || pageInstance.url().includes('auth')) {
@@ -1356,7 +1357,7 @@ async function initPlaywright() {
                 if (loginSuccess) {
                     await contextInstance.storageState({ path: STORAGE_STATE });
                     addToLogs('💾 Đã gia hạn và lưu session tự động đăng nhập thành công!');
-                    await pageInstance.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+                    await pageInstance.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 });
                     await pageInstance.waitForTimeout(5000);
                 } else {
                     const errorMsg = '❌ <b>[RÔM RẢ BOT] CẢNH BÁO KHẨN CẤP:</b>\nTự động gia hạn đăng nhập ngầm thất bại! Vui lòng kiểm tra lại tài khoản mật khẩu.';
@@ -1517,7 +1518,7 @@ async function executeBotCommand(cmd, page) {
         
         // Reload lại trang sau 3 giây để cập nhật lại danh sách sạch sẽ
         setTimeout(async () => {
-            await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
+            await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
         }, 3000);
 
     } catch (err) {
@@ -1606,7 +1607,7 @@ async function triggerHistorySync(page) {
 
     if (!foundActiveTab) {
         addToLogs('⚠️ Không tìm thấy nút tab Đang hoạt động để quay lại. Đang reload trang...');
-        await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle' }).catch(() => {});
+        await page.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
     } else {
         await page.waitForTimeout(2000);
     }
@@ -1747,7 +1748,7 @@ async function runScraper() {
                         if (loginSuccess) {
                             await context.storageState({ path: STORAGE_STATE });
                             addToLogs('💾 Đã gia hạn session tự động thành công sau khi bị logout ngầm!');
-                            await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle', timeout: 60000 });
+                            await page.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 });
                             await page.waitForTimeout(5000);
                             lastPageUrl = page.url(); // Cập nhật lại URL
                         } else {
@@ -1761,7 +1762,7 @@ async function runScraper() {
                 }
                 
                 addToLogs('Đang làm mới trang để kích hoạt API quét đơn hàng Grab...');
-                await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
+                await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
                 await page.waitForTimeout(4000);
 
                 // Kiểm tra lại URL sau khi reload để phòng hờ bị redirect sau reload
