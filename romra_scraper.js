@@ -938,6 +938,46 @@ async function syncGrabOrders(ordersArray) {
                     })
                 };
 
+                // Xóa chi tiết món ăn cũ và chèn lại món ăn mới đầy đủ thông tin giá tiền và recipe_id từ API chi tiết
+                await supabase.from('order_items').delete().eq('order_id', existingOrder.id).catch(() => {});
+                for (const item of items) {
+                    try {
+                        let itemSize = '-';
+                        if (item.note && item.note.includes('Size')) {
+                            const match = item.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || item.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                            if (match) {
+                                itemSize = (match[1] || match[0]).trim().toUpperCase();
+                            }
+                        }
+
+                        const { data: recipesList, error: recipeErr } = await supabase
+                            .from('recipes')
+                            .select('id, size')
+                            .eq('name', item.name);
+
+                        let recipeId = null;
+                        if (!recipeErr && recipesList && recipesList.length > 0) {
+                            if (recipesList.length === 1) {
+                                recipeId = recipesList[0].id;
+                            } else {
+                                const matched = recipesList.find(r => String(r.size || '').trim().toUpperCase() === itemSize);
+                                recipeId = matched ? matched.id : recipesList[0].id;
+                            }
+                        }
+
+                        await supabase
+                            .from('order_items')
+                            .insert({
+                                order_id: existingOrder.id,
+                                recipe_id: recipeId,
+                                quantity: item.quantity,
+                                price: item.price
+                            });
+                    } catch (itemErr) {
+                        addToLogs(`❌ Lỗi khi chèn lại món ${item.name} của đơn ${shortId}: ${itemErr.message}`);
+                    }
+                }
+
                 const updatePayload = {
                     total_amount: totalAmount,
                     raw_payload: updatedRawPayload,
@@ -1023,17 +1063,37 @@ async function syncGrabOrders(ordersArray) {
             // Chèn các món ăn chi tiết
             for (const item of items) {
                 try {
-                    const { data: recipe } = await supabase
+                    // Bóc tách size từ note của món ăn để so khớp chính xác trong recipes
+                    let itemSize = '-';
+                    if (item.note && item.note.includes('Size')) {
+                        const match = item.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || item.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                        if (match) {
+                            itemSize = (match[1] || match[0]).trim().toUpperCase();
+                        }
+                    }
+
+                    // Lấy tất cả các món ăn khớp tên
+                    const { data: recipesList, error: recipeErr } = await supabase
                         .from('recipes')
-                        .select('id')
-                        .eq('name', item.name)
-                        .maybeSingle();
+                        .select('id, size')
+                        .eq('name', item.name);
+
+                    let recipeId = null;
+                    if (!recipeErr && recipesList && recipesList.length > 0) {
+                        if (recipesList.length === 1) {
+                            recipeId = recipesList[0].id;
+                        } else {
+                            // Nếu có nhiều hơn 1 size, tìm size khớp chính xác
+                            const matched = recipesList.find(r => String(r.size || '').trim().toUpperCase() === itemSize);
+                            recipeId = matched ? matched.id : recipesList[0].id; // Fallback về món đầu tiên
+                        }
+                    }
 
                     await supabase
                         .from('order_items')
                         .insert({
                             order_id: insertedOrder.id,
-                            recipe_id: recipe ? recipe.id : null,
+                            recipe_id: recipeId,
                             quantity: item.quantity,
                             price: item.price
                         });
@@ -1562,52 +1622,21 @@ async function runScraper() {
                     return;
                 }
 
-                // Tự động tìm và click vào các thẻ đơn hàng đang hiển thị trên giao diện để trigger gọi API chi tiết
+                // Tự động tìm và click vào tất cả các thẻ đơn hàng đang hiển thị trên giao diện để trigger gọi API chi tiết
                 try {
-                    const orderSelectors = [
-                        'text="Đang chuẩn bị"',
-                        'text="Preparing"',
-                        'text="Sắp tới"',
-                        'text="Upcoming"',
-                        'text="Sẵn sàng"',
-                        'text="Ready"',
-                        'text="Chờ lấy hàng"',
-                        'text="Chờ lấy"',
-                        'text="Chờ tài xế"',
-                        'text="Đang tìm tài xế"',
-                        'text="Chuẩn bị xong"',
-                        'text="Đã chuẩn bị xong"',
-                        'text="Đang giao"',
-                        'text="Đang giao hàng"',
-                        'text="Delivering"',
-                        'text="Đang xử lý"',
-                        'text="Processing"',
-                        'text="Đã giao"',
-                        'text="Đã hoàn thành"',
-                        'text="Hoàn thành"',
-                        'text="Completed"',
-                        'text="Đã hủy"',
-                        'text="Cancelled"',
-                        'text=/^[A-Z0-9]+-[A-Z0-9]+$/'
-                    ];
+                    // Định vị chính xác các thẻ đơn hàng thông qua regex mã đơn ngắn (ví dụ: GF-570 hoặc các mã ngắn có gạch ngang)
+                    // Điều này hoàn toàn loại bỏ việc bị kẹt/click nhầm vào các tab điều hướng đầu trang (như "Sắp tới", "Lịch sử"...)
+                    const cards = page.locator('text=/^[A-Z0-9]+-[A-Z0-9]+$/').locator('..').locator('..');
+                    const count = await cards.count().catch(() => 0);
                     
-                    let foundCards = false;
-                    for (const selector of orderSelectors) {
-                        const cards = page.locator(selector).locator('..').locator('..');
-                        const count = await cards.count().catch(() => 0);
-                        if (count > 0) {
-                            addToLogs(`🔘 Phát hiện ${count} thẻ đơn hàng trên UI. Tiến hành click tuần tự để trigger API chi tiết...`);
-                            for (let i = 0; i < count; i++) {
-                                await cards.nth(i).click().catch(() => {});
-                                await page.waitForTimeout(1500); // Chờ 1.5 giây giữa mỗi lần click để trigger API tải
-                            }
-                            foundCards = true;
-                            break;
+                    if (count > 0) {
+                        addToLogs(`🔘 Phát hiện ${count} thẻ đơn hàng thực tế trên UI. Tiến hành click tuần tự để trigger API chi tiết...`);
+                        for (let i = 0; i < count; i++) {
+                            await cards.nth(i).click().catch(() => {});
+                            await page.waitForTimeout(2000); // Chờ 2 giây để API chi tiết tải xong và bot bắt được response
                         }
-                    }
-                    
-                    if (!foundCards) {
-                        addToLogs('ℹ️ Hiện tại không có đơn hàng active nào hiển thị trên màn hình.');
+                    } else {
+                        addToLogs('ℹ️ Hiện tại không có thẻ đơn hàng nào hiển thị trên màn hình.');
                     }
                 } catch (clickErr) {
                     addToLogs(`⚠️ Lỗi khi click thẻ đơn hàng để trigger API: ${clickErr.message}`);
