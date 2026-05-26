@@ -23,6 +23,7 @@ let activePage = null; // Lưu tham chiếu page của Playwright để chụp m
 let globalBrowser = null;
 let globalContext = null;
 let isBotSleeping = false;
+let scanCycleCount = 0;
 
 function getVietnamHour() {
     const options = { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', hour12: false };
@@ -1463,6 +1464,72 @@ async function executeBotCommand(cmd, page) {
     }
 }
 
+// Hàm tự động chuyển tab Lịch sử ngầm để trigger gọi API lịch sử ngày hôm nay
+async function triggerHistorySync(page) {
+    addToLogs('🔄 [Realtime Status Sync] Đang chuyển sang tab Lịch sử để đồng bộ trạng thái đơn hàng...');
+    
+    const historyTabSelectors = [
+        'text="Lịch sử đơn hàng"',
+        'text="Lịch sử"',
+        'text="Order History"',
+        'text="History"',
+        'a[href*="history"]',
+        'button:has-text("Lịch sử")',
+        'button:has-text("History")'
+    ];
+    
+    let foundTab = false;
+    for (const selector of historyTabSelectors) {
+        try {
+            const tab = page.locator(selector).filter({ visible: true }).first();
+            if (await tab.count() > 0) {
+                addToLogs(`🔘 Click tab Lịch sử bằng selector: ${selector}`);
+                await tab.click();
+                foundTab = true;
+                break;
+            }
+        } catch (err) {}
+    }
+
+    if (!foundTab) {
+        addToLogs('⚠️ Không tìm thấy nút tab Lịch sử bằng click. Bỏ qua đồng bộ lịch sử.');
+        return;
+    }
+
+    // Chờ 5 giây để API Lịch sử tải xong và hệ thống tự động bắt API đồng bộ
+    await page.waitForTimeout(5000);
+
+    addToLogs('🔄 [Realtime Status Sync] Đang click quay trở lại tab Đang hoạt động...');
+    const activeTabSelectors = [
+        'text="Đơn hàng đang hoạt động"',
+        'text="Đang hoạt động"',
+        'text="Active orders"',
+        'text="Active"',
+        'button:has-text("Đang hoạt động")',
+        'button:has-text("Active")'
+    ];
+
+    let foundActiveTab = false;
+    for (const selector of activeTabSelectors) {
+        try {
+            const tab = page.locator(selector).filter({ visible: true }).first();
+            if (await tab.count() > 0) {
+                addToLogs(`🔘 Click tab Đang hoạt động bằng selector: ${selector}`);
+                await tab.click();
+                foundActiveTab = true;
+                break;
+            }
+        } catch (err) {}
+    }
+
+    if (!foundActiveTab) {
+        addToLogs('⚠️ Không tìm thấy nút tab Đang hoạt động để quay lại. Đang reload trang...');
+        await page.goto('https://merchant.grab.com/order', { waitUntil: 'networkidle' }).catch(() => {});
+    } else {
+        await page.waitForTimeout(2000);
+    }
+}
+
 const isLoginMode = process.argv.includes('--login');
 
 
@@ -1643,11 +1710,19 @@ async function runScraper() {
                 }
 
                 addToLogs('Chu kỳ làm mới hoàn tất. Hệ thống API Interception tự động bắt và đồng bộ đơn hàng.');
+                
+                // Tăng biến đếm chu kỳ
+                scanCycleCount++;
+                
+                // Cứ mỗi 5 chu kỳ quét (khoảng 1 phút với chu kỳ 12s), tự động chuyển tab Lịch sử ngầm để đồng bộ trạng thái
+                if (scanCycleCount % 5 === 0) {
+                    await triggerHistorySync(page).catch(e => addToLogs(`⚠️ Lỗi khi tự động đồng bộ trạng thái từ Lịch sử: ${e.message}`));
+                }
             }
         } catch (e) {
             addToLogs(`❌ Lỗi trong chu kỳ quét đơn: ${e.message}`);
         }
-    }, 20000);
+    }, 12000);
 }
 
 runScraper().catch(console.error);
