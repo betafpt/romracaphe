@@ -284,7 +284,7 @@ async function syncGrabOrders(ordersArray) {
             // Đồng bộ lại chi tiết món ăn trong order_items
             if (targetOrderId) {
                 // Xóa món cũ trước khi chèn lại để tránh trùng lặp
-                await supabase.from('order_items').delete().eq('order_id', targetOrderId).catch(() => {});
+                await supabase.from('order_items').delete().eq('order_id', targetOrderId);
                 
                 for (const item of items) {
                     try {
@@ -621,8 +621,22 @@ async function testHistoryScrape() {
             console.log('-------------------------------------------------------------\n');
         } catch (err) {}
 
+        // Lấy danh sách các đơn hàng Grab đang bị kẹt (pending/shipping) trên Web POS
+        let pendingShortIds = [];
+        try {
+            const { data: pendingOrders } = await supabase
+                .from('orders')
+                .select('external_short_id')
+                .eq('platform', 'grab')
+                .in('status', ['pending', 'shipping']);
+            
+            pendingShortIds = (pendingOrders || []).map(o => o.external_short_id).filter(Boolean);
+            console.log(`📋 Danh sách đơn Grab đang kẹt cần đồng bộ trên POS:`, pendingShortIds);
+        } catch (dbErr) {
+            console.warn('⚠️ Lỗi khi truy vấn danh sách đơn kẹt từ DB:', dbErr.message);
+        }
+
         // Định vị các card đơn hàng trong danh sách lịch sử
-        // Đơn hàng đã hoàn thành thường có text trạng thái là "Đã hoàn tất", "Đã giao", "Đã hoàn thành", "Delivered", "Completed" hoặc "Đã hủy", "Cancelled"
         const orderSelectors = [
             'text="Đã hoàn tất"',
             'text="Đã giao"',
@@ -639,13 +653,25 @@ async function testHistoryScrape() {
                 const cards = page.locator(selector).locator('..').locator('..');
                 const count = await cards.count().catch(() => 0);
                 if (count > 0) {
-                    console.log(`🎯 Phát hiện ${count} đơn hàng lịch sử bằng selector: ${selector}. Tiến hành cào tuần tự TOÀN BỘ đơn hàng...`);
+                    console.log(`🎯 Phát hiện ${count} đơn hàng lịch sử bằng selector: ${selector}. Tiến hành cào thông minh...`);
                     for (let i = 0; i < count; i++) {
-                        console.log(`🔘 Đang cào đơn thứ ${i + 1}/${count}...`);
-                        await cards.nth(i).click().catch(() => {});
-                        await page.waitForTimeout(4000); // Chờ 4 giây giữa mỗi lần click để API tải chi tiết và đồng bộ
+                        const cardText = await cards.nth(i).innerText().catch(() => '');
+                        // Trích xuất mã đơn ngắn (ví dụ: GF-624)
+                        const match = cardText.match(/GF-\d+/i) || cardText.match(/[A-Z0-9]+-[A-Z0-9]+/);
+                        const shortId = match ? match[0].toUpperCase() : null;
+                        
+                        // Chỉ cào nếu đơn này đang bị kẹt trên POS, hoặc nếu không có danh sách kẹt nào thì cào tất cả để làm sạch DB
+                        const shouldScrape = pendingShortIds.length === 0 || pendingShortIds.includes(shortId);
+                        
+                        if (shouldScrape) {
+                            console.log(`🔘 Đang cào đơn thứ ${i + 1}/${count} (${shortId || 'Không rõ mã'})...`);
+                            await cards.nth(i).click().catch(() => {});
+                            await page.waitForTimeout(4000); // Chờ 4 giây giữa mỗi lần click để API tải chi tiết và đồng bộ
+                            clickedOrder = true;
+                        } else {
+                            console.log(`skip Bỏ qua đơn ${shortId || 'Không rõ mã'} vì đã hoàn tất trên POS.`);
+                        }
                     }
-                    clickedOrder = true;
                     break;
                 }
             } catch (err) {}

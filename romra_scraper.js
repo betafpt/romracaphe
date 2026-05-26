@@ -993,7 +993,7 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                 // CHỈ cập nhật lại món ăn chi tiết nếu là API Chi tiết (isDetail === true)
                 if (isDetail) {
                     addToLogs(`⚡ [API Detail] Tiến hành chèn lại chi tiết món ăn và giá tiền thực tế cho đơn ${shortId}...`);
-                    await supabase.from('order_items').delete().eq('order_id', existingOrder.id).catch(() => {});
+                    await supabase.from('order_items').delete().eq('order_id', existingOrder.id);
                     for (const item of items) {
                         try {
                             let itemSize = '-';
