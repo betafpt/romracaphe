@@ -618,7 +618,7 @@ async function handleTelegramCommand(text) {
         
         if (target === 'bot') {
             await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang tải bản nâng cấp <code>romra_scraper.js</code> mới nhất trực tiếp từ GitHub về VPS...');
-            exec('curl -L -o /root/romra_scraper.js https://raw.githubusercontent.com/betafpt/romracaphe/main/romra_scraper.js', async (error, stdout, stderr) => {
+            exec('curl -L -o "' + __filename + '" https://raw.githubusercontent.com/betafpt/romracaphe/main/romra_scraper.js', async (error, stdout, stderr) => {
                 if (error) {
                     await sendTelegramAlert(`❌ Lỗi cập nhật bot: <code>${error.message}</code>`);
                     return;
@@ -631,12 +631,16 @@ async function handleTelegramCommand(text) {
         } 
         else if (target === 'history') {
             await sendTelegramAlert('⏳ <b>[RÔM RẢ BOT]</b> Đang tải bản nâng cấp script cào đơn lịch sử <code>test_history_scrape.js</code> từ GitHub...');
-            exec('curl -L -o /root/test_history_scrape.js https://raw.githubusercontent.com/betafpt/romracaphe/main/scratch/test_history_scrape.js', async (error, stdout, stderr) => {
+            let scriptPath = path.join(__dirname, 'scratch', 'test_history_scrape.js');
+            if (!fs.existsSync(scriptPath)) {
+                scriptPath = path.join(__dirname, 'test_history_scrape.js');
+            }
+            exec('curl -L -o "' + scriptPath + '" https://raw.githubusercontent.com/betafpt/romracaphe/main/scratch/test_history_scrape.js', async (error, stdout, stderr) => {
                 if (error) {
                     await sendTelegramAlert(`❌ Lỗi cập nhật cào lịch sử: <code>${error.message}</code>`);
                     return;
                 }
-                await sendTelegramAlert('✅ <b>CẬP NHẬT THÀNH CÔNG!</b>\nĐã tải đè bản cào lịch sử hoàn hảo mới nhất về `/root/test_history_scrape.js`.');
+                await sendTelegramAlert(`✅ <b>CẬP NHẬT THÀNH CÔNG!</b>\nĐã tải đè bản cào lịch sử hoàn hảo mới nhất về <code>${scriptPath}</code>.`);
             });
         }
     }
