@@ -145,22 +145,19 @@ async function syncGrabOrders(ordersArray) {
             const orderData = parseGrabOrder(rawOrder);
             const { shortId, bookingId, customerName, customerAddress, totalAmount, subtotalAmount, discountAmount, status, items } = orderData;
 
-            // Xóa đơn cũ cùng ID dài đi để test đồng bộ
-            const { data: existingOrder } = await supabase
+            // Kiểm tra xem đơn hàng đã tồn tại trong database chưa
+            const { data: existingOrder, error: checkErr } = await supabase
                 .from('orders')
-                .select('id')
+                .select('id, status, total_amount, raw_payload')
                 .eq('external_order_id', bookingId)
                 .maybeSingle();
 
-            if (existingOrder) {
-                console.log(`ℹ️ Phát hiện đơn ${shortId} đã có sẵn. Tiến hành xóa đơn cũ đi để chèn lại đơn mới cực chuẩn...`);
-                await supabase.from('order_items').delete().eq('order_id', existingOrder.id);
-                await supabase.from('orders').delete().eq('id', existingOrder.id);
+            if (checkErr) {
+                console.error(`❌ Lỗi kiểm tra database cho đơn ${shortId}: ${checkErr.message}`);
+                continue;
             }
 
-            console.log(`📣 PHÁT HIỆN ĐƠN MỚI CỦA GRABFOOD (API): ${shortId}! Đang chèn vào database...`);
-            
-            const rawPayload = {
+            const updatedRawPayload = {
                 orderID: bookingId,
                 shortOrderNumber: shortId,
                 bookingCode: orderData.bookingCode || bookingId,
@@ -189,57 +186,137 @@ async function syncGrabOrders(ordersArray) {
                 })
             };
 
-            const { data: insertedOrder, error: insertErr } = await supabase
-                .from('orders')
-                .insert({
-                    payment_method: 'grab_pay',
-                    total_amount: totalAmount,
-                    status: 'pending', // Pending để Web POS reo chuông
-                    platform: 'grab',
-                    external_order_id: bookingId,
-                    external_short_id: shortId,
-                    raw_payload: rawPayload,
-                    note: JSON.stringify(rawPayload)
-                })
-                .select()
-                .single();
+            let targetOrderId = null;
 
-            if (insertErr) {
-                console.error(`❌ Lỗi khi chèn đơn mới ${shortId} vào database: ${insertErr.message}`);
-                continue;
+            if (existingOrder) {
+                console.log(`ℹ️ Phát hiện đơn ${shortId} đã có sẵn trong database POS. Tiến hành cập nhật thông tin và trạng thái thực tế ("${status}")...`);
+                
+                const dbTotal = existingOrder.total_amount ? parseFloat(existingOrder.total_amount) : 0;
+                const dbPayload = existingOrder.raw_payload || {};
+                
+                // Quyết định số tiền cập nhật: Không ghi đè 0 lên số tiền thật đã có
+                let finalTotal = totalAmount;
+                if (dbTotal > 0 && totalAmount === 0) {
+                    finalTotal = dbTotal;
+                }
+
+                // Bảo lưu SĐT nếu đã có trước đó
+                if (dbPayload.eaterPhone && dbPayload.eaterPhone !== 'Không có số' && updatedRawPayload.eaterPhone === 'Không có số') {
+                    updatedRawPayload.eaterPhone = dbPayload.eaterPhone;
+                }
+                if (dbPayload.driverPhone && updatedRawPayload.driverPhone === '') {
+                    updatedRawPayload.driverPhone = dbPayload.driverPhone;
+                }
+                if (dbPayload.driverName && updatedRawPayload.driverName === '') {
+                    updatedRawPayload.driverName = dbPayload.driverName;
+                }
+
+                const updatePayload = {
+                    total_amount: finalTotal,
+                    raw_payload: updatedRawPayload,
+                    note: JSON.stringify(updatedRawPayload)
+                };
+
+                // Cập nhật trạng thái nếu thay đổi
+                if (existingOrder.status !== status) {
+                    console.log(`🔄 Cập nhật trạng thái POS đơn ${shortId} (${bookingId}): "${existingOrder.status}" -> "${status}"`);
+                    updatePayload.status = status;
+                }
+
+                const { error: updateErr } = await supabase
+                    .from('orders')
+                    .update(updatePayload)
+                    .eq('id', existingOrder.id);
+
+                if (updateErr) {
+                    console.error(`❌ Lỗi cập nhật thông tin đơn ${shortId}: ${updateErr.message}`);
+                    continue;
+                }
+
+                targetOrderId = existingOrder.id;
+                console.log(`✅ Đã cập nhật thành công thông tin đơn hàng ${shortId}!`);
+
+            } else {
+                console.log(`📣 PHÁT HIỆN ĐƠN MỚI CỦA GRABFOOD (API LỊCH SỬ): ${shortId}! Đang chèn vào database...`);
+                
+                const { data: insertedOrder, error: insertErr } = await supabase
+                    .from('orders')
+                    .insert({
+                        payment_method: 'grab_pay',
+                        total_amount: totalAmount,
+                        status: status, // Lưu đúng trạng thái thực tế từ API (completed/cancelled...)
+                        platform: 'grab',
+                        external_order_id: bookingId,
+                        external_short_id: shortId,
+                        raw_payload: updatedRawPayload,
+                        note: JSON.stringify(updatedRawPayload)
+                    })
+                    .select()
+                    .single();
+
+                if (insertErr) {
+                    console.error(`❌ Lỗi khi chèn đơn mới ${shortId} vào database: ${insertErr.message}`);
+                    continue;
+                }
+
+                targetOrderId = insertedOrder.id;
+                console.log(`🎉 Đã chèn đơn hàng ${shortId} mới thành công! ID Đơn POS: ${insertedOrder.id}`);
             }
 
-            console.log(`🎉 Đã chèn đơn hàng ${shortId} thành công! ID Đơn POS: ${insertedOrder.id}`);
             processedCount++;
 
-            for (const item of items) {
-                try {
-                    const { data: recipe } = await supabase
-                        .from('recipes')
-                        .select('id')
-                        .eq('name', item.name)
-                        .maybeSingle();
+            // Đồng bộ lại chi tiết món ăn trong order_items
+            if (targetOrderId) {
+                // Xóa món cũ trước khi chèn lại để tránh trùng lặp
+                await supabase.from('order_items').delete().eq('order_id', targetOrderId).catch(() => {});
+                
+                for (const item of items) {
+                    try {
+                        let itemSize = '-';
+                        if (item.note && item.note.includes('Size')) {
+                            const match = item.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || item.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
+                            if (match) {
+                                itemSize = (match[1] || match[0]).trim().toUpperCase();
+                            }
+                        }
 
-                    await supabase
-                        .from('order_items')
-                        .insert({
-                            order_id: insertedOrder.id,
-                            recipe_id: recipe ? recipe.id : null,
-                            quantity: item.quantity,
-                            price: item.price
-                        });
-                } catch (itemErr) {
-                    console.error(`❌ Lỗi khi chèn món ${item.name} của đơn ${shortId}: ${itemErr.message}`);
+                        // Tìm công thức và size tương ứng
+                        const { data: recipesList, error: recipeErr } = await supabase
+                            .from('recipes')
+                            .select('id, size')
+                            .eq('name', item.name);
+
+                        let recipeId = null;
+                        if (!recipeErr && recipesList && recipesList.length > 0) {
+                            if (recipesList.length === 1) {
+                                recipeId = recipesList[0].id;
+                            } else {
+                                const matched = recipesList.find(r => String(r.size || '').trim().toUpperCase() === itemSize);
+                                recipeId = matched ? matched.id : recipesList[0].id;
+                            }
+                        }
+
+                        await supabase
+                            .from('order_items')
+                            .insert({
+                                order_id: targetOrderId,
+                                recipe_id: recipeId,
+                                quantity: item.quantity,
+                                price: item.price
+                            });
+                    } catch (itemErr) {
+                        console.error(`❌ Lỗi khi chèn món ${item.name} của đơn ${shortId}: ${itemErr.message}`);
+                    }
                 }
+                console.log(`👉 Chi tiết món ăn của đơn hàng ${shortId} đã được đồng bộ chuẩn xác.`);
             }
-            console.log(`Đơn hàng ${shortId} đã sẵn sàng trên Web POS.`);
 
         } catch (orderErr) {
             console.error(`❌ Lỗi xử lý một đơn hàng trong mảng API: ${orderErr.message}`);
         }
     }
     if (processedCount > 0) {
-        console.log(`✅ Hoàn thành đồng bộ ${processedCount} đơn hàng mới qua API!`);
+        console.log(`✅ Hoàn thành đồng bộ ${processedCount} đơn hàng qua API Lịch sử!`);
     }
 }
 
