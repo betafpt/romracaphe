@@ -349,9 +349,31 @@ async function testHistoryScrape() {
         process.exit(1);
     }
 
+    // Tự động exit sau 90s để phòng ngừa treo tiến trình ngầm trên VPS 1GB
+    const safetyTimeout = setTimeout(async () => {
+        console.error('⚠️ Quá thời gian chờ (90 giây)! Tự động đóng trình duyệt và thoát để tránh treo VPS.');
+        try {
+            if (browser) {
+                await browser.close().catch(() => {});
+            }
+        } catch (err) {}
+        process.exit(1);
+    }, 90000);
+
+    const launchArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+    ];
+
     const browser = await chromium.launch({
         headless: true, // Chạy ẩn để thực thi trên VPS
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: launchArgs
     });
 
     const context = await browser.newContext({
@@ -361,6 +383,17 @@ async function testHistoryScrape() {
     });
 
     const page = await context.newPage();
+
+    // Thiết lập chặn ảnh, font và các file thừa để tiết kiệm RAM tối đa cho VPS 1GB
+    await page.route('**/*', (route) => {
+        const url = route.request().url();
+        const type = route.request().resourceType();
+        if (['image', 'font', 'media'].includes(type) || url.includes('analytics') || url.includes('doubleclick') || url.includes('facebook') || url.includes('tracking') || url.includes('telemetry')) {
+            route.abort();
+        } else {
+            route.continue();
+        }
+    });
 
     let dumpCount = 0;
     // Lắng nghe API Lịch sử và Đơn hàng thực tế
