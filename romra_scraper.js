@@ -271,6 +271,20 @@ async function handleTelegramCommand(text) {
             if (!fs.existsSync(scriptPath)) {
                 scriptPath = path.join(__dirname, 'test_specific_order.js');
             }
+            
+            // Tự động tải test_specific_order.js từ GitHub về VPS nếu chưa có
+            if (!fs.existsSync(scriptPath)) {
+                await sendTelegramAlert(`⏳ Không tìm thấy script cào cưỡng bức trên VPS. Đang tự động tải <code>test_specific_order.js</code> từ GitHub...`);
+                const destDir = fs.existsSync(path.join(__dirname, 'scratch')) ? path.join(__dirname, 'scratch') : __dirname;
+                scriptPath = path.join(destDir, 'test_specific_order.js');
+                
+                await new Promise((resolve) => {
+                    exec(`curl -L -o "${scriptPath}" https://raw.githubusercontent.com/betafpt/romracaphe/main/scratch/test_specific_order.js`, () => {
+                        resolve();
+                    });
+                });
+            }
+            
             execCmd = `node "${scriptPath}" ${argUpper}`;
             await sendTelegramAlert(`⏳ <b>[RÔM RẢ BOT]</b> Đang cào cưỡng bức chi tiết đơn hàng <b>${argUpper}</b> ngầm trên VPS... Vui lòng đợi.`);
         } else {
