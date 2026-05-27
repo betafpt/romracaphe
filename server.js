@@ -1249,18 +1249,38 @@ app.post('/api/payos/webhook', async (req, res) => {
     }
 });
 
-// Dọn dẹp tự động (Lazy Cleanup) dữ liệu cũ hơn 30 ngày
+// Dọn dẹp tự động (Lazy Cleanup) dữ liệu cũ hơn 30 ngày, dọn dẹp triệt để vào ngày đầu tiên mỗi tháng
 async function cleanupOldData() {
     try {
+        const today = new Date();
+        const isFirstDayOfMonth = today.getDate() === 1;
+
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         thirtyDaysAgo.setHours(0, 0, 0, 0);
         const cutoffISO = thirtyDaysAgo.toISOString();
 
-        // Xóa order cũ, cascade delete items cũng sẽ xóa nếu CSDL đã setup, hoặc chờ cron job.
-        // Ở đây xoá cứng order và visitor log cũ hơn 30 ngày.
-        await supabase.from('orders').delete().lt('created_at', cutoffISO);
-        await supabase.from('visitor_logs').delete().lt('visited_at', cutoffISO);
+        if (isFirstDayOfMonth) {
+            console.log(`[Database Cleanup] Phát hiện ngày đầu tiên của tháng (${today.toLocaleDateString('vi-VN')})! Tiến hành dọn dẹp triệt để dữ liệu cũ hơn 30 ngày...`);
+            // Xóa dữ liệu cũ hơn 30 ngày
+            const { error: orderErr } = await supabase.from('orders').delete().lt('created_at', cutoffISO);
+            const { error: visitErr } = await supabase.from('visitor_logs').delete().lt('visited_at', cutoffISO);
+            
+            // Xóa thêm bot commands cũ hơn 30 ngày nếu có bảng này
+            try {
+                await supabase.from('bot_commands').delete().lt('created_at', cutoffISO);
+            } catch (e) {}
+
+            if (orderErr || visitErr) {
+                console.error("[Database Cleanup] Lỗi dọn dẹp:", orderErr || visitErr);
+            } else {
+                console.log("[Database Cleanup] Đã dọn dẹp triệt để thành công dữ liệu cũ hơn 30 ngày!");
+            }
+        } else {
+            // Lazy dọn dẹp hàng ngày thông thường để đảm bảo dung lượng nhẹ
+            await supabase.from('orders').delete().lt('created_at', cutoffISO);
+            await supabase.from('visitor_logs').delete().lt('visited_at', cutoffISO);
+        }
     } catch (e) {
         console.error("Cleanup error", e);
     }
@@ -1272,6 +1292,7 @@ app.get('/api/orders', async (req, res) => {
         // Kích hoạt dọn dẹp background
         cleanupOldData();
 
+        const dateParam = req.query.date; // định dạng YYYY-MM-DD
         const range = req.query.range || 'today';
         let query = supabase
             .from('orders')
@@ -1283,20 +1304,30 @@ app.get('/api/orders', async (req, res) => {
                 )
             `);
 
-        // Setup Date Bounds based on Local TZ
-        const now = new Date();
-        const startOfDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (dateParam) {
+            // Lọc theo ngày cụ thể (YYYY-MM-DD) theo múi giờ Local Việt Nam (GMT+7)
+            const [year, month, day] = dateParam.split('-').map(Number);
+            const startOfSpecifiedDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+            const endOfSpecifiedDate = new Date(year, month - 1, day, 23, 59, 59, 999);
 
-        if (range === 'today') {
-            query = query.gte('created_at', startOfDate.toISOString());
-        } else if (range === '7d') {
-            const startDate = new Date(startOfDate);
-            startDate.setDate(startDate.getDate() - 6);
-            query = query.gte('created_at', startDate.toISOString());
-        } else if (range === '30d') {
-            const startDate = new Date(startOfDate);
-            startDate.setDate(startDate.getDate() - 29);
-            query = query.gte('created_at', startDate.toISOString());
+            query = query.gte('created_at', startOfSpecifiedDate.toISOString())
+                         .lte('created_at', endOfSpecifiedDate.toISOString());
+        } else {
+            // Setup Date Bounds based on Local TZ (mặc định cũ)
+            const now = new Date();
+            const startOfDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            if (range === 'today') {
+                query = query.gte('created_at', startOfDate.toISOString());
+            } else if (range === '7d') {
+                const startDate = new Date(startOfDate);
+                startDate.setDate(startDate.getDate() - 6);
+                query = query.gte('created_at', startDate.toISOString());
+            } else if (range === '30d') {
+                const startDate = new Date(startOfDate);
+                startDate.setDate(startDate.getDate() - 29);
+                query = query.gte('created_at', startDate.toISOString());
+            }
         }
 
         const { data, error } = await query.order('created_at', { ascending: false }).limit(200);
