@@ -773,7 +773,7 @@ async function startTelegramBot() {
 }
 
 function getGrabRealtimeStatus(order) {
-    const state = String(order.state || order.orderState || order.status || '').toUpperCase();
+    const state = String(order.state || order.orderState || order.status || order.deliveryStatus || '').toUpperCase();
     const delivery = String(order.deliveryTaskpoolStatus || '').toUpperCase();
 
     if (state === 'CANCELLED') return 'Đã hủy đơn';
@@ -803,8 +803,8 @@ function getGrabRealtimeStatus(order) {
 
 // Hàm bóc tách đơn hàng thích ứng từ JSON API của Grab (tương thích cả đơn đang chạy và đơn lịch sử)
 function parseGrabOrder(order) {
-    const shortId = order.shortOrderNumber || order.shortId || order.displayId || order.displayID || order.id || 'GF-UNKNOWN';
-    const bookingId = order.orderID || order.bookingID || order.bookingCode || order.id || shortId;
+    const shortId = order.shortOrderNumber || order.shortId || order.displayId || order.displayID || order.id || order.ID || 'GF-UNKNOWN';
+    const bookingId = order.orderID || order.bookingID || order.bookingCode || order.id || order.ID || shortId;
     const bookingCode = order.bookingCode || order.bookingID || bookingId;
     
     // Tên và SĐT khách hàng
@@ -821,7 +821,7 @@ function parseGrabOrder(order) {
         eaterName = order.customerName;
     }
     
-    // Tài xế
+    // Tài chế
     let driverName = '';
     let driverPhone = '';
     if (order.driver) {
@@ -842,7 +842,13 @@ function parseGrabOrder(order) {
     let subtotalAmount = 0;
     let discountAmount = 0;
     
-    if (order.price) {
+    if (order.priceDisplay) {
+        totalAmount = parseFloat(String(order.priceDisplay).replace(/\./g, '')) || 0;
+        subtotalAmount = totalAmount;
+    } else if (order.orderEarningsInMinorUnit !== undefined) {
+        totalAmount = order.orderEarningsInMinorUnit;
+        subtotalAmount = totalAmount;
+    } else if (order.price) {
         totalAmount = order.price.total || order.price.totalAmount || 0;
         subtotalAmount = order.price.subtotal || order.price.subtotalAmount || totalAmount;
         discountAmount = order.price.discount || order.price.discountAmount || 0;
@@ -858,7 +864,7 @@ function parseGrabOrder(order) {
     
     // Trạng thái đơn hàng
     let status = 'pending'; // mặc định
-    const orderState = order.orderState || order.status || order.state || '';
+    const orderState = order.orderState || order.status || order.state || order.deliveryStatus || '';
     const stateStr = String(orderState).toLowerCase();
     if (stateStr.includes('preparing') || stateStr.includes('upcoming') || stateStr.includes('accepted')) {
         status = 'pending';
