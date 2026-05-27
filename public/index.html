@@ -3648,7 +3648,7 @@
                 <div class="flex flex-wrap items-center gap-4 w-full xl:w-auto justify-start xl:justify-end">
                     <!-- Date Picker (Chọn Ngày) -->
                     <div class="flex items-center gap-2 flex-1 sm:flex-none min-w-[160px]">
-                        <input type="date" id="pos-date-picker" class="brutal-input py-2 px-3 bg-white font-black cursor-pointer border-[3px] border-black shadow-[3px_3px_0_0_#000] focus:outline-none w-full text-base" onchange="window.changePOSDate(this.value)">
+                        <input type="date" id="pos-date-picker" class="brutal-input py-2 px-3 bg-white font-black cursor-pointer border-[3px] border-black shadow-[3px_3px_0_0_#000] focus:outline-none w-full text-base" onchange="window.changePOSDate(this.value)" onclick="if(typeof this.showPicker === 'function') this.showPicker()">
                     </div>
 
                     <!-- Tab Switcher Neo-Brutalism -->
