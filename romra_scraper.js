@@ -1637,8 +1637,15 @@ async function triggerHistorySync(page) {
     }
 
     if (!foundTab) {
-        addToLogs('⚠️ Không tìm thấy nút tab Lịch sử bằng click. Bỏ qua đồng bộ lịch sử.');
-        return;
+        // Fallback điều hướng trực tiếp bằng URL nếu không click được tab Lịch sử trên UI
+        addToLogs('⚠️ Không tìm thấy nút tab Lịch sử bằng click. Tiến hành điều hướng trực tiếp qua URL...');
+        try {
+            await page.goto('https://merchant.grab.com/order/history', { waitUntil: 'domcontentloaded', timeout: 30000 });
+            foundTab = true;
+        } catch (gotoErr) {
+            addToLogs(`❌ Điều hướng trực tiếp sang Lịch sử thất bại: ${gotoErr.message}`);
+            return;
+        }
     }
 
     // Chờ 5 giây để API Lịch sử tải xong và hệ thống tự động bắt API đồng bộ
@@ -1668,7 +1675,8 @@ async function triggerHistorySync(page) {
     }
 
     if (!foundActiveTab) {
-        addToLogs('⚠️ Không tìm thấy nút tab Đang hoạt động để quay lại. Đang reload trang...');
+        // Fallback quay lại trang Đang hoạt động trực tiếp bằng URL
+        addToLogs('⚠️ Không tìm thấy nút tab Đang hoạt động để quay lại. Đang điều hướng trực tiếp bằng URL...');
         await page.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
     } else {
         await page.waitForTimeout(2000);
@@ -1898,15 +1906,20 @@ async function runScraper() {
                     }
                 }
                 
-                addToLogs('Đang làm mới trang để kích hoạt API quét đơn hàng Grab...');
-                await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
-                await page.waitForTimeout(4000);
+                // Chỉ reload trang sau mỗi 15 chu kỳ quét (~ 3 phút một lần) để tránh Target crashed và tiết kiệm CPU
+                if (scanCycleCount === 0 || scanCycleCount % 15 === 0) {
+                    addToLogs('🔄 [Periodic Reload] Đang làm mới trang để giải phóng bộ nhớ và kích hoạt API Grab...');
+                    await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+                    await page.waitForTimeout(4000);
 
-                // Kiểm tra lại URL sau khi reload để phòng hờ bị redirect sau reload
-                const postReloadUrl = page.url();
-                if (postReloadUrl.includes('/login') || postReloadUrl.includes('/auth')) {
-                    addToLogs('⚠️ Phát hiện bị đá về trang Login sau khi reload! Bỏ qua chu kỳ quét này để chờ chu kỳ sau tự động login.');
-                    return;
+                    // Kiểm tra lại URL sau khi reload để phòng hờ bị redirect sau reload
+                    const postReloadUrl = page.url();
+                    if (postReloadUrl.includes('/login') || postReloadUrl.includes('/auth')) {
+                        addToLogs('⚠️ Phát hiện bị đá về trang Login sau khi reload! Bỏ qua chu kỳ quét này để chờ chu kỳ sau tự động login.');
+                        return;
+                    }
+                } else {
+                    addToLogs(`⚡ [Quick Scan] Quét nhanh chu kỳ #${scanCycleCount} (Không reload)...`);
                 }
 
                                 // 1. Quét và click cào đơn ở tab Đang hoạt động hiện tại (mặc định mở sau reload)
