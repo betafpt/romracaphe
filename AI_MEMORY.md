@@ -1,6 +1,6 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 27 tháng 5 năm 2026 (Cập nhật lúc 08:35)
+**Thời gian đồng bộ cuối cùng:** Ngày 27 tháng 5 năm 2026 (Cập nhật lúc 08:50)
 
 ## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
 Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
@@ -34,13 +34,14 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 
 ## 3. LỊCH SỬ CÁC TÍNH NĂNG ĐÃ TÍCH HỢP GẦN NHẤT
 
-### A. Khắc phục triệt để lỗi Bot Grab cào thiếu thông tin (0đ, thiếu SĐT khách) cho các đơn hàng "Đang tìm tài xế" (Mới nhất - 27/05/2026)
-*   **🔍 Nguyên nhân cốt lõi:**
-    *   Các đơn hàng đang tìm tài xế hoặc đang chờ nhận (`ALLOCATING`) chỉ hiển thị ở tab **"Sắp tới" (Upcoming / Đơn mới)** trên Grab Portal.
-    *   Trong khi đó, bot chỉ reload trang mặc định ở tab **"Đang hoạt động" (Active)** và quét click các thẻ đơn trên tab đó, dẫn tới các đơn ở tab "Sắp tới" không bao giờ được click để kích hoạt API chi tiết, khiến thông tin bị kẹt ở mức sơ sài từ API danh sách (0đ và không có SĐT).
-*   **🛠️ Giải pháp nâng cấp và thực hiện:**
-    *   Xây dựng 3 hàm helper thông minh: `clickVisibleOrderCards(page)` (quét click tuần tự thẻ đơn hàng thực tế), `switchToUpcomingTab(page)` (chuyển sang tab Sắp tới), và `switchToActiveTab(page)` (quay lại tab Đang hoạt động).
-    *   Cập nhật chu kỳ quét chính 12 giây của bot: reload trang -> quét cào đơn tab **Đang hoạt động** -> tự động click chuyển sang tab **Sắp tới** để quét cào đơn (đơn Đang tìm tài xế) -> click quay lại tab **Đang hoạt động** để chuẩn bị cho chu kỳ sau.
+### A. Khắc phục triệt để lỗi cào thiếu thông tin và lỗi ghi đè ngược (reset lúc có lúc mất) cho các đơn hàng Grab (Mới nhất - 27/05/2026)
+*   **⏰ 1. Khắc phục lỗi cào thiếu thông tin cho đơn "Đang tìm tài xế" (ALLOCATING):**
+    *   *Nguyên nhân:* Đơn đang tìm tài xế chỉ hiển thị ở tab "Sắp tới" (Upcoming) trên Grab Portal. Bot trước đây chỉ reload và quét ở tab mặc định "Đang hoạt động" (Active), dẫn đến các đơn ở tab "Sắp tới" không bao giờ được click để kích hoạt API chi tiết.
+    *   *Giải pháp:* Xây dựng các hàm helper điều hướng tab (`switchToUpcomingTab`, `switchToActiveTab`) và cập nhật chu kỳ quét 12s để quét tuần tự cả hai tab.
+*   **🚫 2. Sửa lỗi ghi đè ngược làm mất thông tin món ăn (note, size) định kỳ (lúc có lúc mất):**
+    *   *Nguyên nhân:* Chu kỳ quét 12s định kỳ của bot nhận danh sách đơn từ API danh sách (`isDetail = false`) - vốn chỉ chứa tên món và số lượng, không có note/size. Do lỗi điều kiện ở dòng 1006, bot đã lấy mảng món sơ sài này ghi đè ngược lên mảng chi tiết đầy đủ trong database, khiến thông tin trên POS bị reset mất sạch ghi chú cứ mỗi 12s.
+    *   *Giải pháp:* Nâng cấp logic bảo vệ dữ liệu (Defensive Update) cho mảng món ăn: Chỉ cập nhật mảng món ăn mới khi đó là API chi tiết (`isDetail === true`) hoặc database chưa có dữ liệu. Nếu là API danh sách thông thường và DB đã có sẵn thông tin, bot sẽ **giữ nguyên mảng món ăn cũ của database (`dbPayload.items`)**, chặn đứng hoàn toàn việc ghi đè ngược.
+*   **🚀 Triển khai và xác thực:**
     *   Kiểm tra cú pháp JS thành công (`node -c romra_scraper.js`).
     *   Commit và push code lên GitHub nhánh `main` thành công.
     *   SSH trực tiếp vào VPS (`161.248.147.124`), chạy lệnh tải đè cập nhật mã nguồn bot và restart các tiến trình PM2 (`romra-bot`, `romra-shopee-bot`) chạy trực tuyến 🟢 hoàn hảo.
@@ -73,7 +74,7 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
     *   *Cơ chế tự chuyển tab đồng bộ ngầm:* Tích hợp hàm `triggerHistorySync` tự động điều khiển bot click chuyển sang tab Lịch sử (History) ngầm định kỳ mỗi 5 chu kỳ (1 phút), chờ 5 giây để bắt response API lịch sử ngày hôm nay, tự động cập nhật đè số tiền/món ăn đúng cho các đơn đã trôi qua, và cập nhật trạng thái `status = 'completed'` / `'cancelled'`. Sau đó tự động click quay trở lại tab Đang hoạt động. Cơ chế này giúp POS Live tự động nhận diện và **tự động chuyển đơn hàng sang cột "Đơn đã hoàn tất" bên phải** khi tài xế giao hàng thành công mà nhân viên không cần thao tác gì!
 *   **Khắc phục lỗi deploy `/update` bằng đường dẫn động trên VPS:**
     *   Thay thế các đường dẫn cứng `/root/romra_scraper.js` trong các lệnh `/update` và `/update history` trên Telegram Bot thành các đường dẫn tuyệt đối động (`__filename` và `scriptPath` sử dụng `path.join`) giúp ghi đè và nâng cấp chính xác 100% bất kể bot được chạy ở thư mục nào trên VPS.
-    *   Xác định đúng thư mục chạy bot của quán trên VPS là ở ngay thư mục gốc `/root/romra_scraper.js`. Hướng dẫn người dùng lệnh cập nhật đè VPS tối ưu qua Telegram: `/cmd curl -L -o /root/romra_scraper.js https://raw.githubusercontent.com/betafpt/romracaphe/main/romra_scraper.js && pm2 restart all` để giải quyết lỗi không tìm thấy thư mục `/root/romracaphe`.
+    *   Xác định đúng thư mục chạy bot của quán trên VPS is ở ngay thư mục gốc `/root/romra_scraper.js`. Hướng dẫn người dùng lệnh cập nhật đè VPS tối ưu qua Telegram: `/cmd curl -L -o /root/romra_scraper.js https://raw.githubusercontent.com/betafpt/romracaphe/main/romra_scraper.js && pm2 restart all` để giải quyết lỗi không tìm thấy thư mục `/root/romracaphe`.
 
 ### D. Tích hợp Doanh thu Thực nhận POS & Auto-Login 100% cho Bot (24/05/2026)
 *   **Doanh thu Thực nhận & Chiết khấu sàn (Chuẩn Nexpos):**
@@ -99,7 +100,7 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 *(Dành cho phiên hỗ trợ tự động ở máy tính khác hoặc phiên làm việc tiếp theo)*
 Chào bạn (người đồng nghiệp AI). Hãy review lại tài liệu này.
 *   Hệ thống POS hiện tại hoạt động cực kỳ hoàn hảo, giao diện 2 cột online siêu mượt mà, hiển thị chuẩn xác thời gian đặt đơn Grab gốc và có badge số lượng ly nổi bật.
-*   Lỗi cào thiếu thông tin đơn đang tìm tài xế Grab (`0đ`, không có SĐT) đã được giải quyết triệt để thông qua cơ chế tự động click tuần tự cả hai tab **Đang hoạt động (Active)** và **Sắp tới (Upcoming)**.
+*   Lỗi cào thiếu thông tin đơn đang tìm tài xế Grab (`0đ`, không có SĐT) và lỗi ghi đè ngược (reset lúc có lúc mất) đã được giải quyết triệt để và triển khai VPS thành công.
 *   **Hướng đi tiếp theo đề xuất (ĐÃ THỐNG NHẤT):**
     1.  Tích hợp tự động trừ kho nguyên liệu (Inventory Auto-Deduct) dựa trên công thức món khi có đơn bán ra (Supabase `orders` -> `order_items` -> `recipes` -> `inventory`).
     2.  Xây dựng thêm Bot cào đơn tự động cho ShopeeFood Merchant Portal tương tự như GrabFood.
