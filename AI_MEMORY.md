@@ -1,6 +1,6 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 27 tháng 5 năm 2026 (Cập nhật lúc 02:00)
+**Thời gian đồng bộ cuối cùng:** Ngày 27 tháng 5 năm 2026 (Cập nhật lúc 08:35)
 
 ## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
 Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
@@ -34,7 +34,18 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 
 ## 3. LỊCH SỬ CÁC TÍNH NĂNG ĐÃ TÍCH HỢP GẦN NHẤT
 
-### A. Tối ưu hóa UI Neo-Brutalism, Sửa lỗi giờ đặt Grab thực tế, Tách ghi chú dạng danh sách dọc & Chống nháy màn hình triệt để (Mới nhất - 27/05/2026)
+### A. Khắc phục triệt để lỗi Bot Grab cào thiếu thông tin (0đ, thiếu SĐT khách) cho các đơn hàng "Đang tìm tài xế" (Mới nhất - 27/05/2026)
+*   **🔍 Nguyên nhân cốt lõi:**
+    *   Các đơn hàng đang tìm tài xế hoặc đang chờ nhận (`ALLOCATING`) chỉ hiển thị ở tab **"Sắp tới" (Upcoming / Đơn mới)** trên Grab Portal.
+    *   Trong khi đó, bot chỉ reload trang mặc định ở tab **"Đang hoạt động" (Active)** và quét click các thẻ đơn trên tab đó, dẫn tới các đơn ở tab "Sắp tới" không bao giờ được click để kích hoạt API chi tiết, khiến thông tin bị kẹt ở mức sơ sài từ API danh sách (0đ và không có SĐT).
+*   **🛠️ Giải pháp nâng cấp và thực hiện:**
+    *   Xây dựng 3 hàm helper thông minh: `clickVisibleOrderCards(page)` (quét click tuần tự thẻ đơn hàng thực tế), `switchToUpcomingTab(page)` (chuyển sang tab Sắp tới), và `switchToActiveTab(page)` (quay lại tab Đang hoạt động).
+    *   Cập nhật chu kỳ quét chính 12 giây của bot: reload trang -> quét cào đơn tab **Đang hoạt động** -> tự động click chuyển sang tab **Sắp tới** để quét cào đơn (đơn Đang tìm tài xế) -> click quay lại tab **Đang hoạt động** để chuẩn bị cho chu kỳ sau.
+    *   Kiểm tra cú pháp JS thành công (`node -c romra_scraper.js`).
+    *   Commit và push code lên GitHub nhánh `main` thành công.
+    *   SSH trực tiếp vào VPS (`161.248.147.124`), chạy lệnh tải đè cập nhật mã nguồn bot và restart các tiến trình PM2 (`romra-bot`, `romra-shopee-bot`) chạy trực tuyến 🟢 hoàn hảo.
+
+### B. Tối ưu hóa UI Neo-Brutalism, Sửa lỗi giờ đặt Grab thực tế, Tách ghi chú dạng danh sách dọc & Chống nháy màn hình triệt để (27/05/2026)
 *   **⏰ Đồng bộ chính xác giờ đặt đơn thực tế từ Grab:**
     *   Bóc tách đối tượng `times.createdAt` gốc dạng UTC cào được từ API Grab chi tiết (Ví dụ đơn `GF-670` là `2026-05-26T01:16:54Z`) và lưu trực tiếp vào database ở các trường `times` và `createdAt` trong `raw_payload` (cho cả đơn mới và đơn update).
     *   Web POS frontend tự động nhận diện và chuyển đổi sang giờ Việt Nam (+7) chuẩn xác (Hiển thị **08:16** sáng y như thực tế thay vì giờ bot cào chèn DB).
@@ -43,17 +54,16 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
     *   Tự động loại bỏ size bị trùng lắp ở ghi chú (để tránh rối vì size đã hiển thị ngay cạnh tên món).
     *   In tem dán ly được giữ nguyên cấu trúc bóc tách chuẩn xác như cũ.
 *   **🚫 Giải quyết triệt để lỗi nhấp nháy màn hình (Anti-Flicker 100%):**
-    *   *Khắc phục hạn chế cũ:* Thay thế việc so sánh JSON toàn bộ đơn hàng (vốn bị nhiễu do trường `updated_at` trong database tự động cập nhật liên tục mỗi khi bot quét) bằng thuật toán so sánh **chữ ký Signature thông minh** chỉ dựa trên các trường cốt lõi ảnh hưởng tới giao diện (`id`, `status`, `total_amount`, `note`).
-    *   *Hiệu quả:* Web POS tĩnh lặng tuyệt đối 100%, không bao giờ bị chớp nháy card mỗi 5 giây, chỉ re-render êm ái khi có đơn mới hoặc đổi trạng thái.
+    *   Thay thế việc so sánh JSON toàn bộ đơn hàng (vốn bị nhiễu do trường `updated_at` trong database tự động cập nhật liên tục mỗi khi bot quét) bằng thuật toán so sánh **chữ ký Signature thông minh** chỉ dựa trên các trường cốt lõi ảnh hưởng tới giao diện (`id`, `status`, `total_amount`, `note`).
+    *   Web POS tĩnh lặng tuyệt đối 100%, không bao giờ bị chớp nháy card mỗi 5 giây, chỉ re-render êm ái khi có đơn mới hoặc đổi trạng thái.
 *   **🎨 Nâng cấp UI Neo-Brutalism Premium nổi khối 3D:**
-    *   *Giãn cách rộng rãi:* Thay đổi padding và khoảng cách giữa các card đơn hàng từ `p-3 gap-4` thành **`p-4 gap-6`** trên toàn bộ các cột, tạo không gian thông thoáng, không còn bị dính sát hay chồng viền.
-    *   *Bóng đổ 8px nổi bật:* Nâng cấp đổ bóng đen lập thể đặc trưng Brutalism lên **`shadow-[8px_8px_0_0_#000]`** tạo chiều sâu thị giác cực mạnh, giúp các card tách biệt rõ nét.
-    *   *Hiệu ứng bay 3D (Hover):* Thêm micro-animation bay lên lập thể và tăng bóng đổ khi hover chuột: `hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[12px_12px_0_0_#000] transition-all duration-200` rất hiện đại và sống động.
+    *   Thay đổi padding và khoảng cách giữa các card đơn hàng từ `p-3 gap-4` thành **`p-4 gap-6`** trên toàn bộ các cột, tạo không gian thông thoáng, không còn bị dính sát hay chồng viền.
+    *   Nâng cấp đổ bóng đen lập thể đặc trưng Brutalism lên **`shadow-[8px_8px_0_0_#000]`** tạo chiều sâu thị giác cực mạnh, giúp các card tách biệt rõ nét.
+    *   Thêm micro-animation bay lên lập thể và tăng bóng đổ khi hover chuột: `hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[12px_12px_0_0_#000] transition-all duration-200` rất hiện đại và sống động.
 *   **🎯 Đưa đơn cào ngầm lịch sử Grab về đúng cột:**
     *   Đồng bộ chính xác trạng thái thực tế (`completed` / `cancelled`) cào được từ Grab Portal vào database Supabase, tự động chuyển các đơn Grab hoàn tất sang cột bên phải **"ĐƠN ĐÃ HOÀN TẤT"** thay vì bị kẹt ở cột đang xử lý.
-    *   Toàn bộ thay đổi đã được commit, push lên GitHub để Vercel tự động deploy thành công và SFTP đồng bộ lên VPS của quán hoạt động cực kỳ hoàn hảo!
 
-### B. Vá lỗi Bot Grab 0đ, Nâng cấp chu kỳ 12s & Đồng bộ trạng thái Lịch sử ngầm (26/05/2026)
+### C. Vá lỗi Bot Grab 0đ, Nâng cấp chu kỳ 12s & Đồng bộ trạng thái Lịch sử ngầm (26/05/2026)
 *   **Khắc phục triệt để lỗi cào thiếu thông tin (0đ) & lỗi map size món ăn:**
     *   *Sửa kẹt tab điều hướng:* Loại bỏ hoàn toàn mảng `orderSelectors` chứa các từ khóa tab điều hướng của Grab Portal (như "Sắp tới", "Upcoming", "Hoàn thành"...) vốn gây kẹt click và làm mất API chi tiết. Thay thế bằng regex định vị mã đơn ngắn `/^[A-Z0-9]+-[A-Z0-9]+$/` để luôn click chính xác và click tuần tự vào các thẻ đơn hàng thật trên UI, kích hoạt Grab Portal gọi API chi tiết `/food/merchant/v3/orders/{order_id}` thành công 100%.
     *   *Ánh xạ món nước nhiều size:* Nâng cấp thuật toán so khớp món nước từ `.maybeSingle()` (bị lỗi khi món có nhiều size trong DB) sang bóc tách size bằng Regex từ note và tìm kiếm chính xác ID của món nước theo đúng size trong bảng `recipes` (với cơ chế fallback thông minh lấy dòng đầu tiên).
@@ -64,9 +74,8 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 *   **Khắc phục lỗi deploy `/update` bằng đường dẫn động trên VPS:**
     *   Thay thế các đường dẫn cứng `/root/romra_scraper.js` trong các lệnh `/update` và `/update history` trên Telegram Bot thành các đường dẫn tuyệt đối động (`__filename` và `scriptPath` sử dụng `path.join`) giúp ghi đè và nâng cấp chính xác 100% bất kể bot được chạy ở thư mục nào trên VPS.
     *   Xác định đúng thư mục chạy bot của quán trên VPS là ở ngay thư mục gốc `/root/romra_scraper.js`. Hướng dẫn người dùng lệnh cập nhật đè VPS tối ưu qua Telegram: `/cmd curl -L -o /root/romra_scraper.js https://raw.githubusercontent.com/betafpt/romracaphe/main/romra_scraper.js && pm2 restart all` để giải quyết lỗi không tìm thấy thư mục `/root/romracaphe`.
-    *   Đẩy mã nguồn nâng cấp hoàn chỉnh thành công lên kho GitHub nhánh `main` (`ff86bb7`) an toàn tuyệt đối!
 
-### B. Tích hợp Doanh thu Thực nhận POS & Auto-Login 100% cho Bot (24/05/2026)
+### D. Tích hợp Doanh thu Thực nhận POS & Auto-Login 100% cho Bot (24/05/2026)
 *   **Doanh thu Thực nhận & Chiết khấu sàn (Chuẩn Nexpos):**
     *   Tích hợp Logo đối tác Neo-Brutalism chéo góc rực rỡ (`GRABFOOD` và `SHOPEEFOOD`) lên Card đơn online trên POS.
     *   Bổ sung bảng tính toán **Doanh thu thực nhận** và **Chiết khấu sàn** tự động hiển thị trực quan ngay trên card đơn hàng và đồng bộ in nhiệt trên hóa đơn 58mm giúp chủ quán đối soát dòng tiền cuối ngày cực kỳ dễ dàng.
@@ -77,7 +86,7 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
     *   **Cào thêm các biến nâng cao:** Cào thêm Tạm tính (`subtotal`), Khuyến mại (`totalDiscount`), Địa chỉ giao khách (`customerAddress`) đồng bộ lên database.
     *   **Cảnh báo khẩn cấp qua Telegram Bot:** Tự động gửi tin nhắn báo động khẩn cấp về điện thoại của chủ quán khi session bị hết hạn hoặc bot bị mất kết nối quá 3 lần liên tiếp.
 
-### C. Nâng cấp Tem in & Ghi chú riêng cho từng món (23/05/2026)
+### E. Nâng cấp Tem in & Ghi chú riêng cho từng món (23/05/2026)
 - **Ngày/Năm trên tem dán ly**: Thêm ngày và năm đầy đủ vào bên cạnh giờ in trên tem (định dạng `HH:MM DD/MM/YYYY`, ví dụ: `15:29 23/05/2026`).
 - **Ghi chú riêng cho từng món**:
   * Lưu trữ ghi chú của từng món vào cột `note` của bảng `order_items` trong database Supabase.
@@ -90,10 +99,10 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 *(Dành cho phiên hỗ trợ tự động ở máy tính khác hoặc phiên làm việc tiếp theo)*
 Chào bạn (người đồng nghiệp AI). Hãy review lại tài liệu này.
 *   Hệ thống POS hiện tại hoạt động cực kỳ hoàn hảo, giao diện 2 cột online siêu mượt mà, hiển thị chuẩn xác thời gian đặt đơn Grab gốc và có badge số lượng ly nổi bật.
+*   Lỗi cào thiếu thông tin đơn đang tìm tài xế Grab (`0đ`, không có SĐT) đã được giải quyết triệt để thông qua cơ chế tự động click tuần tự cả hai tab **Đang hoạt động (Active)** và **Sắp tới (Upcoming)**.
 *   **Hướng đi tiếp theo đề xuất (ĐÃ THỐNG NHẤT):**
-    1.  Hướng dẫn người dùng theo dõi và xác nhận các đơn hàng lỗi trước đó (`GF-570`, `GF-974`...) đã tự động được đồng bộ lại số tiền chính xác và tự động chuyển cột sang "Đơn đã hoàn tất" bên phải sau khi họ gửi lệnh cập nhật VPS trên Telegram.
-    2.  Tích hợp tự động trừ kho nguyên liệu (Inventory Auto-Deduct) dựa trên công thức món khi có đơn bán ra (Supabase `orders` -> `order_items` -> `recipes` -> `inventory`).
-    3.  Xây dựng thêm Bot cào đơn tự động cho ShopeeFood Merchant Portal tương tự như GrabFood.
-    4.  Tạo trang Dashboard Brutalism thống kê chi tiết doanh thu thực nhận, chiết khấu và lợi nhuận ròng.
+    1.  Tích hợp tự động trừ kho nguyên liệu (Inventory Auto-Deduct) dựa trên công thức món khi có đơn bán ra (Supabase `orders` -> `order_items` -> `recipes` -> `inventory`).
+    2.  Xây dựng thêm Bot cào đơn tự động cho ShopeeFood Merchant Portal tương tự như GrabFood.
+    3.  Tạo trang Dashboard Brutalism thống kê chi tiết doanh thu thực nhận, chiết khấu và lợi nhuận ròng.
 
 > *Note to User: Anh chỉ cần yêu cầu "Em đọc file AI_MEMORY.md ở thư mục gốc để biết mình đang làm gì nhé" khi anh qua máy tính mới hoặc mở app code ở điện thoại!*
