@@ -34,7 +34,25 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 
 ## 3. LỊCH SỬ CÁC TÍNH NĂNG ĐÃ TÍCH HỢP GẦN NHẤT
 
-### A. Sửa lỗi kẹt đơn Grab, Nâng cấp Parse API Lịch sử mới & Bảo vệ tuyệt đối thông tin khách/tài xế (MỚI NHẤT - 27/05/2026)
+### A. Nâng cấp Báo Cáo Doanh Thu, POS Live (Tab Switcher 3D & Date Picker) và Tự động dọn dẹp Database 30 ngày (MỚI NHẤT - 27/05/2026)
+*   **📊 1. Nâng cấp Báo Cáo Phân Tách Doanh Thu Local vs Online & Loại Bỏ Chi Phí:**
+    *   *Backend API:* Nâng cấp API `/api/reports/dashboard` truy vấn trường `platform` từ Supabase Database. Phân loại đơn online (`order.platform && order.platform !== 'local'`) và đơn tại quán (`!order.platform || order.platform === 'local'`).
+    *   *Tính toán số liệu:* Phân tách rõ ràng Doanh thu gộp, Doanh thu Local, Doanh thu Online, Số đơn hàng Local, Số đơn hàng Online.
+    *   *Làm sạch dữ liệu:* Loại bỏ hoàn toàn công thức tính toán chi phí giả định 40% (xóa hoàn toàn các trường chi phí và thẻ KPI chi phí cũ).
+    *   *Giao diện & Biểu đồ:* Thiết kế 5 thẻ KPI rực rỡ phong cách Neo-Brutalism (Tổng Doanh thu, Doanh thu Tại quán, Doanh thu Online, Đơn Tại quán, Đơn Online). Cấu hình Chart.js vẽ 2 đường song song so sánh trực quan Doanh thu Local (Xanh dương) vs Doanh thu Online (Xanh ngọc Teal), xóa bỏ đường Chi phí màu đỏ nét đứt.
+*   **🖥️ 2. Nâng cấp trang chủ Tổng Quan (Dashboard) thành Trạm điều hành bán hàng:**
+    *   *Loại bỏ hoàn toàn:* Dọn sạch các thông tin kho nguyên liệu, công thức, tài khoản cũ không thực tế.
+    *   *KPI & Quick Actions:* Đưa 4 thẻ KPI kinh doanh ngày hôm nay lên đầu trang chủ. Tích hợp 4 nút shortcut Neo-Brutalism thao tác nhanh (Bán hàng, Live POS, Báo cáo, In ấn).
+    *   *Biểu đồ cột Brutalism HTML CSS:* Lập trình một biểu đồ cột mini 7 ngày qua vẽ hoàn toàn bằng các thẻ `div` HTML & CSS thô ráp cực ngầu, có hiệu ứng hover hiển thị số tiền chính xác dạng tooltip bóng đổ đen rực rỡ.
+    *   *Widget Vận hành:* Tích hợp bảng 5 Đơn hàng mới nhất kèm badge trạng thái Neo-Brutalism nhiều màu sắc và widget Nhật ký hoạt động (System Live Logs) hiển thị các sự kiện cào đơn theo thời gian thực.
+*   **🖱️ 3. Nâng cấp Giao diện POS LIVE (Tab Switcher 3D & Date Picker):**
+    *   *Tab Switcher 3D Neo-Brutalism:* Tách biệt tab "Đơn Tại Quán" (☕, màu Vàng) và "Đơn Online" (🛵, màu Xanh) thành 2 nút độc lập to lớn. Thiết kế hiệu ứng trồi sụt 3D cực chất: Tab đang được chọn trồi lên cao và có bóng đổ đen rõ nét (`shadow-[4px_4px_0_0_#000]`), tab không chọn bị ấn lún xuống sát đất (`translate-y-[4px]` và không shadow), giúp nhận diện trực quan tức thì.
+    *   *Date Picker (Lịch chọn ngày):* Thay thế hoàn toàn dropdown lọc ngày cũ bằng ô chọn lịch `<input type="date">` Neo-Brutalism. API backend `/api/orders?date=YYYY-MM-DD` được viết lại để truy vấn chính xác danh sách đơn từ `00:00:00` tới `23:59:59` của ngày được chọn theo múi giờ Việt Nam (GMT+7).
+    *   *Nút chọn ngày siêu mượt:* Tích hợp sự kiện `onclick="if(typeof this.showPicker === 'function') this.showPicker()"` vào ô Date Picker, giúp người dùng click vào bất kỳ vị trí nào trên ô (thay vì chỉ click icon quyển lịch nhỏ ở rìa phải) cũng tự động mở bung lịch chọn ngày lập tức, tối ưu 100% cho màn hình cảm ứng tại quầy.
+*   **🧹 4. Tự động dọn dẹp Database Supabase nhẹ dung lượng hàng tháng:**
+    *   *Dọn dẹp triệt để ngày đầu tháng:* Cấu hình hàm `cleanupOldData` trong `server.js` tự động kiểm tra ngày đầu tiên của mỗi tháng (`getDate() === 1`). Nếu đúng là ngày 1, hệ thống tự động dọn dẹp triệt để các bảng dữ liệu liên quan (`orders`, `visitor_logs`, `bot_commands`...) cũ hơn 30 ngày để giải phóng tối đa tài nguyên và làm nhẹ database của quán, kết hợp duy trì lazy cleanup hàng ngày để đảm bảo hiệu năng tải siêu tốc.
+
+### B. Sửa lỗi kẹt đơn Grab, Nâng cấp Parse API Lịch sử mới & Bảo vệ tuyệt đối thông tin khách/tài xế (27/05/2026)
 *   **📡 1. Nâng cấp parse API Lịch sử mới (Sửa lỗi kẹt trạng thái):**
     *   *Phát hiện:* Grab đã cập nhật API báo cáo lịch sử mới dạng `/reports/daily-pagination` với mảng đơn hàng nằm trong key `statements` mới và sử dụng các key viết hoa là `ID`, `deliveryStatus`, `priceDisplay`.
     *   *Giải pháp:* Thêm từ khóa `/reports/daily-pagination` vào bộ lọc response API ngầm của bot. Bổ sung check `json.statements` trong block kiểm tra JSON response để bot nhận diện thành công đơn hàng lịch sử.
