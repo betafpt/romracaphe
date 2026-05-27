@@ -1278,8 +1278,8 @@ function setupPageResponseListener(pageInstance) {
                 addToLogs(`🔍 [API DEBUG] Bắt URL: ${url.substring(0, 150)}... | Status: ${status}`);
             }
             
-            // 1. Lắng nghe API danh sách đơn hàng Grab (Active & Lịch sử)
-            if (url.includes('/orders-pagination') || url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders') || url.includes('daily-paginator')) {
+            // 1. Lắng nghe API danh sách đơn hàng Grab (Active & Lịch sử) - Hỗ trợ cả daily-pagination mới
+            if (url.includes('/orders-pagination') || url.includes('/api/order/v1/orders') || url.includes('/api/merchant/v1/orders') || url.includes('daily-paginator') || url.includes('daily-pagination') || url.includes('/reports/daily-pagination')) {
                 if (status === 200) {
                     try {
                         const headers = response.headers();
@@ -1297,6 +1297,10 @@ function setupPageResponseListener(pageInstance) {
                                 ordersArray = json.data;
                             } else if (json.data && json.data.orders && Array.isArray(json.data.orders)) {
                                 ordersArray = json.data.orders;
+                            } else if (json.dailyReport && Array.isArray(json.dailyReport.orders)) {
+                                ordersArray = json.dailyReport.orders;
+                            } else if (json.dailyReport && Array.isArray(json.dailyReport)) {
+                                ordersArray = json.dailyReport;
                             }
                             
                             if (ordersArray.length > 0) {
