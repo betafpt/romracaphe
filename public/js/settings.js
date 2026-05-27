@@ -51,6 +51,7 @@ window.editingConfig = null;
 function renderSettings() {
     const appContent = document.getElementById('app-content');
     window.editingConfig = getPrintConfig();
+    const conf = window.editingConfig;
     window.currentTemplateType = 'local';
     currentLayout = window.editingConfig.layout;
 
