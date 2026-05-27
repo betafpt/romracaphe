@@ -1634,6 +1634,80 @@ async function triggerHistorySync(page) {
     }
 }
 
+// Hàm click tuần tự các thẻ đơn hàng hiển thị trên tab hiện tại để kích hoạt API chi tiết
+async function clickVisibleOrderCards(page) {
+    try {
+        // Định vị các thẻ đơn hàng thực tế thông qua regex mã đơn ngắn (ví dụ: GF-570 hoặc các mã ngắn có gạch ngang)
+        const cards = page.locator('text=/^[A-Z0-9]+-[A-Z0-9]+$/').locator('..').locator('..');
+        const count = await cards.count().catch(() => 0);
+        
+        if (count > 0) {
+            addToLogs(`🔘 Phát hiện ${count} thẻ đơn hàng trên tab hiện tại. Tiến hành click tuần tự...`);
+            for (let i = 0; i < count; i++) {
+                await cards.nth(i).click().catch(() => {});
+                await page.waitForTimeout(2000); // Chờ 2 giây để API chi tiết tải xong và bot bắt được response
+            }
+            return count;
+        } else {
+            addToLogs('ℹ️ Hiện tại không có thẻ đơn hàng nào hiển thị trên tab hiện tại.');
+            return 0;
+        }
+    } catch (err) {
+        addToLogs(`⚠️ Lỗi khi click thẻ đơn hàng để trigger API: ${err.message}`);
+        return 0;
+    }
+}
+
+// Hàm chuyển đổi sang tab "Sắp tới" (Upcoming / Đơn mới)
+async function switchToUpcomingTab(page) {
+    const upcomingTabSelectors = [
+        'text="Sắp tới"',
+        'text="Upcoming"',
+        'text="Đơn mới"',
+        'text="New orders"',
+        'text="New"',
+        'button:has-text("Sắp tới")',
+        'button:has-text("Upcoming")',
+        'button:has-text("Đơn mới")'
+    ];
+    
+    for (const selector of upcomingTabSelectors) {
+        try {
+            const tab = page.locator(selector).filter({ visible: true }).first();
+            if (await tab.count() > 0) {
+                addToLogs(`🔘 Chuyển sang tab Sắp tới bằng selector: ${selector}`);
+                await tab.click();
+                return true;
+            }
+        } catch (err) {}
+    }
+    return false;
+}
+
+// Hàm chuyển đổi sang tab "Đang hoạt động" (Active / Đang chuẩn bị)
+async function switchToActiveTab(page) {
+    const activeTabSelectors = [
+        'text="Đơn hàng đang hoạt động"',
+        'text="Đang hoạt động"',
+        'text="Active orders"',
+        'text="Active"',
+        'button:has-text("Đang hoạt động")',
+        'button:has-text("Active")'
+    ];
+    
+    for (const selector of activeTabSelectors) {
+        try {
+            const tab = page.locator(selector).filter({ visible: true }).first();
+            if (await tab.count() > 0) {
+                addToLogs(`🔘 Chuyển sang tab Đang hoạt động bằng selector: ${selector}`);
+                await tab.click();
+                return true;
+            }
+        } catch (err) {}
+    }
+    return false;
+}
+
 const isLoginMode = process.argv.includes('--login');
 
 
@@ -1794,24 +1868,29 @@ async function runScraper() {
                     return;
                 }
 
-                // Tự động tìm và click vào tất cả các thẻ đơn hàng đang hiển thị trên giao diện để trigger gọi API chi tiết
-                try {
-                    // Định vị chính xác các thẻ đơn hàng thông qua regex mã đơn ngắn (ví dụ: GF-570 hoặc các mã ngắn có gạch ngang)
-                    // Điều này hoàn toàn loại bỏ việc bị kẹt/click nhầm vào các tab điều hướng đầu trang (như "Sắp tới", "Lịch sử"...)
-                    const cards = page.locator('text=/^[A-Z0-9]+-[A-Z0-9]+$/').locator('..').locator('..');
-                    const count = await cards.count().catch(() => 0);
+                                // 1. Quét và click cào đơn ở tab Đang hoạt động hiện tại (mặc định mở sau reload)
+                addToLogs('👉 Tiến hành quét và cào đơn ở tab Đang hoạt động...');
+                await clickVisibleOrderCards(page);
+
+                // 2. Chuyển sang tab "Sắp tới" (Upcoming) để quét và click cào các đơn đang tìm tài xế
+                addToLogs('👉 Thử chuyển sang tab Sắp tới (Upcoming) để kiểm tra đơn mới...');
+                const switched = await switchToUpcomingTab(page);
+                if (switched) {
+                    await page.waitForTimeout(2000); // Chờ 2 giây để tab Sắp tới tải xong
                     
-                    if (count > 0) {
-                        addToLogs(`🔘 Phát hiện ${count} thẻ đơn hàng thực tế trên UI. Tiến hành click tuần tự để trigger API chi tiết...`);
-                        for (let i = 0; i < count; i++) {
-                            await cards.nth(i).click().catch(() => {});
-                            await page.waitForTimeout(2000); // Chờ 2 giây để API chi tiết tải xong và bot bắt được response
-                        }
+                    // Click cào các đơn hàng ở tab Sắp tới (ví dụ các đơn "Đang tìm tài xế")
+                    await clickVisibleOrderCards(page);
+                    
+                    // Quay trở lại tab Đang hoạt động để sẵn sàng cho chu kỳ sau
+                    addToLogs('👉 Quay trở lại tab Đang hoạt động...');
+                    const returned = await switchToActiveTab(page);
+                    if (returned) {
+                        await page.waitForTimeout(2000); // Chờ 2 giây để tab Đang hoạt động tải xong
                     } else {
-                        addToLogs('ℹ️ Hiện tại không có thẻ đơn hàng nào hiển thị trên màn hình.');
+                        addToLogs('⚠️ Không thể quay lại tab Đang hoạt động bằng click. Sẽ reload trang ở chu kỳ sau.');
                     }
-                } catch (clickErr) {
-                    addToLogs(`⚠️ Lỗi khi click thẻ đơn hàng để trigger API: ${clickErr.message}`);
+                } else {
+                    addToLogs('ℹ️ Không tìm thấy nút tab Sắp tới trên giao diện (hoặc đã ở sẵn tab đó).');
                 }
 
                 addToLogs('Chu kỳ làm mới hoàn tất. Hệ thống API Interception tự động bắt và đồng bộ đơn hàng.');
