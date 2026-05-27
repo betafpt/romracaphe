@@ -964,12 +964,33 @@ app.post('/api/print-label-backend', async (req, res) => {
                         const n = layout.note;
                         ctx.font = `${n.fontStyle === 'italic' ? 'italic' : ''} ${n.fontWeight === 'bold' ? 'bold' : ''} ${n.fontSize}px "${fontName}", Arial, sans-serif`;
                         const notes = data.note.split('|');
+                        const isOnline = data.title && !data.title.toUpperCase().includes('LOCAL');
                         const maxTextWidth = 400 - n.x - 20;
                         let currentY = n.y;
                         
                         notes.forEach((note) => {
                             let noteText = note.trim();
                             if (!noteText) return;
+                            
+                            // Bộ lọc thông minh cho đơn online
+                            if (isOnline) {
+                                const lowerText = noteText.toLowerCase();
+                                if (lowerText.includes('size')) return;
+                                
+                                if (noteText.includes(':')) {
+                                    const parts = noteText.split(':');
+                                    const title = parts[0].trim();
+                                    const val = parts[1].trim();
+                                    const valLower = val.toLowerCase();
+                                    if (valLower === 'không') return;
+                                    
+                                    if (title.toLowerCase() === 'ghi chú') {
+                                        noteText = `Ghi chú: ${val}`;
+                                    } else {
+                                        noteText = val;
+                                    }
+                                }
+                            }
                             
                             // Thực hiện thuật toán Word Wrap (xuống dòng theo từ)
                             let words = noteText.split(' ');

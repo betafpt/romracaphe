@@ -22,7 +22,8 @@ function getPrintConfig() {
         receiptFontSize: 12,
         showLogo: true,
         logoUrl: "/img/logo.png",
-        layout: { ...defaultLayout }
+        layout: { ...defaultLayout },
+        onlineLayout: { ...defaultLayout }
     };
     try {
         const saved = localStorage.getItem('romra_print_config_v4');
@@ -30,6 +31,11 @@ function getPrintConfig() {
             const parsed = JSON.parse(saved);
             if (parsed.layout) {
                 parsed.layout = { ...defaultLayout, ...parsed.layout };
+            }
+            if (!parsed.onlineLayout) {
+                parsed.onlineLayout = parsed.layout ? JSON.parse(JSON.stringify(parsed.layout)) : { ...defaultLayout };
+            } else {
+                parsed.onlineLayout = { ...defaultLayout, ...parsed.onlineLayout };
             }
             return { ...defaultConf, ...parsed };
         }
@@ -39,11 +45,14 @@ function getPrintConfig() {
 
 let currentLayout = null;
 let selectedElementId = null;
+window.currentTemplateType = 'local';
+window.editingConfig = null;
 
 function renderSettings() {
     const appContent = document.getElementById('app-content');
-    const conf = getPrintConfig();
-    currentLayout = conf.layout;
+    window.editingConfig = getPrintConfig();
+    window.currentTemplateType = 'local';
+    currentLayout = window.editingConfig.layout;
 
     appContent.innerHTML = `
     <div class="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8 w-full animate-fade-in pb-12 px-4">
@@ -154,9 +163,19 @@ function renderSettings() {
             
             <div class="brutal-card bg-gray-100 p-5 border-4 border-black flex flex-col items-center shadow-[8px_8px_0_0_#000]">
                 <h3 class="font-heading text-2xl mb-2 uppercase border-b-3 border-black pb-1 w-full flex items-center justify-between font-black">
-                    <span>🎨 Thiết kế tem mẫu</span>
+                    <span>🎨 Visual Labels Studio</span>
                     <span class="text-xs bg-black text-white px-2 py-0.5 rounded-none font-bold">50x30mm</span>
                 </h3>
+                
+                <!-- BỘ CHỌN TAB THIẾT KẾ TEM PHONG CÁCH BRUTALISM -->
+                <div class="flex w-full border-4 border-black mb-4 font-black text-sm shadow-[3px_3px_0_0_#000]">
+                    <button id="tab-label-local" onclick="switchTemplateTab('local')" class="flex-1 py-2.5 text-center transition-all bg-yellow-400 text-black border-r-4 border-black hover:bg-yellow-300 font-black">
+                        ☕ TEM TẠI QUÁN
+                    </button>
+                    <button id="tab-label-online" onclick="switchTemplateTab('online')" class="flex-1 py-2.5 text-center transition-all bg-white text-black hover:bg-gray-100 font-black">
+                        🛵 TEM ONLINE
+                    </button>
+                </div>
                 
                 <!-- CHỌN FONT CHỮ TIẾNG VIỆT TỪ GOOGLE FONTS -->
                 <div class="w-full mb-4 font-bold text-left">
@@ -635,6 +654,12 @@ window.changeLeftMargin = function(offset) {
 window.updateLeftMargin = function(val) {
     const margin = parseInt(val) || 0;
     const oldMargin = currentLayout.leftMargin || 0;
+    
+    // Đồng bộ lề trái vật lý cho cả hai layout
+    if (window.editingConfig) {
+        if (window.editingConfig.layout) window.editingConfig.layout.leftMargin = margin;
+        if (window.editingConfig.onlineLayout) window.editingConfig.onlineLayout.leftMargin = margin;
+    }
     currentLayout.leftMargin = margin;
 
     const shield = document.getElementById('item-left-margin-shield');
@@ -669,15 +694,90 @@ window.updateLeftMargin = function(val) {
 };
 
 window.resetLabelLayoutToDefault = function() {
-    if (confirm("Bạn có chắc chắn muốn khôi phục vị trí kéo thả và cỡ chữ tem về mặc định gốc không?")) {
-        currentLayout = { ...defaultLayout };
+    if (confirm(`Bạn có chắc chắn muốn khôi phục vị trí kéo thả và cỡ chữ của ${window.currentTemplateType === 'local' ? 'Tem Tại Quán' : 'Tem Online'} về mặc định gốc không?`)) {
+        if (window.currentTemplateType === 'local') {
+            window.editingConfig.layout = { ...defaultLayout };
+            currentLayout = window.editingConfig.layout;
+        } else {
+            window.editingConfig.onlineLayout = { ...defaultLayout };
+            currentLayout = window.editingConfig.onlineLayout;
+        }
         initVisualTemplateDesigner();
         deselectAllElements(true);
         if (typeof showToast === 'function') showToast("Đã khôi phục thiết kế tem mặc định!");
     }
 };
 
+window.switchTemplateTab = function(tabType) {
+    if (tabType === window.currentTemplateType) return;
+    
+    // Lưu lại layout hiện tại vào config đang chỉnh sửa trước khi chuyển tab
+    if (window.currentTemplateType === 'local') {
+        window.editingConfig.layout = JSON.parse(JSON.stringify(currentLayout));
+    } else {
+        window.editingConfig.onlineLayout = JSON.parse(JSON.stringify(currentLayout));
+    }
+    
+    window.currentTemplateType = tabType;
+    
+    // Cập nhật class active cho tab button
+    const btnLocal = document.getElementById('tab-label-local');
+    const btnOnline = document.getElementById('tab-label-online');
+    if (btnLocal && btnOnline) {
+        if (tabType === 'local') {
+            btnLocal.className = "flex-1 py-2.5 text-center transition-all bg-yellow-400 text-black border-r-4 border-black hover:bg-yellow-300 font-black";
+            btnOnline.className = "flex-1 py-2.5 text-center transition-all bg-white text-black hover:bg-gray-100 font-black";
+        } else {
+            btnOnline.className = "flex-1 py-2.5 text-center transition-all bg-emerald-400 text-black hover:bg-emerald-300 font-black";
+            btnLocal.className = "flex-1 py-2.5 text-center transition-all bg-white text-black border-r-4 border-black hover:bg-gray-100 font-black";
+        }
+    }
+    
+    // Trỏ currentLayout tới layout tương ứng
+    currentLayout = tabType === 'local' ? window.editingConfig.layout : window.editingConfig.onlineLayout;
+    
+    // Cập nhật phông chữ trên selectbox
+    const fontSelect = document.getElementById('cfg-labelFontFamily');
+    if (fontSelect) {
+        fontSelect.value = currentLayout.fontFamily || 'Inter';
+    }
+    
+    // Cập nhật thụt lề trái trên ô input
+    const marginInput = document.getElementById('cfg-leftMargin');
+    if (marginInput) {
+        marginInput.value = currentLayout.leftMargin || 0;
+    }
+    
+    // Cập nhật text demo trên canvas cho phù hợp trực quan
+    const itemTitle = document.getElementById('item-title');
+    const itemNote = document.getElementById('item-note');
+    if (itemTitle && itemNote) {
+        if (tabType === 'local') {
+            itemTitle.innerText = "LOCAL #102";
+            itemNote.innerText = "Ghi chú: Ít đường | Thạch sương sáo";
+        } else {
+            itemTitle.innerText = "GRAB #GF-225";
+            itemNote.innerText = "Đá chung | Ghi chú: Ít đường nhé";
+        }
+    }
+    
+    // Khởi tạo lại canvas kéo thả
+    initVisualTemplateDesigner();
+    deselectAllElements(true);
+    
+    if (typeof showToast === 'function') {
+        showToast(`Đã chuyển sang thiết kế ${tabType === 'local' ? 'Tem Tại Quán' : 'Tem Online (Grab/Shopee)'}`);
+    }
+};
+
 function saveVisualPrintConfig() {
+    // Đồng bộ currentLayout hiện tại vào editingConfig trước khi lưu
+    if (window.currentTemplateType === 'local') {
+        window.editingConfig.layout = JSON.parse(JSON.stringify(currentLayout));
+    } else {
+        window.editingConfig.onlineLayout = JSON.parse(JSON.stringify(currentLayout));
+    }
+
     const config = {
         storeName: document.getElementById('cfg-storeName').value,
         address: document.getElementById('cfg-address').value,
@@ -688,7 +788,12 @@ function saveVisualPrintConfig() {
         logoUrl: document.getElementById('cfg-logoUrl').value || '/img/logo.png',
         
         layout: {
-            ...currentLayout,
+            ...window.editingConfig.layout,
+            printerIP: document.getElementById('cfg-printerIP').value || '192.168.50.12',
+            leftMargin: parseInt(document.getElementById('cfg-leftMargin').value) || 0
+        },
+        onlineLayout: {
+            ...window.editingConfig.onlineLayout,
             printerIP: document.getElementById('cfg-printerIP').value || '192.168.50.12',
             leftMargin: parseInt(document.getElementById('cfg-leftMargin').value) || 0
         }

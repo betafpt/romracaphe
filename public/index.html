@@ -4569,13 +4569,38 @@
                 if (itemLayout.note && itemLayout.note.visible && oi.note) {
                     const n = itemLayout.note;
                     ctx.font = `${n.fontStyle === 'italic' ? 'italic' : ''} ${n.fontWeight === 'bold' ? 'bold' : ''} ${n.fontSize}px "${fontName}", Arial, sans-serif`;
-                    const notes = oi.note.split('|');
+                    
+                    let notes = oi.note.split('|');
+                    const isOnline = order.platform && order.platform !== 'local';
+                    
                     const maxTextWidth = 400 - n.x - 20;
                     let currentY = offsetY + n.y;
 
                     notes.forEach((note) => {
                         let noteText = note.trim();
                         if (!noteText) return;
+
+                        // Bộ lọc thông minh cho đơn online
+                        if (isOnline) {
+                            const lowerText = noteText.toLowerCase();
+                            // 1. Loại bỏ các dòng ghi chú liên quan đến Size (đã có dòng Size riêng)
+                            if (lowerText.includes('size')) return;
+                            
+                            // 2. Nếu chứa dấu hai chấm, rút gọn chỉ lấy vế sau dấu hai chấm để tem in tinh gọn nhất
+                            if (noteText.includes(':')) {
+                                const parts = noteText.split(':');
+                                const title = parts[0].trim();
+                                const val = parts[1].trim();
+                                const valLower = val.toLowerCase();
+                                if (valLower === 'không') return;
+                                
+                                if (title.toLowerCase() === 'ghi chú') {
+                                    noteText = `Ghi chú: ${val}`;
+                                } else {
+                                    noteText = val;
+                                }
+                            }
+                        }
 
                         let words = noteText.split(' ');
                         let currentLine = '';
@@ -4732,7 +4757,11 @@
                 if (printConf) {
                     try {
                         const parsed = JSON.parse(printConf);
-                        if (parsed.layout) layout = { ...layout, ...parsed.layout };
+                        if (isApp && parsed.onlineLayout) {
+                            layout = { ...layout, ...parsed.onlineLayout };
+                        } else if (parsed.layout) {
+                            layout = { ...layout, ...parsed.layout };
+                        }
                     } catch (e) { }
                 }
                 const fontName = layout.fontFamily || 'Arial';
@@ -4872,7 +4901,11 @@
                 if (printConf) {
                     try {
                         const parsed = JSON.parse(printConf);
-                        if (parsed.layout) layout = { ...layout, ...parsed.layout };
+                        if (isApp && parsed.onlineLayout) {
+                            layout = { ...layout, ...parsed.onlineLayout };
+                        } else if (parsed.layout) {
+                            layout = { ...layout, ...parsed.layout };
+                        }
                     } catch (e) { }
                 }
                 const fontName = layout.fontFamily || 'Arial';
@@ -5049,7 +5082,11 @@
                 if (printConf) {
                     try {
                         const parsed = JSON.parse(printConf);
-                        if (parsed.layout) layout = { ...layout, ...parsed.layout };
+                        if (isApp && parsed.onlineLayout) {
+                            layout = { ...layout, ...parsed.onlineLayout };
+                        } else if (parsed.layout) {
+                            layout = { ...layout, ...parsed.layout };
+                        }
                     } catch (e) { }
                 }
                 const fontName = layout.fontFamily || 'Arial';
@@ -5163,13 +5200,20 @@
                     return window.printLabelRawBT(orderId);
                 }
 
+                let order = window.currentOrders?.find(o => o.id === orderId);
+                const isOnline = order && order.platform && order.platform !== 'local';
+
                 const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
                 const printConf = localStorage.getItem('romra_print_config_v4');
                 let layout = null;
                 if (printConf) {
                     try {
                         const parsed = JSON.parse(printConf);
-                        if (parsed.layout) layout = parsed.layout;
+                        if (isOnline && parsed.onlineLayout) {
+                            layout = parsed.onlineLayout;
+                        } else if (parsed.layout) {
+                            layout = parsed.layout;
+                        }
                     } catch (e) { }
                 }
 
@@ -5207,13 +5251,20 @@
                     return window.printLabelRawBT(orderId, itemIndex);
                 }
 
+                let order = window.currentOrders?.find(o => o.id === orderId);
+                const isOnline = order && order.platform && order.platform !== 'local';
+
                 const printerIP = localStorage.getItem('romra_printer_ip') || '192.168.50.12';
                 const printConf = localStorage.getItem('romra_print_config_v4');
                 let layout = null;
                 if (printConf) {
                     try {
                         const parsed = JSON.parse(printConf);
-                        if (parsed.layout) layout = parsed.layout;
+                        if (isOnline && parsed.onlineLayout) {
+                            layout = parsed.onlineLayout;
+                        } else if (parsed.layout) {
+                            layout = parsed.layout;
+                        }
                     } catch (e) { }
                 }
 
