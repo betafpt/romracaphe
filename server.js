@@ -1406,7 +1406,7 @@ app.get('/api/reports/dashboard', async (req, res) => {
             dateKeyMap[dStr] = label;
         }
 
-        // 2. Fetch toàn bộ order
+        // 2. Fetch toàn bộ order (bao gồm platform)
         const now = new Date();
         const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         if (daysToFetch > 1) {
@@ -1416,7 +1416,7 @@ app.get('/api/reports/dashboard', async (req, res) => {
         const { data: orders, error } = await supabase
             .from('orders')
             .select(`
-                id, total_amount, created_at, status,
+                id, total_amount, created_at, status, platform,
                 order_items (
                     quantity, price,
                     recipes (name)
@@ -1429,14 +1429,19 @@ app.get('/api/reports/dashboard', async (req, res) => {
 
         // 3. Xử lý dữ liệu gom theo ngày và Top Products
         const dailyRevenues = {};
-        const dailyCosts = {};
+        const dailyLocalRevenues = {};
+        const dailyOnlineRevenues = {};
         const productStats = {}; // { recipeName: { qty, rev } }
         let totalRev = 0;
-        let totalCostAll = 0;
+        let totalLocalRev = 0;
+        let totalOnlineRev = 0;
+        let totalLocalOrders = 0;
+        let totalOnlineOrders = 0;
 
         dateLabels.forEach(day => {
             dailyRevenues[day] = 0;
-            dailyCosts[day] = 0;
+            dailyLocalRevenues[day] = 0;
+            dailyOnlineRevenues[day] = 0;
         });
 
         orders.forEach(order => {
@@ -1447,11 +1452,18 @@ app.get('/api/reports/dashboard', async (req, res) => {
 
             if (label && dailyRevenues[label] !== undefined) {
                 dailyRevenues[label] += order.total_amount;
-                // Giả định Cost = 40% doanh thu trong v1
-                dailyCosts[label] += order.total_amount * 0.4;
-
                 totalRev += order.total_amount;
-                totalCostAll += order.total_amount * 0.4;
+
+                const isOnline = order.platform && order.platform !== 'local';
+                if (isOnline) {
+                    dailyOnlineRevenues[label] += order.total_amount;
+                    totalOnlineRev += order.total_amount;
+                    totalOnlineOrders++;
+                } else {
+                    dailyLocalRevenues[label] += order.total_amount;
+                    totalLocalRev += order.total_amount;
+                    totalLocalOrders++;
+                }
             }
 
             // Tính Top Product
@@ -1483,7 +1495,8 @@ app.get('/api/reports/dashboard', async (req, res) => {
 
         // 5. Format Output Map thành Mảng cho Chart
         const revenues = dateLabels.map(day => dailyRevenues[day]);
-        const costs = dateLabels.map(day => dailyCosts[day]);
+        const localRevenues = dateLabels.map(day => dailyLocalRevenues[day]);
+        const onlineRevenues = dateLabels.map(day => dailyOnlineRevenues[day]);
 
         let topProducts = Object.keys(productStats).map(name => ({
             name: name,
@@ -1497,13 +1510,21 @@ app.get('/api/reports/dashboard', async (req, res) => {
         res.json({
             success: true,
             data: {
-                revenueData: { labels: dateLabels, revenues, costs },
+                revenueData: { 
+                    labels: dateLabels, 
+                    revenues, 
+                    localRevenues, 
+                    onlineRevenues 
+                },
                 topProducts: topProducts,
                 recentVisitors: recentVisitors,
                 summary: {
                     totalRevenue: totalRev,
-                    totalCost: totalCostAll,
+                    totalLocalRevenue: totalLocalRev,
+                    totalOnlineRevenue: totalOnlineRev,
                     totalOrders: orders.length,
+                    totalLocalOrders: totalLocalOrders,
+                    totalOnlineOrders: totalOnlineOrders,
                     totalVisits: totalVisits,
                     qrVisits: qrVisits
                 }
