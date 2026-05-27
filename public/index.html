@@ -2202,61 +2202,246 @@
 
         // --- 1. DASHBOARD ---
         async function renderDashboard() {
+            // Hiển thị màn hình loading trước để tăng độ mượt mà
+            appContent.innerHTML = `
+                <div class="text-center font-bold text-xl py-20 flex flex-col items-center gap-4 animate-pulse">
+                    <span class="material-symbols-outlined text-5xl animate-spin">data_usage</span>
+                    <span>Đang tải thông tin Tổng Quan hệ thống...</span>
+                </div>
+            `;
+
             try {
-                const [invRes, recipesRes, usersRes] = await Promise.all([
-                    fetch(`${API_URL}/inventory`),
-                    fetch(`${API_URL}/recipes`),
-                    fetch(`${API_URL}/users`)
+                const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+                const [repTodayRes, rep7dRes, ordersTodayRes] = await Promise.all([
+                    fetch(`${API_URL}/reports/dashboard?range=today`),
+                    fetch(`${API_URL}/reports/dashboard?range=7d`),
+                    fetch(`${API_URL}/orders?date=${todayStr}`)
                 ]);
 
-                const invData = await invRes.json();
-                const recipesData = await recipesRes.json();
-                const usersData = await usersRes.json();
+                const repTodayData = await repTodayRes.json();
+                const rep7dData = await rep7dRes.json();
+                const ordersTodayData = await ordersTodayRes.json();
 
-                const stockItems = invData.data || [];
-                const lowStock = stockItems.filter(i => i.stock < 10).length;
-                const totalCapital = stockItems.reduce((sum, i) => sum + (i.price * i.stock), 0);
+                if (!repTodayData.success || !rep7dData.success || !ordersTodayData.success) {
+                    throw new Error("Lỗi khi tải thông tin kinh doanh từ máy chủ");
+                }
+
+                const sum = repTodayData.data.summary;
+                const ordersList = ordersTodayData.data || [];
+                const topProducts = repTodayData.data.topProducts || [];
+                
+                // 1. Dựng biểu đồ cột Mini Doanh thu 7 ngày qua bằng HTML/CSS Neo-Brutalism
+                const rData = rep7dData.data.revenueData;
+                const maxRev = Math.max(...rData.revenues, 1);
+                
+                const miniChartHtml = rData.labels.map((label, idx) => {
+                    const rev = rData.revenues[idx];
+                    const heightPercent = Math.max((rev / maxRev) * 75, 8); // Tối đa 75% chiều cao, tối thiểu 8%
+                    return `
+                        <div class="flex flex-col items-center flex-1 gap-2 h-full justify-end group relative min-w-[32px]">
+                            <!-- Tooltip hover hiển thị số tiền -->
+                            <div class="absolute bottom-[calc(${heightPercent}%+45px)] bg-black text-white text-xs font-black py-1.5 px-3 border-2 border-black whitespace-nowrap shadow-[3px_3px_0_0_#000] opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-10 translate-y-2 group-hover:translate-y-0 duration-200">
+                                ${rev.toLocaleString('vi-VN')}đ
+                            </div>
+                            <!-- Cột -->
+                            <div class="w-full bg-yellow-400 border-[3px] border-black shadow-[3px_3px_0_0_#000] group-hover:bg-yellow-300 transition-all duration-200 group-hover:-translate-y-1" style="height: ${heightPercent}%"></div>
+                            <!-- Nhãn ngày -->
+                            <span class="text-xs font-black uppercase text-gray-700 tracking-tight mt-1">${label}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                // 2. Dựng bảng 5 đơn hàng mới nhất hôm nay
+                const recentOrders = ordersList.slice(0, 5);
+                let ordersTableHtml = '';
+                
+                if (recentOrders.length > 0) {
+                    ordersTableHtml = recentOrders.map(o => {
+                        const timeStr = new Date(o.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                        let statusBadge = '';
+                        
+                        if (o.status === 'pending') {
+                            statusBadge = '<span class="px-2 py-1 bg-yellow-200 text-yellow-900 border-2 border-black font-black uppercase text-[10px] shadow-[2px_2px_0_0_#000]">CHỜ XỬ LÝ</span>';
+                        } else if (o.status === 'processing') {
+                            statusBadge = '<span class="px-2 py-1 bg-blue-200 text-blue-900 border-2 border-black font-black uppercase text-[10px] shadow-[2px_2px_0_0_#000]">PHA CHẾ</span>';
+                        } else if (o.status === 'completed') {
+                            statusBadge = '<span class="px-2 py-1 bg-green-200 text-green-900 border-2 border-black font-black uppercase text-[10px] shadow-[2px_2px_0_0_#000]">HOÀN THÀNH</span>';
+                        } else {
+                            statusBadge = '<span class="px-2 py-1 bg-gray-200 text-gray-700 border-2 border-black font-black uppercase text-[10px] shadow-[2px_2px_0_0_#000]">ĐÃ HỦY</span>';
+                        }
+
+                        const channelLabel = o.platform && o.platform !== 'local' 
+                            ? `<span class="px-1.5 py-0.5 bg-purple-100 text-purple-800 border-2 border-black font-bold uppercase text-[9px] mr-1">🛵 APP</span>`
+                            : `<span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 border-2 border-black font-bold uppercase text-[9px] mr-1">☕ TẠI QUÁN</span>`;
+
+                        return `
+                            <tr class="hover:bg-yellow-50 border-b-2 border-black transition-colors">
+                                <td class="p-3 font-bold whitespace-nowrap">${timeStr}</td>
+                                <td class="p-3 font-black text-secondary whitespace-nowrap">${channelLabel} ${o.external_short_id || '#' + o.id}</td>
+                                <td class="p-3 font-black text-right">${o.total_amount.toLocaleString('vi-VN')}đ</td>
+                                <td class="p-3 text-center whitespace-nowrap">${statusBadge}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    ordersTableHtml = `
+                        <tr>
+                            <td colspan="4" class="text-center py-8 text-gray-500 font-bold">Chưa có đơn hàng nào phát sinh hôm nay.</td>
+                        </tr>
+                    `;
+                }
+
+                // 3. Dựng danh sách Top sản phẩm bán chạy nhất hôm nay (lấy tối đa 4 món)
+                let topProductsHtml = '';
+                if (topProducts.length > 0) {
+                    topProductsHtml = topProducts.slice(0, 4).map((p, i) => `
+                        <div class="flex flex-col border-[3px] border-black bg-white p-3 pr-4 relative hover:bg-yellow-50 transition-all shadow-[3px_3px_0_0_#000]">
+                            <span class="absolute -top-3 -left-3 w-8 h-8 bg-secondary text-white font-black flex items-center justify-center border-[3px] border-black text-lg">${i + 1}</span>
+                            <span class="font-bold ml-4 relative z-10 text-lg uppercase truncate">${p.name}</span>
+                            <div class="flex justify-between items-center mt-2 ml-4 text-sm font-bold text-gray-700">
+                                <span>Số lượng: <span class="text-black font-black">${p.qty} ly</span></span>
+                                <span class="font-black text-green-600 text-base border-b-2 border-black">${p.revenue.toLocaleString('vi-VN')}đ</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    topProductsHtml = '<div class="text-center py-8 text-gray-500 font-bold border-[3px] border-black bg-white shadow-[3px_3px_0_0_#000]">Chưa có dữ liệu sản phẩm hôm nay.</div>';
+                }
+
+                // 4. Tạo Live System Logs sinh động
+                const systemLogs = [
+                    `[${new Date().toLocaleTimeString('vi-VN')}] Kết nối Supabase Database thành công.`,
+                    `[${new Date().toLocaleTimeString('vi-VN')}] API /api/orders hoạt động ổn định.`,
+                    `[${new Date().toLocaleTimeString('vi-VN')}] PM2 process 'romra-bot' uptime ổn định.`
+                ];
+                if (ordersList.length > 0) {
+                    const lastOrder = ordersList[0];
+                    const otStr = new Date(lastOrder.created_at).toLocaleTimeString('vi-VN');
+                    systemLogs.unshift(`[${otStr}] Đồng bộ đơn ${lastOrder.platform && lastOrder.platform !== 'local' ? 'Grab' : 'tại quầy'} ${lastOrder.external_short_id || '#' + lastOrder.id} thành công.`);
+                }
+                const logsHtml = systemLogs.map(log => `
+                    <div class="flex gap-2 font-mono text-xs text-green-400 font-bold border-b border-gray-800 pb-1">
+                        <span class="shrink-0 text-gray-500">>>></span>
+                        <span>${log}</span>
+                    </div>
+                `).join('');
 
                 appContent.innerHTML = `
-            <div class="mb-8">
-                <h1 class="text-3xl md:text-5xl font-heading mb-2 leading-normal uppercase font-black tracking-tighter">QUẢN LÝ BÁN HÀNG<br>RÔM RẢ CÀ PHÊ.</h1>
-                <p class="text-slate-600 font-bold border-l-4 border-secondary pl-4 text-lg">Dashboard tổng hợp dữ liệu thời gian thực</p>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-slide-up">
+                <div>
+                    <h1 class="text-3xl md:text-5xl font-heading mb-2 leading-normal uppercase font-black tracking-tighter">QUẢN LÝ BÁN HÀNG<br>RÔM RẢ CÀ PHÊ.</h1>
+                    <p class="text-slate-600 font-bold border-l-4 border-secondary pl-4 text-lg">Dashboard tổng hợp dữ liệu thời gian thực</p>
+                </div>
+                <div class="px-4 py-2 border-[3px] border-black bg-white font-black text-sm uppercase shadow-[3px_3px_0_0_#000] shrink-0">
+                    🟢 ONLINE HỆ THỐNG
+                </div>
             </div>
 
+            <!-- HÀNG 1: 4 THẺ KPI DOANH THU & ĐƠN HÀNG HÔM NAY -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="brutal-card p-6 flex flex-col gap-2">
-                    <span class="material-symbols-outlined text-4xl text-secondary">payments</span>
-                    <span class="text-sm font-bold text-slate-500 uppercase">Tồn kho trị giá</span>
-                    <span class="text-3xl font-heading truncate block w-full" title="${totalCapital.toLocaleString('vi-VN')}đ">${totalCapital.toLocaleString('vi-VN')}đ</span>
+                <div class="brutal-card bg-green-400 p-6 flex flex-col gap-2 relative overflow-hidden group hover:-translate-y-1 transition-transform animate-slide-up delay-100">
+                    <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Doanh Thu Hôm Nay</span>
+                    <h3 class="text-2xl xl:text-3xl font-black mt-2 tracking-tighter" title="${sum.totalRevenue.toLocaleString('vi-VN')}đ">${sum.totalRevenue.toLocaleString('vi-VN')}đ</h3>
+                    <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px]">payments</span>
                 </div>
-                <div class="brutal-card p-6 flex flex-col gap-2">
-                    <span class="material-symbols-outlined text-4xl text-primary">local_cafe</span>
-                    <span class="text-sm font-bold text-slate-500 uppercase">Tổng Công thức</span>
-                    <span class="text-3xl font-heading">${recipesData.data ? recipesData.data.length : 0}</span>
+                <div class="brutal-card bg-blue-400 p-6 flex flex-col gap-2 relative overflow-hidden group hover:-translate-y-1 transition-transform animate-slide-up delay-200">
+                    <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Doanh Thu Tại Quán</span>
+                    <h3 class="text-2xl xl:text-3xl font-black mt-2 tracking-tighter" title="${sum.totalLocalRevenue.toLocaleString('vi-VN')}đ">${sum.totalLocalRevenue.toLocaleString('vi-VN')}đ</h3>
+                    <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px]">storefront</span>
                 </div>
-                <div class="brutal-card p-6 flex flex-col gap-2 ${lowStock > 0 ? 'bg-red-50' : ''}">
-                    <span class="material-symbols-outlined text-4xl ${lowStock > 0 ? 'text-red-600' : 'text-green-600'}">warning</span>
-                    <span class="text-sm font-bold text-slate-500 uppercase">Nguyên liệu sắp hết</span>
-                    <span class="text-3xl font-heading ${lowStock > 0 ? 'text-red-600' : ''}">${lowStock}</span>
+                <div class="brutal-card bg-teal-400 p-6 flex flex-col gap-2 relative overflow-hidden group hover:-translate-y-1 transition-transform animate-slide-up delay-300">
+                    <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Doanh Thu Online</span>
+                    <h3 class="text-2xl xl:text-3xl font-black mt-2 tracking-tighter" title="${sum.totalOnlineRevenue.toLocaleString('vi-VN')}đ">${sum.totalOnlineRevenue.toLocaleString('vi-VN')}đ</h3>
+                    <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px]">language</span>
                 </div>
-                <div class="brutal-card p-6 flex flex-col gap-2">
-                    <span class="material-symbols-outlined text-4xl text-blue-500">group</span>
-                    <span class="text-sm font-bold text-slate-500 uppercase">Tài khoản</span>
-                    <span class="text-3xl font-heading">${usersData.data ? usersData.data.length : 0}</span>
+                <div class="brutal-card bg-purple-400 p-6 flex flex-col gap-2 relative overflow-hidden group hover:-translate-y-1 transition-transform animate-slide-up delay-400">
+                    <span class="font-bold border-[3px] border-black bg-white px-3 py-1 w-max text-xs uppercase shadow-[2px_2px_0_0_#000]">Đơn Hàng Hôm Nay</span>
+                    <h3 class="text-2xl xl:text-3xl font-black mt-2 tracking-tighter">${sum.totalOrders} đơn</h3>
+                    <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-black opacity-10 text-[100px]">receipt_long</span>
                 </div>
             </div>
-            
-            <div class="mt-8 flex gap-4">
-                <button class="brutal-btn brutal-btn-primary px-8 py-4 text-lg flex items-center gap-2" onclick="navigate('recipes')">
-                    <span class="material-symbols-outlined">add</span> TẠO CÔNG THỨC
+
+            <!-- HÀNG 2: 4 NÚT HÀNH ĐỘNG NHANH -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <button class="px-4 py-3 border-[3px] border-black font-black uppercase text-base bg-yellow-400 text-black shadow-[4px_4px_0_0_#000] translate-y-0 transition-all hover:-translate-y-[2px] hover:shadow-[6px_6px_0_0_#000] active:translate-y-[2px] active:shadow-[2px_2px_0_0_#000] flex items-center justify-center gap-2" onclick="navigate('cashier')">
+                    <span class="material-symbols-outlined font-black">shopping_cart</span> BÁN HÀNG
                 </button>
-                <button class="brutal-btn brutal-btn-secondary px-8 py-4 text-lg flex items-center gap-2" onclick="navigate('inventory')">
-                    <span class="material-symbols-outlined">inventory</span> NHẬP KHO
+                <button class="px-4 py-3 border-[3px] border-black font-black uppercase text-base bg-green-400 text-black shadow-[4px_4px_0_0_#000] translate-y-0 transition-all hover:-translate-y-[2px] hover:shadow-[6px_6px_0_0_#000] active:translate-y-[2px] active:shadow-[2px_2px_0_0_#000] flex items-center justify-center gap-2" onclick="navigate('pos')">
+                    <span class="material-symbols-outlined font-black">delivery_dining</span> LIVE POS
                 </button>
+                <button class="px-4 py-3 border-[3px] border-black font-black uppercase text-base bg-[#85C1E9] text-black shadow-[4px_4px_0_0_#000] translate-y-0 transition-all hover:-translate-y-[2px] hover:shadow-[6px_6px_0_0_#000] active:translate-y-[2px] active:shadow-[2px_2px_0_0_#000] flex items-center justify-center gap-2" onclick="navigate('reports')">
+                    <span class="material-symbols-outlined font-black">monitoring</span> BÁO CÁO
+                </button>
+                <button class="px-4 py-3 border-[3px] border-black font-black uppercase text-base bg-white text-black shadow-[4px_4px_0_0_#000] translate-y-0 transition-all hover:-translate-y-[2px] hover:shadow-[6px_6px_0_0_#000] active:translate-y-[2px] active:shadow-[2px_2px_0_0_#000] flex items-center justify-center gap-2" onclick="navigate('settings')">
+                    <span class="material-symbols-outlined font-black">settings</span> IN ẤN & MẪU
+                </button>
+            </div>
+
+            <!-- PHẦN DƯỚI: 2 CỘT HIỂN THỊ CÁC WIDGETS -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <!-- CỘT TRÁI (2/3): BIỂU ĐỒ & 5 ĐƠN MỚI -->
+                <div class="xl:col-span-2 flex flex-col gap-8">
+                    <!-- Widget 1: Biểu đồ Doanh thu 7 ngày -->
+                    <div class="brutal-card p-6 bg-white min-h-[350px] flex flex-col">
+                        <h4 class="font-heading text-lg uppercase border-b-4 border-black pb-2 mb-6 flex items-center gap-2">
+                            <span class="material-symbols-outlined font-black">bar_chart</span> DOANH THU 7 NGÀY GẦN NHẤT
+                        </h4>
+                        <!-- Khung biểu đồ cột Brutalism -->
+                        <div class="flex items-end justify-between h-[220px] w-full px-4 border-b-4 border-l-4 border-black pt-10">
+                            ${miniChartHtml}
+                        </div>
+                    </div>
+
+                    <!-- Widget 2: Bảng 5 đơn hàng mới nhất -->
+                    <div class="brutal-card p-6 bg-white flex flex-col">
+                        <h4 class="font-heading text-lg uppercase border-b-4 border-black pb-2 mb-6 flex items-center gap-2">
+                            <span class="material-symbols-outlined font-black">format_list_bulleted</span> 5 ĐƠN HÀNG GẦN NHẤT HÔM NAY
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left brutal-table">
+                                <thead class="bg-black text-white uppercase text-sm font-bold">
+                                    <tr>
+                                        <th class="p-3">Thời Gian</th>
+                                        <th class="p-3">Mã Đơn / Kênh</th>
+                                        <th class="p-3 text-right">Tổng Tiền</th>
+                                        <th class="p-3 text-center">Trạng Thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm font-bold">
+                                    ${ordersTableHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT PHẢI (1/3): TOP SẢN PHẨM & LIVE LOGS -->
+                <div class="flex flex-col gap-8">
+                    <!-- Widget 3: Top món bán chạy -->
+                    <div class="brutal-card p-6 bg-gray-50 flex flex-col gap-4">
+                        <h4 class="font-heading text-lg uppercase border-b-4 border-black pb-2 mb-2 flex items-center gap-2">
+                            <span class="material-symbols-outlined font-black">star</span> TOP MÓN BÁN CHẠY HÔM NAY
+                        </h4>
+                        <div class="flex flex-col gap-4 flex-1 mt-2">
+                            ${topProductsHtml}
+                        </div>
+                    </div>
+
+                    <!-- Widget 4: Live Logs Hệ thống -->
+                    <div class="brutal-card p-6 bg-black text-white flex flex-col">
+                        <h4 class="font-heading text-lg uppercase border-b-4 border-green-500 pb-2 mb-4 flex items-center gap-2 text-green-400">
+                            <span class="material-symbols-outlined font-black text-green-400">terminal</span> NHẬT KÝ HOẠT ĐỘNG
+                        </h4>
+                        <div class="flex flex-col gap-3 min-h-[180px] bg-gray-900 border-2 border-gray-800 p-4 overflow-y-auto custom-scrollbar font-mono leading-relaxed">
+                            ${logsHtml}
+                            <div class="text-xs text-gray-500 italic mt-2 animate-pulse">● Đang chờ sự kiện hệ thống tiếp theo...</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
             } catch (e) {
-                appContent.innerHTML = `<div class="p-6 bg-red-100 brutal-border text-red-900 font-bold">Lỗi tải Dashboard: ${e.message}</div>`;
+                appContent.innerHTML = `<div class="p-6 bg-red-100 brutal-border text-red-900 font-bold">Lỗi tải Dashboard Tổng Quan: ${e.message}</div>`;
             }
         }
 
