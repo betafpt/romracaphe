@@ -1003,7 +1003,7 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                     totalDiscount: discountAmount > 0 ? discountAmount : (dbPayload.totalDiscount || 0),
                     times: rawOrder.times || dbPayload.times || null,
                     createdAt: rawOrder.times ? rawOrder.times.createdAt : (dbPayload.createdAt || null),
-                    items: isDetail || items.length > 0 ? items.map(i => {
+                    items: isDetail || !dbPayload.items || dbPayload.items.length === 0 ? items.map(i => {
                         let size = '-';
                         if (i.note && i.note.includes('Size')) {
                             const match = i.note.match(/Size\s*[^:]*:\s*([a-zA-Z0-9]+)/i) || i.note.match(/Size:?\s*([a-zA-Z0-9]+)/i);
@@ -1017,7 +1017,7 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                             size: size,
                             note: i.note
                         };
-                    }) : (dbPayload.items || [])
+                    }) : dbPayload.items
                 };
 
                 // CHỈ cập nhật lại món ăn chi tiết nếu là API Chi tiết (isDetail === true)
