@@ -804,7 +804,7 @@ function getGrabRealtimeStatus(order) {
 // Hàm bóc tách đơn hàng thích ứng từ JSON API của Grab (tương thích cả đơn đang chạy và đơn lịch sử)
 function parseGrabOrder(order) {
     const shortId = order.shortOrderNumber || order.shortId || order.displayId || order.displayID || order.id || order.ID || 'GF-UNKNOWN';
-    const bookingId = order.orderID || order.bookingID || order.bookingCode || order.id || order.ID || shortId;
+    const bookingId = order.orderID || order.id || order.ID || order.bookingID || order.bookingCode || shortId;
     const bookingCode = order.bookingCode || order.bookingID || bookingId;
     
     // Tên và SĐT khách hàng
@@ -994,13 +994,24 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                     finalDriverPhone = dbPayload.driverPhone;
                 }
 
+                // Quyết định Tên khách hàng: Không ghi đè "Khách Grab" hoặc "***" lên tên thật đã có
+                let finalCustomerName = orderData.customerName || customerName;
+                if (!isDetail && dbPayload.customerName && dbPayload.customerName !== 'Khách Grab' && dbPayload.customerName !== '***' && (finalCustomerName === 'Khách Grab' || finalCustomerName === '***')) {
+                    finalCustomerName = dbPayload.customerName;
+                }
+
+                let finalEaterName = orderData.eaterName || customerName;
+                if (!isDetail && dbPayload.eaterName && dbPayload.eaterName !== 'Khách Grab' && dbPayload.eaterName !== '***' && (finalEaterName === 'Khách Grab' || finalEaterName === '***')) {
+                    finalEaterName = dbPayload.eaterName;
+                }
+
                 const updatedRawPayload = {
                     orderID: bookingId,
                     shortOrderNumber: shortId,
                     bookingCode: orderData.bookingCode || bookingId,
-                    customerName: orderData.customerName || customerName,
+                    customerName: finalCustomerName,
                     customerAddress: customerAddress,
-                    eaterName: orderData.eaterName || customerName,
+                    eaterName: finalEaterName,
                     eaterPhone: finalEaterPhone,
                     driverName: orderData.driverName || dbPayload.driverName || '',
                     driverPhone: finalDriverPhone,
@@ -1095,6 +1106,11 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
             }
 
             // Đơn mới chưa tồn tại -> Chèn vào database
+            if (!items || items.length === 0) {
+                addToLogs(`ℹ️ Bỏ qua chèn đơn mới ${shortId} từ API tóm tắt vì không có chi tiết món ăn.`);
+                continue;
+            }
+            
             addToLogs(`📣 PHÁT HIỆN ĐƠN MỚI CỦA GRABFOOD (API): ${shortId}! Đang chèn vào database...`);
             
             const rawPayload = {
@@ -1307,6 +1323,8 @@ function setupPageResponseListener(pageInstance) {
                                 ordersArray = json.dailyReport.orders;
                             } else if (json.dailyReport && Array.isArray(json.dailyReport)) {
                                 ordersArray = json.dailyReport;
+                            } else if (json.statements && Array.isArray(json.statements)) {
+                                ordersArray = json.statements;
                             }
                             
                             if (ordersArray.length > 0) {

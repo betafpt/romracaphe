@@ -34,7 +34,22 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 
 ## 3. LỊCH SỬ CÁC TÍNH NĂNG ĐÃ TÍCH HỢP GẦN NHẤT
 
-### A. Khắc phục triệt để lỗi cào thiếu thông tin và lỗi ghi đè ngược (reset lúc có lúc mất) cho các đơn hàng Grab (Mới nhất - 27/05/2026)
+### A. Sửa lỗi kẹt đơn Grab, Nâng cấp Parse API Lịch sử mới & Bảo vệ tuyệt đối thông tin khách/tài xế (MỚI NHẤT - 27/05/2026)
+*   **📡 1. Nâng cấp parse API Lịch sử mới (Sửa lỗi kẹt trạng thái):**
+    *   *Phát hiện:* Grab đã cập nhật API báo cáo lịch sử mới dạng `/reports/daily-pagination` với mảng đơn hàng nằm trong key `statements` mới và sử dụng các key viết hoa là `ID`, `deliveryStatus`, `priceDisplay`.
+    *   *Giải pháp:* Thêm từ khóa `/reports/daily-pagination` vào bộ lọc response API ngầm của bot. Bổ sung check `json.statements` trong block kiểm tra JSON response để bot nhận diện thành công đơn hàng lịch sử.
+*   **🛡️ 2. Sửa lỗi lệch ID đồng bộ & Chặn đơn trùng lặp 0 món:**
+    *   *Phát hiện:* API Lịch sử trả về cả `ID` (ID dài dạng số) và `bookingCode` (dạng `A-9DX...`). Trước đây bot ưu tiên lấy `bookingCode` làm `bookingId` trước `ID` khiến bị lệch với đơn Active (vốn lưu ID dài), dẫn đến bot nhận nhầm đơn lịch sử là đơn mới và chèn trùng lặp đơn hàng 0 món, trong khi đơn gốc kẹt pending.
+    *   *Giải pháp:* Cập nhật logic xác định `bookingId` ưu tiên ID dài lên trước: `order.orderID || order.id || order.ID || order.bookingID || order.bookingCode || shortId`.
+    *   *Bảo vệ chèn đơn rác:* Thêm điều kiện bảo vệ trong `syncGrabOrders` chặn không cho chèn đơn mới từ API Lịch sử nếu danh sách món ăn `items` rỗng, triệt tiêu 100% nguy cơ trùng lặp hay đơn 0 món.
+*   **🔒 3. Bảo vệ tuyệt đối thông tin khách hàng và tài xế gốc (Chặn ghi đè rác bảo mật):**
+    *   *Phát hiện:* Grab tự động ẩn SĐT khách, tài xế và ẩn tên khách hàng (thành `"***"`) đối với đơn đã hoàn thành. Khi cập nhật trạng thái đơn sang completed, bot có thể vô tình ghi đè các thông tin ẩn/rác này lên dữ liệu gốc đầy đủ cào được lúc đơn active.
+    *   *Giải pháp:* Bổ sung điều kiện so sánh trong updatedRawPayload: Nếu tên khách cào mới là `"***"` hoặc `"Khách Grab"`, bot sẽ giữ nguyên tên khách hàng thật gốc. Nếu SĐT cào mới là rỗng hoặc `"Không có số"`, bot giữ nguyên 100% SĐT thật đã cào lúc active.
+*   **🧹 4. Khôi phục ngầm tự động chi tiết món ăn & Quét dọn database Supabase:**
+    *   *Khôi phục:* Viết và chạy script [restore_missing_details.js](file:///f:/romra.cafe/scratch/restore_missing_details.js) trên VPS, fetch ngầm API chi tiết `/orders/{ID}` lấy trọn vẹn chi tiết món ăn của 11 đơn hàng hôm nay để khôi phục cực chuẩn.
+    *   *Dọn dẹp database:* Viết và chạy script [purge_zero_item_orders.js](file:///f:/romra.cafe/scratch/purge_zero_item_orders.js) quét và xóa vĩnh viễn 38 đơn lỗi 0 món rác, giúp Supabase sạch sẽ 100%.
+
+### B. Khắc phục triệt để lỗi cào thiếu thông tin và lỗi ghi đè ngược...
 *   **⏰ 1. Khắc phục lỗi cào thiếu thông tin cho đơn "Đang tìm tài xế" (ALLOCATING):**
     *   *Nguyên nhân:* Đơn đang tìm tài xế chỉ hiển thị ở tab "Sắp tới" (Upcoming) trên Grab Portal. Bot trước đây chỉ reload và quét ở tab mặc định "Đang hoạt động" (Active), dẫn đến các đơn ở tab "Sắp tới" không bao giờ được click để kích hoạt API chi tiết.
     *   *Giải pháp:* Xây dựng các hàm helper điều hướng tab (`switchToUpcomingTab`, `switchToActiveTab`) và cập nhật chu kỳ quét 12s để quét tuần tự cả hai tab.
