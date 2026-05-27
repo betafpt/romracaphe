@@ -1148,6 +1148,9 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
             processedCount++;
 
             // Chèn các món ăn chi tiết
+            let calculatedTotal = 0;
+            const updatedPayloadItems = [];
+
             for (const item of items) {
                 try {
                     // Bóc tách size từ note của món ăn để so khớp chính xác trong recipes
@@ -1159,22 +1162,35 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                         }
                     }
 
-                    // Lấy tất cả các món ăn khớp tên
+                    // Lấy tất cả các món ăn khớp tên (lấy thêm price để áp giá tạm tính)
                     const { data: recipesList, error: recipeErr } = await supabase
                         .from('recipes')
-                        .select('id, size')
+                        .select('id, size, price')
                         .eq('name', item.name);
 
                     let recipeId = null;
+                    let recipePrice = 0;
                     if (!recipeErr && recipesList && recipesList.length > 0) {
-                        if (recipesList.length === 1) {
-                            recipeId = recipesList[0].id;
-                        } else {
-                            // Nếu có nhiều hơn 1 size, tìm size khớp chính xác
-                            const matched = recipesList.find(r => String(r.size || '').trim().toUpperCase() === itemSize);
-                            recipeId = matched ? matched.id : recipesList[0].id; // Fallback về món đầu tiên
+                        let matched = recipesList[0];
+                        if (recipesList.length > 1) {
+                            const found = recipesList.find(r => String(r.size || '').trim().toUpperCase() === itemSize);
+                            if (found) matched = found;
                         }
+                        recipeId = matched.id;
+                        recipePrice = parseFloat(matched.price) || 0;
                     }
+
+                    // Áp giá thực tế từ thực đơn nếu giá cào từ API danh sách bằng 0
+                    const finalPrice = item.price > 0 ? item.price : (recipePrice || 35000);
+                    calculatedTotal += finalPrice * item.quantity;
+
+                    updatedPayloadItems.push({
+                        name: item.name,
+                        quantity: item.quantity,
+                        size: itemSize !== '-' ? itemSize : (recipesList && recipesList[0] ? recipesList[0].size || '-' : '-'),
+                        note: item.note || '',
+                        price: finalPrice
+                    });
 
                     await supabase
                         .from('order_items')
@@ -1182,12 +1198,37 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                             order_id: insertedOrder.id,
                             recipe_id: recipeId,
                             quantity: item.quantity,
-                            price: item.price
+                            price: finalPrice
                         });
                 } catch (itemErr) {
                     addToLogs(`❌ Lỗi khi chèn món ${item.name} của đơn ${shortId}: ${itemErr.message}`);
                 }
             }
+
+            // Nếu đơn cào ban đầu bị 0đ, tự động cập nhật lại tổng tiền thực tế từ thực đơn recipes
+            if (totalAmount === 0 && calculatedTotal > 0) {
+                addToLogs(`⚡ [Auto Price Recovery] Tính toán lại tổng tiền cho đơn mới ${shortId}: ${calculatedTotal}đ. Đang cập nhật database...`);
+                
+                const finalRawPayload = {
+                    ...rawPayload,
+                    subtotal: calculatedTotal,
+                    items: updatedPayloadItems
+                };
+
+                const { error: recoveryErr } = await supabase
+                    .from('orders')
+                    .update({
+                        total_amount: calculatedTotal,
+                        raw_payload: finalRawPayload,
+                        note: JSON.stringify(finalRawPayload)
+                    })
+                    .eq('id', insertedOrder.id);
+                
+                if (recoveryErr) {
+                    addToLogs(`❌ Lỗi cập nhật giá tự động cho đơn ${shortId}: ${recoveryErr.message}`);
+                }
+            }
+
             addToLogs(`Đơn hàng ${shortId} đã sẵn sàng trên Web POS.`);
 
         } catch (orderErr) {
