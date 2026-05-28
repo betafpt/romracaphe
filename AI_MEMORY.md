@@ -34,7 +34,14 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 
 ## 3. LỊCH SỬ CÁC TÍNH NĂNG ĐÃ TÍCH HỢP GẦN NHẤT
 
-### A. Nâng cấp Báo Cáo Doanh Thu, POS Live (Tab Switcher 3D & Date Picker) và Tự động dọn dẹp Database 30 ngày (MỚI NHẤT - 27/05/2026)
+### A. Nâng cấp Đồng bộ nền Lịch sử Grab Bot bằng Fetch API siêu nhẹ (MỚI NHẤT - 28/05/2026)
+*   **📡 1. Loại bỏ kẹt đơn Grab kịch trần (Giải quyết treo đơn `pending`):**
+    *   *Vấn đề:* Trình duyệt Playwright chuyển đổi tab "Lịch sử" vật lý trên UI thỉnh thoảng bị popup Grab Portal chặn click hoặc tiêu hao quá nhiều RAM/CPU trên VPS 1GB gây treo luồng cào lịch sử, khiến các đơn đã giao thành công vẫn bị treo ở cột "Chờ xử lý" trên POS Live.
+    *   *Giải pháp tối ưu:* Thay thế cơ chế click tab UI bằng **Fetch API ngầm trực tiếp** sử dụng Session Cookies trích xuất thời gian thực từ Playwright.
+    *   *Tự động hóa hoàn toàn:* Trích xuất linh hoạt `merchantID` từ các response API Grab ngầm của hệ thống để đồng bộ nền.
+    *   *Chính xác 100%:* Sắp xếp lại thứ tự ưu tiên các trường trạng thái đơn hàng (`deliveryStatus` trước `status`), đảm bảo tự động đẩy trôi đơn hàng Grab đã giao/hủy sang cột "Đơn đã hoàn tất" bên phải chỉ sau tối đa 1 phút mà không cần nhân viên click tay.
+
+### B. Nâng cấp Báo Cáo Doanh Thu, POS Live (Tab Switcher 3D & Date Picker) và Tự động dọn dẹp Database 30 ngày (27/05/2026)
 *   **📊 1. Nâng cấp Báo Cáo Phân Tách Doanh Thu Local vs Online & Loại Bỏ Chi Phí:**
     *   *Backend API:* Nâng cấp API `/api/reports/dashboard` truy vấn trường `platform` từ Supabase Database. Phân loại đơn online (`order.platform && order.platform !== 'local'`) và đơn tại quán (`!order.platform || order.platform === 'local'`).
     *   *Tính toán số liệu:* Phân tách rõ ràng Doanh thu gộp, Doanh thu Local, Doanh thu Online, Số đơn hàng Local, Số đơn hàng Online.

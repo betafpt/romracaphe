@@ -773,7 +773,7 @@ async function startTelegramBot() {
 }
 
 function getGrabRealtimeStatus(order) {
-    const state = String(order.state || order.orderState || order.status || order.deliveryStatus || '').toUpperCase();
+    const state = String(order.state || order.orderState || order.deliveryStatus || order.status || '').toUpperCase();
     const delivery = String(order.deliveryTaskpoolStatus || '').toUpperCase();
 
     if (state === 'CANCELLED') return 'Đã hủy đơn';
@@ -864,7 +864,7 @@ function parseGrabOrder(order) {
     
     // Trạng thái đơn hàng
     let status = 'pending'; // mặc định
-    const orderState = order.orderState || order.status || order.state || order.deliveryStatus || '';
+    const orderState = order.orderState || order.state || order.deliveryStatus || order.status || '';
     const stateStr = String(orderState).toLowerCase();
     if (stateStr.includes('preparing') || stateStr.includes('upcoming') || stateStr.includes('accepted')) {
         status = 'pending';
@@ -1295,6 +1295,13 @@ function setupPageResponseListener(pageInstance) {
             const url = response.url();
             const status = response.status();
             
+            // Tự động trích xuất merchantID từ URL của các API Grab
+            const merchantMatch = url.match(/merchantID=([^&]+)/i) || url.match(/\/merchant\/([a-zA-Z0-9_-]+)/i);
+            if (merchantMatch && merchantMatch[1] && !global.merchantID) {
+                global.merchantID = merchantMatch[1];
+                addToLogs(`🎯 [API Intercept] Tự động ghi nhận Merchant ID: ${global.merchantID}`);
+            }
+            
             // Debug mọi request API Grab nhận được để phát hiện chính xác URL ở local
             if (url.includes('api.grab.com') || url.includes('merchant') || url.includes('orders') || url.includes('paginator')) {
                 addToLogs(`🔍 [API DEBUG] Bắt URL: ${url.substring(0, 150)}... | Status: ${status}`);
@@ -1637,77 +1644,45 @@ async function executeBotCommand(cmd, page) {
     }
 }
 
-// Hàm tự động chuyển tab Lịch sử ngầm để trigger gọi API lịch sử ngày hôm nay
+// Hàm tự động đồng bộ trạng thái đơn hàng từ API Lịch sử Grab ngầm bằng Fetch API siêu nhẹ
 async function triggerHistorySync(page) {
-    addToLogs('🔄 [Realtime Status Sync] Đang chuyển sang tab Lịch sử để đồng bộ trạng thái đơn hàng...');
-    
-    const historyTabSelectors = [
-        'text="Lịch sử đơn hàng"',
-        'text="Lịch sử"',
-        'text="Order History"',
-        'text="History"',
-        'a[href*="history"]',
-        'button:has-text("Lịch sử")',
-        'button:has-text("History")'
-    ];
-    
-    let foundTab = false;
-    for (const selector of historyTabSelectors) {
-        try {
-            const tab = page.locator(selector).filter({ visible: true }).first();
-            if (await tab.count() > 0) {
-                addToLogs(`🔘 Click tab Lịch sử bằng selector: ${selector}`);
-                await tab.click();
-                foundTab = true;
-                break;
+    addToLogs('🔄 [Realtime Status Sync] Bắt đầu đồng bộ trạng thái đơn từ API Lịch sử Grab ngầm...');
+    try {
+        const context = page.context();
+        const cookies = await context.cookies();
+        const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+        
+        // Lấy ngày hôm nay theo múi giờ Việt Nam (GMT+7)
+        const today = new Date();
+        const tzOffset = 7 * 60; // phút
+        const vnTime = new Date(today.getTime() + tzOffset * 60 * 1000);
+        const todayStr = vnTime.toISOString().substring(0, 10);
+        
+        const mId = global.merchantID || '5-C7XTNBEUGLKHHA'; // fallback về ID mặc định của quán
+        const urlHistory = `https://api.grab.com/delvplatformapi/merchant/v1/reports/daily-pagination?states=&startTime=${todayStr}T00:00:00%2B07:00&endTime=${todayStr}T23:59:59%2B07:00&merchantID=${mId}&page=1&size=50`;
+        
+        const response = await fetch(urlHistory, {
+            headers: {
+                'cookie': cookieString,
+                'accept': 'application/json',
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
-        } catch (err) {}
-    }
-
-    if (!foundTab) {
-        // Fallback điều hướng trực tiếp bằng URL nếu không click được tab Lịch sử trên UI
-        addToLogs('⚠️ Không tìm thấy nút tab Lịch sử bằng click. Tiến hành điều hướng trực tiếp qua URL...');
-        try {
-            await page.goto('https://merchant.grab.com/order/history', { waitUntil: 'domcontentloaded', timeout: 30000 });
-            foundTab = true;
-        } catch (gotoErr) {
-            addToLogs(`❌ Điều hướng trực tiếp sang Lịch sử thất bại: ${gotoErr.message}`);
-            return;
+        });
+        
+        if (response.status === 200) {
+            const json = await response.json();
+            const statements = json.statements || [];
+            if (statements.length > 0) {
+                addToLogs(`🔄 [Background History Sync] Tìm thấy ${statements.length} đơn trong Lịch sử hôm nay. Tiến hành đồng bộ...`);
+                await syncGrabOrders(statements, false);
+            } else {
+                addToLogs(`🔄 [Background History Sync] Không tìm thấy đơn hàng nào trong lịch sử hôm nay.`);
+            }
+        } else {
+            addToLogs(`⚠️ [Background History Sync] Gọi API Lịch sử thất bại. Status: ${response.status}`);
         }
-    }
-
-    // Chờ 5 giây để API Lịch sử tải xong và hệ thống tự động bắt API đồng bộ
-    await page.waitForTimeout(5000);
-
-    addToLogs('🔄 [Realtime Status Sync] Đang click quay trở lại tab Đang hoạt động...');
-    const activeTabSelectors = [
-        'text="Đơn hàng đang hoạt động"',
-        'text="Đang hoạt động"',
-        'text="Active orders"',
-        'text="Active"',
-        'button:has-text("Đang hoạt động")',
-        'button:has-text("Active")'
-    ];
-
-    let foundActiveTab = false;
-    for (const selector of activeTabSelectors) {
-        try {
-            const tab = page.locator(selector).filter({ visible: true }).first();
-            if (await tab.count() > 0) {
-                addToLogs(`🔘 Click tab Đang hoạt động bằng selector: ${selector}`);
-                await tab.click();
-                foundActiveTab = true;
-                break;
-            }
-        } catch (err) {}
-    }
-
-    if (!foundActiveTab) {
-        // Fallback quay lại trang Đang hoạt động trực tiếp bằng URL
-        addToLogs('⚠️ Không tìm thấy nút tab Đang hoạt động để quay lại. Đang điều hướng trực tiếp bằng URL...');
-        await page.goto('https://merchant.grab.com/order', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
-    } else {
-        await page.waitForTimeout(2000);
+    } catch (e) {
+        addToLogs(`❌ [Background History Sync] Lỗi đồng bộ ngầm: ${e.message}`);
     }
 }
 
