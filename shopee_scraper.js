@@ -446,7 +446,8 @@ async function initPlaywright() {
     
     try {
         addToLogs('Đang truy cập trang Quản lý Shopee Partner...');
-        await pageInstance.goto('https://partner.shopee.vn/', { waitUntil: 'networkidle', timeout: 60000 });
+        await pageInstance.goto('https://partner.shopee.vn/merchant/order', { waitUntil: 'networkidle', timeout: 20000 }).catch(() => {});
+        await pageInstance.waitForSelector('.dui-tabs-tab, [class*="-tab"], [role="tab"]', { timeout: 15000 }).catch(() => {});
         await pageInstance.waitForTimeout(5000);
         
         if (pageInstance.url().includes('login') || pageInstance.url().includes('account')) {
@@ -455,7 +456,8 @@ async function initPlaywright() {
             if (loginSuccess) {
                 await contextInstance.storageState({ path: STORAGE_STATE });
                 addToLogs('💾 Đã gia hạn session Shopee thành công!');
-                await pageInstance.goto('https://partner.shopee.vn/', { waitUntil: 'networkidle', timeout: 60000 });
+                await pageInstance.goto('https://partner.shopee.vn/merchant/order', { waitUntil: 'networkidle', timeout: 20000 }).catch(() => {});
+                await pageInstance.waitForSelector('.dui-tabs-tab, [class*="-tab"], [role="tab"]', { timeout: 15000 }).catch(() => {});
                 await pageInstance.waitForTimeout(5000);
             } else {
                 throw new Error('Gia hạn session Shopee thất bại');
@@ -527,8 +529,29 @@ async function runScraper() {
                 lastScanTime = new Date().toLocaleTimeString('vi-VN');
                 
                 addToLogs('Đang làm mới trang quản lý Shopee để quét đơn hàng mới...');
-                await page.reload({ waitUntil: 'networkidle' }).catch(() => {});
-                await page.waitForTimeout(5000);
+                await page.reload({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+                await page.waitForSelector('.dui-tabs-tab, [class*="-tab"], [role="tab"]', { timeout: 10000 }).catch(() => {});
+                
+                // Tăng biến đếm chu kỳ
+                scanCycleCount++;
+                
+                // Đồng bộ lịch sử ngầm ở chu kỳ thứ 1 (ngay sau khi restart) và mỗi 15 chu kỳ quét (~ 4 phút)
+                if (scanCycleCount === 1 || scanCycleCount % 15 === 0) {
+                    try {
+                        addToLogs('[Shopee History Sync] Bắt đầu điều hướng sang trang lịch sử...');
+                        
+                        // Chuyển sang tab lịch sử hoàn tất
+                        await page.goto('https://partner.shopee.vn/merchant/order?tab=completed', { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+                        await page.waitForSelector('.dui-tabs-tab, [class*="-tab"], [role="tab"]', { timeout: 10000 }).catch(() => {});
+                        await page.waitForTimeout(6000); // Chờ 6s để API Lịch sử tự động được gọi và sync
+                        
+                        // Quay trở lại trang đơn active chính
+                        await page.goto('https://partner.shopee.vn/merchant/order', { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+                        await page.waitForSelector('.dui-tabs-tab, [class*="-tab"], [role="tab"]', { timeout: 10000 }).catch(() => {});
+                    } catch (historyErr) {
+                        addToLogs('Lỗi đồng bộ lịch sử ngầm Shopee: ' + historyErr.message);
+                    }
+                }
             }
         } catch (e) {
             addToLogs(`❌ Lỗi trong chu kỳ quét đơn: ${e.message}`);

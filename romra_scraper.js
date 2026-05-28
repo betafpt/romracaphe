@@ -773,7 +773,7 @@ async function startTelegramBot() {
 }
 
 function getGrabRealtimeStatus(order) {
-    const state = String(order.state || order.orderState || order.deliveryStatus || order.status || '').toUpperCase();
+    const state = String(order.deliveryStatus || order.state || order.orderState || order.status || '').toUpperCase();
     const delivery = String(order.deliveryTaskpoolStatus || '').toUpperCase();
 
     if (state === 'CANCELLED') return 'Đã hủy đơn';
@@ -864,7 +864,7 @@ function parseGrabOrder(order) {
     
     // Trạng thái đơn hàng
     let status = 'pending'; // mặc định
-    const orderState = order.orderState || order.state || order.deliveryStatus || order.status || '';
+    const orderState = order.deliveryStatus || order.orderState || order.state || order.status || '';
     const stateStr = String(orderState).toLowerCase();
     if (stateStr.includes('preparing') || stateStr.includes('upcoming') || stateStr.includes('accepted')) {
         status = 'pending';
