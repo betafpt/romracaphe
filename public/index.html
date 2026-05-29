@@ -4106,7 +4106,7 @@
                                 const onlineItems = parsed.items || [];
                                 itemsHtml = onlineItems.map((oi, oiIdx) => {
                                     const cleanedNote = oi.note ? oi.note.replace(/^(chọn\s+)?size:\s*[^|]*\|\s*/i, '').replace(/^(chọn\s+)?size\s*[^|]*\|\s*/i, '').trim() : '';
-                                    const noteLines = cleanedNote ? cleanedNote.split(/\s*\|\s*/).map(l => l.trim()).filter(l => l.length > 0) : [];
+                                    const noteLines = (cleanedNote && typeof cleanedNote.split === 'function') ? cleanedNote.split(/\s*\|\s*/).map(l => l.trim()).filter(l => l.length > 0) : [];
                                     const noteLinesHtml = noteLines.map(line => `<div class="pl-2 text-red-600 font-bold">• ${line}</div>`).join('');
                                     return `
                                         <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
@@ -4127,7 +4127,7 @@
                         } else {
                             itemsHtml = (order.order_items || []).map((oi, oiIdx) => {
                                 const cleanedNote = oi.note ? oi.note.replace(/^(chọn\s+)?size:\s*[^|]*\|\s*/i, '').replace(/^(chọn\s+)?size\s*[^|]*\|\s*/i, '').trim() : '';
-                                const noteLines = cleanedNote ? cleanedNote.split(/\s*\|\s*/).map(l => l.trim()).filter(l => l.length > 0) : [];
+                                const noteLines = (cleanedNote && typeof cleanedNote.split === 'function') ? cleanedNote.split(/\s*\|\s*/).map(l => l.trim()).filter(l => l.length > 0) : [];
                                 const noteLinesHtml = noteLines.map(line => `<div class="pl-2 text-red-600 font-bold">• ${line}</div>`).join('');
                                 return `
                                     <div class="flex flex-col border-b-2 border-dashed border-gray-300 pb-1 mb-1 text-left">
