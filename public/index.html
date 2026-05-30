@@ -4256,6 +4256,10 @@
                             }
                         }
                         const timeStr = orderDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                        const dayVal = String(orderDate.getDate()).padStart(2, '0');
+                        const monthVal = String(orderDate.getMonth() + 1).padStart(2, '0');
+                        const yearVal = orderDate.getFullYear();
+                        const dateStr = `${dayVal}/${monthVal}/${yearVal}`;
 
                         // Thiết kế lại Badge Logo sàn Neo-Brutalism siêu premium, rực rỡ và có viền đen dày
                         let appBadge = '';
@@ -4465,7 +4469,7 @@
                                         <span class="bg-yellow-400 text-black border-2 border-black px-2.5 py-1 font-black text-xs uppercase shadow-[2px_2px_0_0_#000] shrink-0 animate-pulse tracking-wide">🛒 ${totalQty} MÓN</span>
                                     </div>
                                     <div class="flex justify-between items-center text-[10px] text-gray-500 border-t border-dashed border-gray-300 pt-1 mt-0.5">
-                                        <span>⏰ Giờ đặt: ${timeStr}</span>
+                                        <span>⏰ Giờ đặt: ${timeStr} - ${dateStr}</span>
                                         <span id="order-toggle-indicator-${order.id}" class="flex items-center gap-0.5 text-black font-extrabold select-none">${isExpanded ? 'Thu gọn <span class="material-symbols-outlined text-xs font-black">unfold_less</span>' : 'Xem chi tiết <span class="material-symbols-outlined text-xs font-black">unfold_more</span>'}</span>
                                     </div>
                                 </div>
@@ -4536,7 +4540,7 @@
                                     </div>
                                     ${isApp ? statusBadgeHtml : ''}
                                 </div>
-                                <span class="font-bold text-xs bg-white border-2 border-black px-1 pb-1 pt-0.5 flex flex-col items-end"><span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>${timeStr}</span>
+                                <span class="font-bold text-xs bg-white border-2 border-black px-1 pb-1 pt-0.5 flex flex-col items-end"><span class="text-[8px] text-gray-500 uppercase leading-none">Giờ đặt</span>${timeStr}<span class="text-[9px] text-gray-500 font-black leading-none mt-1">${dateStr}</span></span>
                             </div>
                             
                             ${isApp ? extraInfoHtml : customerNameHtml}
