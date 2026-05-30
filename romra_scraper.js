@@ -957,7 +957,10 @@ async function fetchOrderDetailActive(bookingId) {
                 if (authToken) {
                     headers['authorization'] = authToken;
                 }
-                const res = await fetch(url, { headers });
+                const res = await fetch(url, { 
+                    headers,
+                    credentials: 'include'
+                });
                 if (res.status === 200) {
                     const json = await res.json();
                     return { success: true, data: json };
@@ -1762,7 +1765,10 @@ async function triggerHistorySync(page) {
                 if (authToken) {
                     headers['authorization'] = authToken;
                 }
-                const res = await fetch(url, { headers });
+                const res = await fetch(url, { 
+                    headers,
+                    credentials: 'include'
+                });
                 if (res.status === 200) {
                     const json = await res.json();
                     return { success: true, status: res.status, data: json };
