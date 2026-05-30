@@ -1,6 +1,6 @@
 # ROMRA CAFE & WORKSPACE - AI SYSTEM CONTEXT
 *(DO NOT DELETE - Tệp này do hệ thống AI tự động sinh ra để ghi nhớ ngữ cảnh dự án khi chuyển nền tảng/máy tính)*
-**Thời gian đồng bộ cuối cùng:** Ngày 27 tháng 5 năm 2026 (Cập nhật lúc 08:50)
+**Thời gian đồng bộ cuối cùng:** Ngày 30 tháng 5 năm 2026 (Cập nhật lúc 16:10)
 
 ## ⚠️ QUY TẮC LÀM VIỆC NGHIÊM NGẶT & TRIẾT LÝ SUPERPOWERS (MỚI NHẤT)
 Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng triết lý phát triển phần mềm **Superpowers** (`obra/superpowers`) nhằm đảm bảo tính kỷ luật và chất lượng kỹ thuật cao nhất:
@@ -34,7 +34,20 @@ Hệ thống AI làm việc trên dự án này bắt buộc phải áp dụng t
 
 ## 3. LỊCH SỬ CÁC TÍNH NĂNG ĐÃ TÍCH HỢP GẦN NHẤT
 
-### A. Nâng cấp Đồng bộ nền Lịch sử Grab Bot bằng Fetch API siêu nhẹ (MỚI NHẤT - 28/05/2026)
+### A. Giải quyết triệt để lỗi kẹt đơn Grab, Thiếu số điện thoại tài xế/khách, Ghi đè rác và Tự động dọn dẹp đơn trùng lặp (MỚI NHẤT - 30/05/2026)
+*   **📡 1. Đánh chặn Bearer Token & Khắc phục triệt để lỗi 401 Unauthorized toàn cục:**
+    *   *Phát hiện:* Grab Portal đã tăng cường bảo mật Cross-Origin/SameSite khiến trình duyệt Chromium của bot chạy ngầm không tự động đính kèm cookie của `merchant.grab.com` sang subdomain `api.grab.com`, gây ra lỗi **401 Unauthorized** khi cào ngầm chi tiết đơn.
+    *   *Giải pháp tối ưu:* Tích hợp logic đánh chặn tự động lấy Bearer Token (`global.grabAuthToken`) từ headers của request Grab Portal (trong sự kiện `page.on('response')`). Cập nhật cả 2 hàm cào ngầm `fetchOrderDetailActive` và `triggerHistorySync` truyền tham số `{ credentials: 'include' }` vào fetch trong `page.evaluate()` để Chromium tự động đính kèm cookie, đồng thời ghim Bearer Token vào Authorization header nếu bắt được, mang lại cơ chế hoạt động kép bền vững 200%.
+*   **📋 2. Khôi phục cưỡng bức toàn bộ đơn trong ngày:**
+    *   *Hành động:* Viết và khởi chạy script [restore_missing_details.js](file:///f:/romra.cafe/scratch/restore_missing_details.js) trực tiếp trên VPS. Tự động kết nối SSH, cào quét toàn bộ API Lịch sử Grab hôm nay, lấy chi tiết 14 đơn hàng, xóa sạch các bản ghi thô lỗi trước đó và chèn lại dữ liệu hoàn chỉnh. 
+    *   *Kết quả thực tế đơn GF-273:* Đã khôi phục thành công 100% SĐT tài xế `Đinh Ngô Anh Hoàng` (`+84 8154 5859 2`), SĐT khách `Isa Bella` (`+84 9050 2037 1`), ghi chú món/size chi tiết và tự động trôi về trạng thái `completed`.
+*   **🧹 3. Tự động dọn dẹp đơn hàng trùng lặp rác (Deduplication):**
+    *   *Phát hiện:* Lỗi race condition và việc sử dụng `.maybeSingle()` trong logic cũ khiến khi có nhiều bản ghi trùng lặp, câu lệnh bị lỗi không thể dọn dẹp bản ghi cũ và liên tục insert bản ghi completed mới (Ví dụ đơn GF-142 bị nhân bản thành 6 bản ghi rác gây kẹt trên POS Live).
+    *   *Giải pháp:* Viết và khởi chạy script [cleanup_duplicate_orders.js](file:///f:/romra.cafe/scratch/cleanup_duplicate_orders.js) tự động quét toàn bộ đơn Grab trong ngày, gom nhóm theo `external_order_id`, chấm điểm chất lượng để giữ lại duy nhất 1 bản ghi `completed` hoàn hảo nhất và xóa sạch các bản ghi pending/completed trùng lặp rác. Database được làm sạch tuyệt đối, cột "Đơn đang xử lý" trên POS Live sạch bóng đơn treo rác.
+*   **🎨 4. Nâng cấp hiển thị Ngày đặt đơn Neo-Brutalism:**
+    *   *Giao diện:* Cải tiến file `public/index.html` tích hợp hiển thị tinh tế Ngày đặt bên cạnh Giờ đặt (ví dụ: `⏰ Giờ đặt: 15:23 - 30/05/2026`) trên cả dạng card thu gọn lẫn card mở rộng, giúp quán dễ dàng theo dõi và đối soát đơn cũ trong ngày.
+
+### B. Nâng cấp Đồng bộ nền Lịch sử Grab Bot bằng Fetch API siêu nhẹ (28/05/2026)
 *   **📡 1. Loại bỏ kẹt đơn Grab kịch trần (Giải quyết treo đơn `pending`):**
     *   *Vấn đề:* Trình duyệt Playwright chuyển đổi tab "Lịch sử" vật lý trên UI thỉnh thoảng bị popup Grab Portal chặn click hoặc tiêu hao quá nhiều RAM/CPU trên VPS 1GB gây treo luồng cào lịch sử, khiến các đơn đã giao thành công vẫn bị treo ở cột "Chờ xử lý" trên POS Live.
     *   *Giải pháp tối ưu:* Thay thế cơ chế click tab UI bằng **Fetch API ngầm trực tiếp** sử dụng Session Cookies trích xuất thời gian thực từ Playwright.
