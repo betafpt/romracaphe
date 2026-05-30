@@ -936,6 +936,8 @@ function parseGrabOrder(order) {
     };
 }
 
+const activeSyncs = new Set(); // Lưu các bookingId đang đồng bộ bất đồng bộ để chống lặp đơn do Race Condition
+
 // Hàm đồng bộ danh sách đơn hàng GrabFood từ JSON vào Supabase
 async function syncGrabOrders(ordersArray, isDetail = false) {
     if (!ordersArray || !Array.isArray(ordersArray) || ordersArray.length === 0) {
@@ -946,9 +948,20 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
     
     let processedCount = 0;
     for (const rawOrder of ordersArray) {
+        let bookingId = '';
         try {
             const orderData = parseGrabOrder(rawOrder);
-            const { shortId, bookingId, customerName, customerAddress, totalAmount, subtotalAmount, discountAmount, status, items } = orderData;
+            bookingId = orderData.bookingId;
+            const { shortId, customerName, customerAddress, totalAmount, subtotalAmount, discountAmount, status, items } = orderData;
+
+            if (!bookingId) continue;
+
+            // Kiểm tra khóa chống trùng lặp song song (Race Condition Lock)
+            if (activeSyncs.has(bookingId)) {
+                addToLogs(`⏳ [Race Condition Protection] Đơn hàng ${shortId} (${bookingId}) đang được xử lý ở luồng khác. Bỏ qua.`);
+                continue;
+            }
+            activeSyncs.add(bookingId);
 
             // Kiểm tra xem đơn hàng đã tồn tại trong database chưa
             const { data: existingOrder, error: checkErr } = await supabase
@@ -1255,6 +1268,10 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
 
         } catch (orderErr) {
             addToLogs(`❌ Lỗi xử lý một đơn hàng trong mảng API: ${orderErr.message}`);
+        } finally {
+            if (bookingId) {
+                activeSyncs.delete(bookingId);
+            }
         }
     }
     if (processedCount > 0) {
@@ -1648,10 +1665,6 @@ async function executeBotCommand(cmd, page) {
 async function triggerHistorySync(page) {
     addToLogs('🔄 [Realtime Status Sync] Bắt đầu đồng bộ trạng thái đơn từ API Lịch sử Grab ngầm...');
     try {
-        const context = page.context();
-        const cookies = await context.cookies();
-        const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-        
         // Lấy ngày hôm nay theo múi giờ Việt Nam (GMT+7)
         const today = new Date();
         const tzOffset = 7 * 60; // phút
@@ -1661,16 +1674,29 @@ async function triggerHistorySync(page) {
         const mId = global.merchantID || '5-C7XTNBEUGLKHHA'; // fallback về ID mặc định của quán
         const urlHistory = `https://api.grab.com/delvplatformapi/merchant/v1/reports/daily-pagination?states=&startTime=${todayStr}T00:00:00%2B07:00&endTime=${todayStr}T23:59:59%2B07:00&merchantID=${mId}&page=1&size=50`;
         
-        const response = await fetch(urlHistory, {
-            headers: {
-                'cookie': cookieString,
-                'accept': 'application/json',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
+        addToLogs(`📡 Đang gọi API Lịch sử qua Chromium: ${urlHistory.substring(0, 100)}...`);
         
-        if (response.status === 200) {
-            const json = await response.json();
+        // Thực thi Fetch ngầm bên trong ngữ cảnh trình duyệt Playwright để bypass Cloudflare 100%
+        const historyResult = await page.evaluate(async (url) => {
+            try {
+                const res = await fetch(url, {
+                    headers: {
+                        'accept': 'application/json',
+                        'content-type': 'application/json'
+                    }
+                });
+                if (res.status === 200) {
+                    const json = await res.json();
+                    return { success: true, status: res.status, data: json };
+                }
+                return { success: false, status: res.status, error: `HTTP error status ${res.status}` };
+            } catch (err) {
+                return { success: false, error: err.message };
+            }
+        }, urlHistory);
+        
+        if (historyResult && historyResult.success) {
+            const json = historyResult.data;
             const statements = json.statements || [];
             if (statements.length > 0) {
                 addToLogs(`🔄 [Background History Sync] Tìm thấy ${statements.length} đơn trong Lịch sử hôm nay. Tiến hành đồng bộ...`);
@@ -1679,7 +1705,7 @@ async function triggerHistorySync(page) {
                 addToLogs(`🔄 [Background History Sync] Không tìm thấy đơn hàng nào trong lịch sử hôm nay.`);
             }
         } else {
-            addToLogs(`⚠️ [Background History Sync] Gọi API Lịch sử thất bại. Status: ${response.status}`);
+            addToLogs(`⚠️ [Background History Sync] Gọi API Lịch sử thất bại. Status: ${historyResult ? historyResult.status : 'N/A'}, Error: ${historyResult ? historyResult.error : 'Unknown'}`);
         }
     } catch (e) {
         addToLogs(`❌ [Background History Sync] Lỗi đồng bộ ngầm: ${e.message}`);
@@ -1762,6 +1788,26 @@ async function switchToActiveTab(page) {
 
 const isLoginMode = process.argv.includes('--login');
 
+// Hàm gửi Heartbeat trạng thái Bot lên database
+async function sendHeartbeat() {
+    try {
+        const { error } = await supabase.from('visitor_logs').insert([{
+            referrer: 'GRAB_BOT_HEARTBEAT',
+            user_agent: `Romra Bot Uptime: ${formatUptime(Math.round(process.uptime()))}`,
+            screen_width: 1280,
+            ip_address: '161.248.147.124',
+            location: 'VPS_HEARTBEAT',
+            device_model: 'Grab Bot'
+        }]);
+        if (error) {
+            console.error('❌ Lỗi gửi heartbeat:', error.message);
+        } else {
+            console.log('💚 [Heartbeat] Đã cập nhật trạng thái bot hoạt động thành công.');
+        }
+    } catch (e) {
+        console.error('❌ Ngoại lệ heartbeat:', e.message);
+    }
+}
 
 async function runScraper() {
     if (isLoginMode) {
@@ -1826,7 +1872,7 @@ async function runScraper() {
     // Khởi chạy Telegram Bot điều khiển 2 chiều ngầm song song
     await startTelegramBot();
 
-    // Chạy quét đơn định kỳ mỗi 20 giây
+    // Chạy quét đơn định kỳ mỗi 12 giây
     setInterval(async () => {
         try {
             const localHour = getVietnamHour();
@@ -1880,6 +1926,37 @@ async function runScraper() {
                     }
                 }
 
+                // Kiểm tra sức khỏe trình duyệt (Self-Healing)
+                let isPageHealthy = false;
+                try {
+                    if (activePage && !activePage.isClosed()) {
+                        await activePage.evaluate(() => window.location.href);
+                        isPageHealthy = true;
+                    }
+                } catch (e) {
+                    addToLogs(`⚠️ Phát hiện trình duyệt bị đơ hoặc lỗi: ${e.message}`);
+                }
+
+                if (!isPageHealthy) {
+                    addToLogs('🚨 [Self-Healing] Phát hiện trình duyệt không phản hồi! Tiến hành giải phóng bộ nhớ và khởi tạo lại trình duyệt mới...');
+                    if (globalBrowser) {
+                        await globalBrowser.close().catch(() => {});
+                        globalBrowser = null;
+                        globalContext = null;
+                        activePage = null;
+                    }
+                    try {
+                        const instances = await initPlaywright();
+                        globalBrowser = instances.browser;
+                        globalContext = instances.context;
+                        activePage = instances.page;
+                        addToLogs('🎉 [Self-Healing] Tự động khôi phục và khởi tạo trình duyệt mới thành công!');
+                    } catch (initErr) {
+                        addToLogs(`❌ [Self-Healing] Khôi phục trình duyệt thất bại: ${initErr.message}. Sẽ thử lại ở chu kỳ tiếp theo.`);
+                        return;
+                    }
+                }
+
                 // Thực hiện quét đơn hàng bình thường
                 const page = activePage;
                 const context = globalContext;
@@ -1925,7 +2002,7 @@ async function runScraper() {
                     addToLogs(`⚡ [Quick Scan] Quét nhanh chu kỳ #${scanCycleCount} (Không reload)...`);
                 }
 
-                                // 1. Quét và click cào đơn ở tab Đang hoạt động hiện tại (mặc định mở sau reload)
+                // 1. Quét và click cào đơn ở tab Đang hoạt động hiện tại (mặc định mở sau reload)
                 addToLogs('👉 Tiến hành quét và cào đơn ở tab Đang hoạt động...');
                 await clickVisibleOrderCards(page);
 
@@ -1955,9 +2032,10 @@ async function runScraper() {
                 // Tăng biến đếm chu kỳ
                 scanCycleCount++;
                 
-                // Cứ mỗi 5 chu kỳ quét (khoảng 1 phút với chu kỳ 12s), tự động chuyển tab Lịch sử ngầm để đồng bộ trạng thái
+                // Cứ mỗi 5 chu kỳ quét (khoảng 1 phút với chu kỳ 12s), tự động chuyển tab Lịch sử ngầm để đồng bộ trạng thái và gửi Heartbeat
                 if (scanCycleCount % 5 === 0) {
                     await triggerHistorySync(page).catch(e => addToLogs(`⚠️ Lỗi khi tự động đồng bộ trạng thái từ Lịch sử: ${e.message}`));
+                    await sendHeartbeat().catch(e => console.error('⚠️ Heartbeat error:', e.message));
                 }
             }
         } catch (e) {
