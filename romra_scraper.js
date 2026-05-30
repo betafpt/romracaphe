@@ -946,15 +946,18 @@ async function fetchOrderDetailActive(bookingId) {
     addToLogs(`📡 [Detail Auto-Fetch] Bắt đầu tự động cào chi tiết cho đơn ${bookingId} ngầm qua Chromium...`);
     try {
         const urlDetail = `https://api.grab.com/food/merchant/v3/orders/${bookingId}`;
+        const authToken = global.grabAuthToken || '';
         
-        const result = await activePage.evaluate(async (url) => {
+        const result = await activePage.evaluate(async ({ url, authToken }) => {
             try {
-                const res = await fetch(url, {
-                    headers: {
-                        'accept': 'application/json',
-                        'content-type': 'application/json'
-                    }
-                });
+                const headers = {
+                    'accept': 'application/json',
+                    'content-type': 'application/json'
+                };
+                if (authToken) {
+                    headers['authorization'] = authToken;
+                }
+                const res = await fetch(url, { headers });
                 if (res.status === 200) {
                     const json = await res.json();
                     return { success: true, data: json };
@@ -963,7 +966,7 @@ async function fetchOrderDetailActive(bookingId) {
             } catch (err) {
                 return { success: false, error: err.message };
             }
-        }, urlDetail);
+        }, { url: urlDetail, authToken });
 
         if (result && result.success && result.data && result.data.order) {
             addToLogs(`🎉 [Detail Auto-Fetch] Cào chi tiết đơn ${bookingId} THÀNH CÔNG! Tiến hành đồng bộ...`);
@@ -1371,6 +1374,19 @@ function setupPageResponseListener(pageInstance) {
             const url = response.url();
             const status = response.status();
             
+            // Tự động bắt Authorization token từ request
+            try {
+                const req = response.request();
+                const reqHeaders = req.headers();
+                const authHeader = reqHeaders['authorization'] || reqHeaders['Authorization'];
+                if (authHeader && authHeader.startsWith('Bearer ') && authHeader !== global.grabAuthToken) {
+                    global.grabAuthToken = authHeader;
+                    addToLogs(`🔑 [API Intercept] Đã bắt và lưu trữ Authorization Bearer Token thành công!`);
+                }
+            } catch (authErr) {
+                // Bỏ qua lỗi nếu request đã bị đóng
+            }
+            
             // Tự động trích xuất merchantID từ URL của các API Grab
             const merchantMatch = url.match(/merchantID=([^&]+)/i) || url.match(/\/merchant\/([a-zA-Z0-9_-]+)/i);
             if (merchantMatch && merchantMatch[1] && !global.merchantID) {
@@ -1734,16 +1750,19 @@ async function triggerHistorySync(page) {
         const urlHistory = `https://api.grab.com/delvplatformapi/merchant/v1/reports/daily-pagination?states=&startTime=${todayStr}T00:00:00%2B07:00&endTime=${todayStr}T23:59:59%2B07:00&merchantID=${mId}&page=1&size=50`;
         
         addToLogs(`📡 Đang gọi API Lịch sử qua Chromium: ${urlHistory.substring(0, 100)}...`);
+        const authToken = global.grabAuthToken || '';
         
         // Thực thi Fetch ngầm bên trong ngữ cảnh trình duyệt Playwright để bypass Cloudflare 100%
-        const historyResult = await page.evaluate(async (url) => {
+        const historyResult = await page.evaluate(async ({ url, authToken }) => {
             try {
-                const res = await fetch(url, {
-                    headers: {
-                        'accept': 'application/json',
-                        'content-type': 'application/json'
-                    }
-                });
+                const headers = {
+                    'accept': 'application/json',
+                    'content-type': 'application/json'
+                };
+                if (authToken) {
+                    headers['authorization'] = authToken;
+                }
+                const res = await fetch(url, { headers });
                 if (res.status === 200) {
                     const json = await res.json();
                     return { success: true, status: res.status, data: json };
@@ -1752,7 +1771,7 @@ async function triggerHistorySync(page) {
             } catch (err) {
                 return { success: false, error: err.message };
             }
-        }, urlHistory);
+        }, { url: urlHistory, authToken });
         
         if (historyResult && historyResult.success) {
             const json = historyResult.data;
