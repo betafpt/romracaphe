@@ -936,6 +936,48 @@ function parseGrabOrder(order) {
     };
 }
 
+// Hàm tự động gọi API chi tiết ngầm qua Chromium bypass click UI
+async function fetchOrderDetailActive(bookingId) {
+    if (!bookingId || !activePage) return null;
+    
+    // Chỉ fetch nếu bookingId hợp lệ (không phải shortId hay rỗng)
+    if (bookingId.length < 10) return null;
+
+    addToLogs(`📡 [Detail Auto-Fetch] Bắt đầu tự động cào chi tiết cho đơn ${bookingId} ngầm qua Chromium...`);
+    try {
+        const urlDetail = `https://api.grab.com/food/merchant/v3/orders/${bookingId}`;
+        
+        const result = await activePage.evaluate(async (url) => {
+            try {
+                const res = await fetch(url, {
+                    headers: {
+                        'accept': 'application/json',
+                        'content-type': 'application/json'
+                    }
+                });
+                if (res.status === 200) {
+                    const json = await res.json();
+                    return { success: true, data: json };
+                }
+                return { success: false, status: res.status, error: `HTTP status ${res.status}` };
+            } catch (err) {
+                return { success: false, error: err.message };
+            }
+        }, urlDetail);
+
+        if (result && result.success && result.data && result.data.order) {
+            addToLogs(`🎉 [Detail Auto-Fetch] Cào chi tiết đơn ${bookingId} THÀNH CÔNG! Tiến hành đồng bộ...`);
+            await syncGrabOrders([result.data.order], true); // sync với isDetail = true
+            return result.data.order;
+        } else {
+            addToLogs(`⚠️ [Detail Auto-Fetch] Cào chi tiết đơn ${bookingId} thất bại: ${result ? result.error || ('Status: ' + result.status) : 'Unknown error'}`);
+        }
+    } catch (e) {
+        addToLogs(`❌ [Detail Auto-Fetch] Lỗi cào chi tiết cho đơn ${bookingId}: ${e.message}`);
+    }
+    return null;
+}
+
 const activeSyncs = new Set(); // Lưu các bookingId đang đồng bộ bất đồng bộ để chống lặp đơn do Race Condition
 
 // Hàm đồng bộ danh sách đơn hàng GrabFood từ JSON vào Supabase
@@ -988,6 +1030,16 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
                 
                 const dbTotal = dbOrder ? parseFloat(dbOrder.total_amount) : 0;
                 const dbPayload = dbOrder?.raw_payload || {};
+
+                // Tự động khôi phục nếu đơn đã tồn tại trong DB nhưng bị thiếu chi tiết (SĐT = 'Không có số' hoặc note/items rỗng)
+                const isMissingDetails = !dbPayload.eaterPhone || dbPayload.eaterPhone === 'Không có số' || !dbPayload.items || dbPayload.items.some(i => i.note === undefined || i.note === '');
+                
+                if (isMissingDetails && !isDetail) {
+                    addToLogs(`💡 Phát hiện đơn đã tồn tại ${shortId} nhưng thiếu thông tin chi tiết (như đơn GF-678). Kích hoạt cào chi tiết tự động ngầm...`);
+                    fetchOrderDetailActive(bookingId).catch(err => {
+                        console.error(`Lỗi cào chi tiết tự động cho đơn tồn tại ${shortId}:`, err.message);
+                    });
+                }
                 
                 // Quyết định số tiền cập nhật: Không ghi đè 0 lên số tiền thật đã có
                 let finalTotal = totalAmount;
@@ -1265,6 +1317,13 @@ async function syncGrabOrders(ordersArray, isDetail = false) {
             }
 
             addToLogs(`Đơn hàng ${shortId} đã sẵn sàng trên Web POS.`);
+
+            // Sau khi chèn đơn mới thành công từ API danh sách sơ sài, lập tức gọi fetch detail ngầm để bổ sung SĐT và ghi chú món!
+            if (!isDetail) {
+                fetchOrderDetailActive(bookingId).catch(err => {
+                    console.error(`Lỗi gọi chi tiết tự động cho đơn hàng mới ${shortId}:`, err.message);
+                });
+            }
 
         } catch (orderErr) {
             addToLogs(`❌ Lỗi xử lý một đơn hàng trong mảng API: ${orderErr.message}`);
